@@ -17,7 +17,9 @@ class BaseLayout extends StatelessWidget {
 AppBar appBar(){
   return AppBar(automaticallyImplyLeading: false,
     actions:[
-      Row(textDirection: TextDirection.rtl, children:[addFormMenu(), linkExternalMenu()])
+      Expanded(child: Row( mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.spaceEvenly, textDirection: TextDirection.rtl, 
+      children:[addFormMenu(), linkExternalMenu()])
+      )
     ]
   );
 }
@@ -95,13 +97,58 @@ BottomAppBar bottomAppBar() {
 
 Drawer slideOutMenu(){
   return Drawer(
-        child: ListView(
-          padding: EdgeInsets.only(top:100),
+        child: Column(
           children:[
-              ListTile(
-            leading: Icon(Icons.input),
-            title: Text('Welcome'),
-            onTap: () => {},
+            Expanded(
+              child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
+              children: [
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/schedule_icon.svg', height: 50, width:50),
+                      title: Text('Schedule', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                      ),
+
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/medications_icon.svg', height: 50, width:50),
+                      title: Text('Medications', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                    ),
+
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/reminders_icon.svg', height: 50, width:50),
+                      title: Text('Reminders', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                    ),
+
+                    
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/education_icon.svg', height: 50, width:50),
+                      title: Text('Education', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                    ),
+
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/aim_icon.svg', height: 50, width:50),
+                      title: Text('Aim', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                    ), 
+
+                    
+                    ListTile(
+                      dense: true,
+                      leading: SvgPicture.asset('assets/icons/progress+tracking_icon.svg', height: 50, width:50),
+                      title: Text('Progress & Tracking', style: TextStyle(fontSize: 24)),
+                      onTap: () => {},
+                    )
+
+                  ]
+              )
             )
           ]
         )
