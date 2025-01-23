@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1063977302659",
+    "project_id": "eyedrop-adherence-app",
+    "storage_bucket": "eyedrop-adherence-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1063977302659:android:ebff254039dafe7817f9b6",
+        "android_client_info": {
+          "package_name": "com.example.eyedrop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmdsX41Q-2SvnuCw8yxmZehlV2IBRnFas"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
