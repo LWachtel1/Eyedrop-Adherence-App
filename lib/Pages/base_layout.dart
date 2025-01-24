@@ -3,14 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class BaseLayout extends StatelessWidget {
-  const BaseLayout({super.key});
+  
+  final Widget child;
+
+  const BaseLayout({
+    required this.child,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: appBar(),
       bottomNavigationBar: bottomAppBar(),
-      drawer: slideOutMenu()
+      drawer: slideOutMenu(),
+      body: child
       );
   }
 }
@@ -96,10 +103,11 @@ BottomAppBar bottomAppBar() {
      Builder(
       builder: (context) {
         return IconButton(
-          icon: SvgPicture.asset('assets/icons/account_icon.svg'),
+          icon: Icon(Icons.person),
           iconSize: 40,
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen())); 
+            //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AccountScreen())); //!!! might cause navigating back bugs as it replaces current navigation stack page so popping back will not take me to previous page but instead any pages under that in stafck
         });
       }
      ), 

@@ -6,6 +6,8 @@ import 'package:eyedrop/Pages/base_layout.dart';
 
 
 class AuthGate extends StatelessWidget {
+
+  
   const AuthGate({super.key});
 
   @override
@@ -36,7 +38,7 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return const BaseLayout();
+        return BaseLayout(child: Container());
       },
     );
   }
