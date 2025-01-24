@@ -1,10 +1,22 @@
-import 'package:flutter/material.dart';
-import 'package:eyedrop/Pages/base_layout.dart';
-import 'package:eyedrop/Pages/onetime_intro.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+import 'package:flutter/material.dart';
+import 'package:eyedrop/Pages/onetime_intro.dart';
+import 'package:eyedrop/Pages/auth_gate.dart';
+
+
+
+
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
+//https://stackoverflow.com/questions/70486658/no-firebase-app-has-been-created-call-firebase-initializeapp 
+//https://dart.dev/libraries/async/async-await
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -17,7 +29,7 @@ class MyApp extends StatelessWidget {
       initialRoute:  IntroScreen.id,
       routes: <String, WidgetBuilder>{
       IntroScreen.id: (BuildContext context) => IntroScreen(),
-      '/home': (BuildContext context) => BaseLayout(),
+      '/home': (BuildContext context) => AuthGate(),
     },
     );
   }
