@@ -1,3 +1,4 @@
+import 'package:eyedrop/Pages/account_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -90,7 +91,18 @@ BottomAppBar bottomAppBar() {
             Scaffold.of(context).openDrawer();
         });
       }
-     )
+     ),
+     Spacer(),
+     Builder(
+      builder: (context) {
+        return IconButton(
+          icon: SvgPicture.asset('assets/icons/account_icon.svg'),
+          iconSize: 40,
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen()));
+        });
+      }
+     ), 
     ])
   );
 }
