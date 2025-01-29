@@ -1,10 +1,13 @@
+//import 'package:eyedrop/Functional/auth_checker.dart';
+//import 'package:provider/provider.dart';
 import 'package:eyedrop/Pages/account_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+
 class BaseLayout extends StatelessWidget {
   
-  final Widget child;
+  final Widget? child;
 
   const BaseLayout({
     required this.child,
@@ -13,11 +16,12 @@ class BaseLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: appBar(),
       bottomNavigationBar: bottomAppBar(),
       drawer: slideOutMenu(),
-      body: child
+      body: child 
       );
   }
 }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+    <script>
+      const db = new PouchDB('localDB');
+      const remoteUrl = "http://127.0.0.1:5984/";
+
+
+      // Function to add a document
+      function addDocument(doc) {
+        db.put(doc).then((response) => {
+          console.log('Document added', response);
+        }).catch((err) => {
+          console.error('Error adding document', err);
+        });
+      }  
+
+      // Function to fetch documents
+      function fetchDocuments() {
+        db.allDocs({ include_docs: true }).then((result) => {
+          console.log('Documents:', result.rows);
+        }).catch((err) => {
+          console.error('Error fetching documents', err);
+        });
+      }
+      
+      // Example function to sync with remote CouchDB (if applicable)
+      function syncWithRemoteDB(remoteUrl) {
+        const remoteDB = new PouchDB(remoteUrl, {
+          auth: {
+            username: "admin",
+            password: "1st-FYP-database"
+          }
+        });
+        db.sync(remoteDB, { live: true, retry: true }).on('change', (info) => {
+        console.log('Sync change:', info);
+        }).on('error', (err) => {
+        console.error('Sync error:', err);
+        });
+        
+      }
+
+    </script>
+  </head>
+  <body>  </body>
+</html>

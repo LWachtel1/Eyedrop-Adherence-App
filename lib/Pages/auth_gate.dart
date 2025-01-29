@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:eyedrop/Pages/base_layout.dart';
-
+//import 'package:provider/provider.dart';
+//import 'package:eyedrop/Functional/auth_checker.dart';
 
 class AuthGate extends StatelessWidget {
 
@@ -12,6 +13,9 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    //final authChecker = Provider.of<AuthChecker>(context);
+
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
@@ -38,7 +42,8 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return BaseLayout(child: Container());
+
+        return BaseLayout(child: null);
       },
     );
   }

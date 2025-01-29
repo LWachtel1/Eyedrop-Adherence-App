@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:eyedrop/Pages/onetime_intro.dart';
 import 'package:eyedrop/Pages/auth_gate.dart';
 
+import 'package:provider/provider.dart';
+import 'package:eyedrop/Functional/auth_checker.dart';
 
 
 
@@ -13,8 +15,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+  runApp(ChangeNotifierProvider(
+      create: (context) => AuthChecker(),
+      child: MyApp(),
+    ),);
 }
+
 //https://stackoverflow.com/questions/70486658/no-firebase-app-has-been-created-call-firebase-initializeapp 
 //https://dart.dev/libraries/async/async-await
 
