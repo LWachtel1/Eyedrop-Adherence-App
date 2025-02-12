@@ -4,45 +4,116 @@
 
     <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
     <script>
-      const db = new PouchDB('localDB');
-      const remoteUrl = "http://127.0.0.1:5984/";
+      let db = new PouchDB('userDB');
+      let remoteUrl = null;
 
 
       // Function to add a document
-      function addDocument(doc) {
-        db.put(doc).then((response) => {
-          console.log('Document added', response);
-        }).catch((err) => {
-          console.error('Error adding document', err);
-        });
-      }  
+      async function addDocument(doc) {
+        try {
+            let parsedDoc = typeof doc === 'string' ? JSON.parse(doc) : doc;
+            db.put(parsedDoc).then((response) => {
+                FlutterChannel.postMessage(JSON.stringify({ success: true, response }));
+            }).catch((err) => {
+                FlutterChannel.postMessage(JSON.stringify({ success: false, error: err.message }));
+            });
+        } catch (error) {
+            FlutterChannel.postMessage(JSON.stringify({ success: false, error: "Invalid JSON" }));
+        }
+    }
 
       // Function to fetch documents
-      function fetchDocuments() {
+      async function fetchDocuments() {
         db.allDocs({ include_docs: true }).then((result) => {
-          console.log('Documents:', result.rows);
+            let docs = result.rows.map(row => row.doc);
+            FlutterChannel.postMessage(JSON.stringify(docs));
         }).catch((err) => {
-          console.error('Error fetching documents', err);
+            FlutterChannel.postMessage(JSON.stringify({ success: false, error: err.message }));
         });
-      }
+    }
+
+    async function checkUserDoc(userId) {
+        // Perform the check against the PouchDB database
+        db.get(userId).then((doc) => {
+        // If the document is found, send back exists: true and the document
+        FlutterChannel.postMessage(JSON.stringify({ exists: true, doc }));
+      }).catch((err) => {
+        if (err.status === 404) {
+          // Document not found – send back exists: false
+          FlutterChannel.postMessage(JSON.stringify({ exists: false }));
+        } else {
+          FlutterChannel.postMessage(JSON.stringify({ error: err.message }));
+        }
+      });
+    }
       
-      // Example function to sync with remote CouchDB (if applicable)
-      function syncWithRemoteDB(remoteUrl) {
-        const remoteDB = new PouchDB(remoteUrl, {
-          auth: {
-            username: "admin",
-            password: "1st-FYP-database"
-          }
-        });
-        db.sync(remoteDB, { live: true, retry: true }).on('change', (info) => {
-        console.log('Sync change:', info);
-        }).on('error', (err) => {
-        console.error('Sync error:', err);
-        });
+  
+      /* Old sync function
+      async function syncDatabase(userId) {
+      const response = await fetch("https://127.0.0.1:3000/sync", {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json",
+        },
+      credentials: "include",  // Include cookies for Firebase auth
+      body: JSON.stringify({ userId }),
+      });
+
+      const result = await response.json();
+      console.log("Sync result:", result);
+      }*/
+
+      // Sync PouchDB with CouchDB via Node back-end
+      async function startSync(userId) {
+        let authToken = getCookie("authToken");
+        if (!authToken) {
+            FlutterChannel.postMessage(JSON.stringify({ success: false, error: "No auth token found" }));
+            return;
+        }
+
+        const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));  // Decode JWT token
+        const expiryTime = tokenPayload.exp * 1000; // Convert to milliseconds
+        const currentTime = new Date().getTime();
+
+        // Token expired, handle reauthentication or token refresh
+        if (expiryTime < currentTime) {
+        FlutterChannel.postMessage(JSON.stringify({ success: false, error: "Auth token expired" }));
+        return;
+        }
         
-      }
+        //Set the remote database URL (CouchDB sync URL)
+        let remoteUrl = "https://127.0.0.1:3000/sync";
+        //Create a new PouchDB instance pointing to the remote CouchDB server
+        remoteDB = new PouchDB(remoteUrl, {
+            fetch: function (url, opts) {
+                opts.headers = opts.headers || {};
+                opts.headers["Authorization"] = `Bearer ${authToken}`; //Add auth token to the headers
+                return PouchDB.fetch(url, opts); //Call the fetch method with custom headers
+            }
+        }); 
+
+        //Sync the local database with the remote database (CouchDB) using live sync
+        db.sync(remoteDB, { live: true, retry: true })
+            .on("change", (info) => {
+                FlutterChannel.postMessage(JSON.stringify({ success: true, message: "Sync updated", info }));
+            })
+            .on("error", (err) => {
+                FlutterChannel.postMessage(JSON.stringify({ success: false, error: err.message }));
+            });
+       }
+
+    
+
+
+    //Helper Function to Get Cookie
+    function getCookie(name) {
+        let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? match[2] : null;
+    }
+
 
     </script>
   </head>
   <body>  </body>
 </html>
+

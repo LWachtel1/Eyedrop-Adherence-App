@@ -1,9 +1,8 @@
 
-//Returns user document template
-import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
-
 import 'package:flutter/material.dart';
 
+///Returns user document template
+/*
 Map<String, dynamic> createUserDoc(String userId, String firstName, String lastName, String email,
   DateTime accountCreatedAt, bool signedIn, bool calendarLinked, bool locationEnabled) {
   return {
@@ -17,9 +16,14 @@ Map<String, dynamic> createUserDoc(String userId, String firstName, String lastN
 	  "locationEnabled": locationEnabled,
     
   };
+}*/
+Map<String, dynamic> createUserDocTemplate(String userId) {
+  return {
+    "_id": userId
+  };
 }
 
-//Returns condition document template
+///Returns condition document template
 Map<String, dynamic> createConditionDoc(String conditionId, String conditionName, List<String> medicationIds) {
   return {
     "_id": conditionId,
@@ -28,9 +32,9 @@ Map<String, dynamic> createConditionDoc(String conditionId, String conditionName
   };
 }
 
-//Returns medication document template
+///Returns medication document template
 Map<String, dynamic> createMedDoc(String medicationID, String medicationName, String recDurationUnits, 
-  Float recDurationLength, String recSchedule, int recFrequency, String recDoseUnits, Float recDoseQuantity,
+  double recDurationLength, String recSchedule, int recFrequency, String recDoseUnits, double recDoseQuantity,
   String medType, String recApplicationSite, List<String> conditionIds) {
   return {
     "medicationID": medicationID,
@@ -47,10 +51,10 @@ Map<String, dynamic> createMedDoc(String medicationID, String medicationName, St
   };
 }
 
-//Returns user eye medication document template
+///Returns user eye medication document template
 Map<String, dynamic> createUserEyeMedDoc(String userEyeMedicationID, String medicationID, DateTime datePrescribed,
-  String durationUnits, Float durationLength, String schedule, int frequency, String doseUnits, Float doseQuantity,
-  String applicationSite, List<TimeOfDay> medTimings, Bool reminderSet, String userID) {
+  String durationUnits, double durationLength, String schedule, int frequency, String doseUnits, double doseQuantity,
+  String applicationSite, List<TimeOfDay> medTimings, bool reminderSet, String userID) {
   return {
     "_id": userEyeMedicationID, //primary key
     "medicationID": medicationID, //foreign key
@@ -73,9 +77,9 @@ Map<String, dynamic> createUserEyeMedDoc(String userEyeMedicationID, String medi
   };
 }
 
-//Returns user non eye medication document template
+///Returns user non eye medication document template
 Map<String, dynamic> createUserNonEyeMedDoc(String userNonEyeMedicationID, String medicationID, DateTime datePrescribed,
-  String durationUnits, Float durationLength, String schedule, int frequency, String doseUnits, Float doseQuantity,
+  String durationUnits, double durationLength, String schedule, int frequency, String doseUnits, double doseQuantity,
   String applicationSite, List<TimeOfDay> medTimings, String userID) {
   return {
     "_id": userNonEyeMedicationID, //primary key
@@ -97,10 +101,10 @@ Map<String, dynamic> createUserNonEyeMedDoc(String userNonEyeMedicationID, Strin
   };
 }
 
-//Returns user med reminder document template
+///Returns user med reminder document template
 Map<String, dynamic> createUserMedReminderDoc(String medReminderId, String userEyeMedicationID, 
-  String medicationID, DateTime remStart, String remDurationUnits, Float remDurationLength,
-  Bool smartScheduled, String userID) {
+  String medicationID, DateTime remStart, String remDurationUnits, double remDurationLength,
+  bool smartScheduled, String userID) {
   return {
     "_id": medReminderId, //primary key
 	  "userEyeMedicationID": userEyeMedicationID, //foreign key

@@ -1,12 +1,17 @@
 //import 'package:eyedrop/Functional/auth_checker.dart';
 //import 'package:provider/provider.dart';
-import 'package:eyedrop/Pages/account_screen.dart';
+import 'package:eyedrop/screens/account_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-
+///The base layout for majority of screens within app
+///
+///Provides top and bottom navigation bars
+///Contains optional child widget that can exist with body of screen
 class BaseLayout extends StatelessWidget {
   
+  //Optional child widget - made optional by ? symbol, as it is used when unsure if object is null or not
+  //Intended to contain feature-specific content
   final Widget? child;
 
   const BaseLayout({
@@ -36,9 +41,6 @@ AppBar appBar(){
   );
 }
 
-//Need to standardise pop up menu icon size
-//align them in a standard manner (centrally align them on one axis)
-//make all font sizes, icon and padding sizes responsive to phone screen size so they scale adaptively
 
 PopupMenuButton addFormMenu() {
   return PopupMenuButton(
@@ -110,8 +112,14 @@ BottomAppBar bottomAppBar() {
           icon: Icon(Icons.person),
           iconSize: 40,
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen())); 
-            //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AccountScreen())); //!!! might cause navigating back bugs as it replaces current navigation stack page so popping back will not take me to previous page but instead any pages under that in stafck
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen()));
+
+            /*
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const 
+            AccountScreen()));
+            might cause navigating back bugs as it replaces current navigation stack page so 
+            popping back will not take me to previous page but instead any pages under that in stack
+            */
         });
       }
      ), 
