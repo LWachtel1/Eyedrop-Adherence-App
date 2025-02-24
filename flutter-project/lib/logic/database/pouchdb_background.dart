@@ -80,6 +80,8 @@ class _PouchDBBackgroundState extends State<PouchDBBackground> {
       //..loadRequest(Uri.parse('assets/database/pouchdb_connect.html'));
       ..loadFlutterAsset('assets/database/pouchdb_connect.html'); 
 
+      
+
   } 
 
   void handleJavaScriptMessage(String message) {

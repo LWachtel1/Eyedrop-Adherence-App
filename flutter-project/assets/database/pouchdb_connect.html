@@ -65,9 +65,11 @@
 
       // Sync PouchDB with CouchDB via Node back-end
       async function startSync(userId) {
-        let authToken = getCookie("authToken");
+        let authToken = localStorage.getItem("authToken")
+       
+
         if (!authToken) {
-            FlutterChannel.postMessage(JSON.stringify({ success: false, error: "No auth token found" }));
+            FlutterChannel.postMessage(JSON.stringify({success: false, error: "No auth token found" }));
             return;
         }
 
@@ -82,12 +84,13 @@
         }
         
         //Set the remote database URL (CouchDB sync URL)
-        let remoteUrl = "https://127.0.0.1:3000/sync";
+        let remoteUrl = "https://oriented-sheep-arguably.ngrok-free.app/api/sync";
         //Create a new PouchDB instance pointing to the remote CouchDB server
         remoteDB = new PouchDB(remoteUrl, {
             fetch: function (url, opts) {
                 opts.headers = opts.headers || {};
                 opts.headers["Authorization"] = `Bearer ${authToken}`; //Add auth token to the headers
+                opts.credentials = 'include';
                 return PouchDB.fetch(url, opts); //Call the fetch method with custom headers
             }
         }); 
@@ -97,21 +100,19 @@
             .on("change", (info) => {
                 FlutterChannel.postMessage(JSON.stringify({ success: true, message: "Sync updated", info }));
             })
+            .on("paused", (err) => {
+              console.log("Sync paused:", err);
+            })
+            .on("active", () => {
+              console.log("Sync resumed.");
+            })
             .on("error", (err) => {
-                FlutterChannel.postMessage(JSON.stringify({ success: false, error: err.message }));
+              console.error("Sync error occurred:", err);
+              FlutterChannel.postMessage(JSON.stringify({ success: false, error: err.message }));
             });
        }
 
     
-
-
-    //Helper Function to Get Cookie
-    function getCookie(name) {
-        let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-        return match ? match[2] : null;
-    }
-
-
     </script>
   </head>
   <body>  </body>

@@ -21,6 +21,9 @@ Future<void> _checkAndCreateUserDoc(BuildContext context) async {
 
   // Call the service method which will send the JS command to check for the document.
   await pouchDBService.checkUserDoc(user.uid);
+  
+  await pouchDBService.startPouchDBSync();
+
 }
 
   /// Builds the UI for the home Route depending on user auth state (logged in/logged out)

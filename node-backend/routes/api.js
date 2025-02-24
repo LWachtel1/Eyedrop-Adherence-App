@@ -11,7 +11,10 @@ const { userProxy } = require('../controllers/syncController');
 const { verifyFirebaseToken } = require('../middleware/auth');
 const { getUserDatabase } = require('../utils/couchdb');
 
+
 const router = express.Router();
+
+
 
 //endpoint that can be used by client to check if CouchDB server is running
 router.get('/status', async (req, res) => {

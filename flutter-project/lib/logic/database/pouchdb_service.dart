@@ -72,8 +72,9 @@ Future<void> startPouchDBSync() async {
   
  
   //JS running inside of webview cannot directly access Firebase auth
-  //so Flutter injects token into cookie to send it securely - Webview can read cookies
-  _controller.runJavaScript("document.cookie = 'authToken=$token; path=/; Secure;';");
+  //so Flutter injects token into localStorage to send it securely - Webview can read localStorage
+
+  await PouchDBService().updateAuthToken(token);
 
    _controller.runJavaScript("startSync('$userId');");
 
@@ -111,13 +112,16 @@ Future<void> startPouchDBSync() async {
     }
   }
 
-  //Updates the auth token (e.g. when Firebase detects a token change).
+  //Updates the auth token in localStorage (e.g. when Firebase detects a token change).
     Future<void> updateAuthToken(String token) async {
     await ensureInitialized();
-    String jsCode = "document.cookie = 'authToken=$token; path=/; Secure;';";
-    _controller.runJavaScript(jsCode);
+   
+    String jsCode = "localStorage.setItem('authToken', '$token');";
+    await _controller.runJavaScript(jsCode);
+    print("Auth token updated in WebView localStorage: $token");
+
     }
-  
+    
   
 
 }
