@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:collection/collection.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 
@@ -22,6 +23,19 @@ class FirestoreService {
   factory FirestoreService() => _instance;
 
 
+  Future<bool> checkDocExists({
+    required String collectionPath,
+    required String docId,
+    }) async {
+      try {
+        DocumentSnapshot doc = await _firestore.collection(collectionPath).doc(docId).get();
+        return doc.exists; // Returns true if document exists, false otherwise
+      } catch (e) {
+        print("Error checking document existence in $collectionPath/$docId: $e");
+        return false; // Assume false if an error occurs
+      }
+  }
+
   //Generates a custom document ID with a specific prefix
   String _generatePrefixedId({required String collectionPath , required String prefix}) {
 
@@ -30,6 +44,8 @@ class FirestoreService {
     return "$prefix$uniqueId"; // Append prefix
   }
   
+  //CREATE
+  //ALSO PROVIDES UPDATE without overwrite CAPABILITY AS IT ALLOWS MERGE to be set to true if needed
   Future<void> addDoc(
     {
     required String collectionPath, // e.g., "users" or "medications"
@@ -41,8 +57,17 @@ class FirestoreService {
 
       String docId = "";
 
+  
+
+
       if(collectionPath == "users") {
-        docId = FirebaseAuth.instance.currentUser!.uid;
+        User? user = FirebaseAuth.instance.currentUser;
+        if(user == null) {
+          print("Error: No authenticated user found.");
+          return;
+        } 
+        docId = user.uid;
+        
       } else {
          docId = _generatePrefixedId(collectionPath: collectionPath, prefix: prefix);
       }
@@ -58,19 +83,28 @@ class FirestoreService {
 
   }
 
-  Future<bool> checkDocExists({
-  required String collectionPath,
-  required String docId,
-  }) async {
-    try {
-      DocumentSnapshot doc = await _firestore.collection(collectionPath).doc(docId).get();
-      return doc.exists; // Returns true if document exists, false otherwise
-    } catch (e) {
-      print("Error checking document existence in $collectionPath/$docId: $e");
-      return false; // Assume false if an error occurs
-    }
+  //Read
+  Future<Map<String, dynamic>?> readDoc({
+    required String collectionPath,
+    required String docId,
+    }) async {
+      try {
+        DocumentSnapshot doc = await _firestore.collection(collectionPath).doc(docId).get();
+      return doc.exists ? doc.data() as Map<String, dynamic> : null; 
+      //returns document data if it exists, otherwise returns null
+      } catch (e) {
+        print("Error reading document  in $collectionPath/$docId: $e");
+        return null; 
+      }
   }
 
+  // Helper function to compare two maps for updating document
+  bool _isSameData(Map<String, dynamic> oldData, Map<String, dynamic> newData) {
+    return DeepCollectionEquality().equals(oldData, newData);
+  }
+
+  
+  //UPDATE
   Future<bool> updateDoc({
   required String collectionPath,
   required String docId,
@@ -105,11 +139,24 @@ class FirestoreService {
     }
   }
 
-  // Helper function to compare two maps
-  bool _isSameData(Map<String, dynamic> oldData, Map<String, dynamic> newData) {
-      return oldData.toString() == newData.toString(); // Simple comparison
-  }
+  //DELETE
+  Future<void> deleteDoc(
+    {
+    required String collectionPath, // e.g., "users" or "medications"
+    required String docId
+  }) async {
+    try {
 
+
+      await _firestore.collection(collectionPath).doc(docId).delete();
+          
+      print("Document deleted $collectionPath/$docId successfully!");
+    } catch (e) {
+      print("Error deleting document from $collectionPath: $e");
+    }
+
+  }
+ 
 
 }
 
