@@ -24,7 +24,7 @@ Future<void> _checkAndCreateUserDoc(BuildContext context) async {
     await firestoreService.addDoc(collectionPath: "users", prefix: " ", data: {});
   }*/
   Map<String, dynamic> userData = createUserDocTemplate();
-  await firestoreService.addDoc(collectionPath: "users", prefix: " ", data: userData);
+  await firestoreService.addDoc(collectionPath: "users", prefix: " ", data: userData, merge: true);
   
 }
 

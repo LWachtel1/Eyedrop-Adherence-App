@@ -31,7 +31,7 @@ Map<String, dynamic> createUserDocTemplate() {
     return {};
   } else { 
       return {
-      //"_id": userId
+      "_id": 'usr_${user.uid}',
       "email": user.email,
       "accountCreatedAt": user.metadata.creationTime,
       "lastSignedIn": user.metadata.lastSignInTime,
