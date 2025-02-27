@@ -1,4 +1,5 @@
 // Import the background widget that creates the offstage webview.
+import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/logic/database/pouchdb_background.dart';
 
 import 'package:eyedrop/logic/auth_logic/auth_checker.dart';
@@ -18,7 +19,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   //initiliases Firebase before running app to ensure its services are avialable
-  //uses Firebae config settings for app platform (as defined in firebase_options.dart)
+  //uses Firebase config settings for app platform (as defined in firebase_options.dart)
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   //Registers AuthChecker globally so all widgets in app can check auth state using it
@@ -26,8 +27,8 @@ Future<void> main() async {
     create: (context) => AuthChecker(),
     child: MultiProvider(
       providers: [
-        //Register PouchDBService globally
-        Provider<PouchDBService>(create: (_) => PouchDBService()),
+        //Registers FirestoreService globally
+        Provider<FirestoreService>(create: (_) => FirestoreService()),
       ],
       child: MyApp(),
     ),

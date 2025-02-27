@@ -1,4 +1,5 @@
-
+import 'package:eyedrop/logic/database/doc_templates.dart';
+import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/screens/base_layout.dart';
 import 'package:eyedrop/logic/database/pouchdb_service.dart';
 
@@ -16,14 +17,15 @@ Future<void> _checkAndCreateUserDoc(BuildContext context) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return; // Safeguard: if no user, do nothing.
 
-  // Get the PouchDBService from Provider.
-  final pouchDBService = Provider.of<PouchDBService>(context, listen: false);
+  // Get the FirestoreService from Provider.
+  final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
-  // Call the service method which will send the JS command to check for the document.
-  await pouchDBService.checkUserDoc(user.uid);
+  /*if(!(await firestoreService.checkDocExists(collectionPath: "users", docId: user.uid)) ) {
+    await firestoreService.addDoc(collectionPath: "users", prefix: " ", data: {});
+  }*/
+  Map<String, dynamic> userData = createUserDocTemplate();
+  await firestoreService.addDoc(collectionPath: "users", prefix: " ", data: userData);
   
-  await pouchDBService.startPouchDBSync();
-
 }
 
   /// Builds the UI for the home Route depending on user auth state (logged in/logged out)

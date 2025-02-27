@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 ///Returns user document template
 /*
@@ -17,10 +19,25 @@ Map<String, dynamic> createUserDoc(String userId, String firstName, String lastN
     
   };
 }*/
-Map<String, dynamic> createUserDocTemplate(String userId) {
-  return {
-    "_id": userId
-  };
+
+User? getCurrentUserDetails() {
+  User? user = FirebaseAuth.instance.currentUser;
+  return user;
+}
+
+Map<String, dynamic> createUserDocTemplate() {
+  User? user = getCurrentUserDetails();
+  if(user == null){
+    return {};
+  } else { 
+      return {
+      //"_id": userId
+      "email": user.email,
+      "accountCreatedAt": user.metadata.creationTime,
+      "lastSignedIn": user.metadata.lastSignInTime,
+
+   };
+  }
 }
 
 ///Returns condition document template
