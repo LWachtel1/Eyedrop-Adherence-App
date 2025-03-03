@@ -1,6 +1,9 @@
+//UNUSED 
+
+/*
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-///UNUSED
+
 class TokenChecker {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription<User?>? _authListener;
@@ -37,3 +40,4 @@ class TokenChecker {
     _authListener?.cancel();
   }
 }
+*/

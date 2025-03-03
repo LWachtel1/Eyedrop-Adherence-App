@@ -1,17 +1,14 @@
-//import 'package:eyedrop/Functional/auth_checker.dart';
-//import 'package:provider/provider.dart';
 import 'package:eyedrop/screens/account_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-///The base layout for majority of screens within app
+/// The base layout of application's user interface.
 ///
-///Provides top and bottom navigation bars
-///Contains optional child widget that can exist with body of screen
+/// Provides top and bottom navigation bars surrounding the body of a page.
+/// Contains optional child widget that exists with the body of a page, displaying feature-specific content.
 class BaseLayout extends StatelessWidget {
   
-  //Optional child widget - made optional by ? symbol, as it is used when unsure if object is null or not
-  //Intended to contain feature-specific content
+  // An optional child widget, made optional by use of ? symbol, which is used when object may be equal to null.
   final Widget? child;
 
   const BaseLayout({
@@ -31,6 +28,7 @@ class BaseLayout extends StatelessWidget {
   }
 }
 
+/// Provides the top navigation bar.
 AppBar appBar(){
   return AppBar(automaticallyImplyLeading: false,
     actions:[
@@ -42,6 +40,9 @@ AppBar appBar(){
 }
 
 
+/// Provides the dropdown menu for adding reminders and medications.
+/// 
+/// Displayed as child widget within top navigation bar.
 PopupMenuButton addFormMenu() {
   return PopupMenuButton(
       child: Container(padding:EdgeInsets.only(right:20), child: SvgPicture.asset('assets/icons/addFormMenu_icon.svg')),
@@ -63,6 +64,10 @@ PopupMenuButton addFormMenu() {
     });
 }
 
+
+/// Provides the dropdown menu for linking app to a wearable device, a user's calendar or device location.
+/// 
+/// Displayed as child widget within top navigation bar.
 PopupMenuButton linkExternalMenu() {
   return PopupMenuButton(
       child: Container(padding:EdgeInsets.only(right:20), child: SvgPicture.asset('assets/icons/linkExternalMenu_icon.svg',
@@ -93,6 +98,7 @@ PopupMenuButton linkExternalMenu() {
     });
 }
 
+/// Provides the bottom navigation bar.
 BottomAppBar bottomAppBar() {
   return BottomAppBar(child: Row(children: [
      Builder(
@@ -127,6 +133,7 @@ BottomAppBar bottomAppBar() {
   );
 }
 
+/// Provides the slide-out menu with links to the main feature-providing pages of the app.
 Drawer slideOutMenu(){
   return Drawer(
         child: Column(

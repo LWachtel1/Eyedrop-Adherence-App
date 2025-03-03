@@ -1,3 +1,19 @@
+/*
+  TO DO:
+  - Implement stricter checks and error-handling in CRUD operations
+    - checking whether document exists before attempting CRUD
+    etc.
+
+  - Test how addDoc() with merge: True works 
+    i.e., does it truly update a document with removing fields not mentioned in data
+  
+  - Test whether updateDoc() remove fields not mentioned from newData
+
+  - Add additional CRUD-related operations 
+    - queries
+  
+*/
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:collection/collection.dart';
@@ -6,23 +22,26 @@ import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 
 ///The main API for Cloud FireStore interactions
 ///
-///It provides CRUD operations for FireStore database. These can be called from anywhere in Flutter app.
+///It provides CRUD operations for interacting with th app's Cloud FireStore database. 
 class FirestoreService {
 
   //private named constructor 
   FirestoreService._internal();
 
-   //creates a private static instance of PouchDBService when class first loads, using the 
-   //private constructor 
+   //Creates a private static instance of class when class first loads, using the private constructor. 
   static final FirestoreService _instance = FirestoreService._internal();
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
 
-  //factory constructor always returns the same _instance, so only 1 FirestoreService instance is made.
+  //Factory constructor always returns the same _instance, so only 1 FirestoreService instance is made.
   factory FirestoreService() => _instance;
 
-
+  /// Checks if a given document exists. 
+  /// 
+  /// @param collectionPath The collection in which document to check for document.
+  /// @param docId The id of alleged document.
+  /// @returns A boolean value stating whether or not document exists.
   Future<bool> checkDocExists({
     required String collectionPath,
     required String docId,
@@ -36,16 +55,24 @@ class FirestoreService {
       }
   }
 
-  //Generates a custom document ID with a specific prefix
+  /// Generates a unique document id for a document, with an attached prefix.
+  /// 
+  /// @param collectionPath The cllection to which document belongs.
+  /// @param prefix The prefix to attach to uniquely generated document id (based on document type).
+  /// @returns A String comprised of prefix followed by unique document id.
   String _generatePrefixedId({required String collectionPath , required String prefix}) {
 
     // FireStore-generated ID
     String uniqueId = FirebaseFirestore.instance.collection(collectionPath).doc().id; 
-    return "$prefix$uniqueId"; // Append prefix
+    return "$prefix$uniqueId"; 
   }
   
-  //CREATE
-  //ALSO PROVIDES UPDATE without overwrite CAPABILITY AS IT ALLOWS MERGE to be set to true if needed
+  /// Creates a new document or updates an existing document, depending on value of merge parameter.
+  /// 
+  /// @param collectionPath The collection in which to add or update document.
+  /// @param prefix The prefix to attach to id of new documents (based on document type).
+  /// @param data The data for a new document or updated data for an existing document.
+  /// @param merge Whether or not to create/overwrite a document or to update instead.
   Future<void> addDoc(
     {
     required String collectionPath, // e.g., "users" or "medications"
@@ -56,8 +83,6 @@ class FirestoreService {
     try {
 
       String docId = "";
-
-  
 
 
       if(collectionPath == "users") {
@@ -83,7 +108,11 @@ class FirestoreService {
 
   }
 
-  //Read
+  /// Reads a document from Cloud FireStore database.
+  /// 
+  /// @param collectionPath The collection from which to get document.
+  /// @param docId The The id of alleged document.
+  /// @returns `Map<String, dynamic>` containing document's data if it exists. Otherwise returns null.
   Future<Map<String, dynamic>?> readDoc({
     required String collectionPath,
     required String docId,
@@ -98,13 +127,22 @@ class FirestoreService {
       }
   }
 
-  // Helper function to compare two maps for updating document
+  /// Compares two maps of document data to see if they are the same; used for the purpose of updating a document.
+  /// 
+  /// @param oldData First map, corresponding to existing data within document.
+  /// @param newData Second map, corresponding to updated data.
+  /// @returns Whether or not the two maps contain the same data.
   bool _isSameData(Map<String, dynamic> oldData, Map<String, dynamic> newData) {
     return DeepCollectionEquality().equals(oldData, newData);
   }
 
   
-  //UPDATE
+  /// Updates an existing document.
+  /// 
+  /// @param collectionPath The collection in which to update document.
+  /// @param docId The id of alleged document.
+  /// @param newData The data with which to update.
+  /// @returns Whether or not the update occurred.
   Future<bool> updateDoc({
   required String collectionPath,
   required String docId,
@@ -115,31 +153,35 @@ class FirestoreService {
 
       if (!docSnapshot.exists) {
         print("Document does not exist");
-        return false; // Document was created
+        return false; //Document does not exist - no update performed.
       }
 
-      // Convert Firestore document to a Map
+      // Converts Firestore document to a Map.
       Map<String, dynamic> existingData = docSnapshot.data() as Map<String, dynamic>;
 
 
-      // Compare new data with existing data
+      // Compares new data with existing data.
       if (_isSameData(existingData, newData)) {
         print("Document already has the same data. No update needed.");
-        return false; // No update performed
+        return false; // No update performed.
       }
 
-      // Update document if data is different
+      // Updates document if data is different.
       await _firestore.collection(collectionPath).doc(docId).update(newData);
       print("Document updated successfully.");
-      return true; // Document was updated
+      return true; // Document was updated successfully.
 
     } catch (e) {
       print("Error checking/updating document: $e");
-      return false; // Error occurred
+      return false; // Error occurred - no update performed. 
     }
   }
 
-  //DELETE
+    
+  /// Deletes a document.
+  /// 
+  /// @param collectionPath The collection from which to delete document.
+  /// @param docId The id of alleged document.
   Future<void> deleteDoc(
     {
     required String collectionPath, // e.g., "users" or "medications"

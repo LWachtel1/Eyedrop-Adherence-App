@@ -1,9 +1,16 @@
+/* 
+    TO DO:
+    - add content to IntroScreen widget (add to build method)
+*/
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-///The implementation that checks whether to show user introduction to app or direct them to home route
+/// A page that introduces a first-time user to the application.
 ///
-///The introduction to app is only ever shown to users the very first time they open the app after download
+/// This widget uses SharedPreferences to track whether the user has previously opened the app.
+/// If it is the user's first time, the welcome screen is displayed. 
+/// If the user has opened the app before, they are redirected to the home screen.
 class IntroScreen extends StatefulWidget {
   static const String id = "/intro";
   const IntroScreen({super.key});
@@ -14,90 +21,61 @@ class IntroScreen extends StatefulWidget {
 
 class _IntroScreenState extends State<IntroScreen> {
 
-  ///Checks if this is the very first time user has opened app
-  Future checkFirstTime() async {
+  /// Checks if this is the first time user has opened the app or whether they have opened it previously.
+  /// 
+  /// 
+  Future<void> checkFirstTime() async {
 
-    //SharedPreferences instance stores persistent data
+    // SharedPreferences instance is used to store persistent data.
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    //await prefs.clear(); - uncomment this line to simulate first time welcome screen
 
-    //'isNotFirst' key will be missing on first-time launch so this bool will be false
+    //Uncommenting the line below simulates a first time user.
+    //await prefs.clear(); 
+
+    // Whether or not the user has opened the app before i.e., whether they are a first-time user.
     bool isNotFirst = (prefs.getBool('isNotFirst') ?? false);
+    // on first launch, 'isNotFirst' key stored with SharedPreferences will be missing, so the bool will default to false.
+
 
 
     //if this is NOT first-time launch, 'isNotFirst' key will have been created and been set to true
     //so user is direct to home route via method call
 
     if (isNotFirst) {
+      //Established users are directed to the home screen instead of being shown the introductory screen.
+      
+      // Checks if the widget is still attached to the widget tree; needed because of earlier await call.
+      if(context.mounted) {
       _handleStartScreen();
-    } 
-    //erroneous code as this redirects user back to intro screen -> should just stay on this page 
-    //instead of redirecting back to it - see fixed version below
-    else { 
-     
+      }
+    } else { 
         await prefs.setBool('isNotFirst', true);
-        if (context.mounted) Navigator.popAndPushNamed(context, IntroScreen.id); 
     }
   }
 
-  //allows 
+   
   @override
+  /// Performs initialisation checks before the IntroScreen widget is built.
+  /// 
+  /// It initiates the check to determine whether the user is a first-time user. 
   void initState() {
     super.initState();
     checkFirstTime();
   }
 
-    @override
+ 
+  @override
+  /// Displays the introductory onboarding screen for a first-time user.
   Widget build(BuildContext context) {
-    return Scaffold();
+    return Scaffold( 
+      body: Center(child: Text("Welcome to the App!")),
+    );
   }
 
-  //Directs user to home route
+  /// Directs user to route for the home screen.
   void _handleStartScreen() {
     Navigator.popAndPushNamed(context, '/home');
 
   }
 
 }
-
-//Stateless widget version without else statement problem
-/**import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-class IntroScreen extends StatelessWidget {
-  static const String id = "/intro";
-
-  const IntroScreen({super.key});
-
-  Future<bool> checkFirstTime() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isNotFirst = prefs.getBool('isNotFirst') ?? false;
-
-    if (!isNotFirst) {
-      await prefs.setBool('isNotFirst', true);
-    }
-
-    return isNotFirst;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: checkFirstTime(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasData && snapshot.data == true) {
-          Future.microtask(() => Navigator.pushReplacementNamed(context, '/home'));
-          return const SizedBox.shrink();
-        }
-
-        return const Scaffold(
-          body: Center(child: Text("Welcome to the App!")),
-        );
-      },
-    );
-  }
-} */
