@@ -1,7 +1,7 @@
 import 'package:eyedrop/logic/database/doc_templates.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/screens/base_layout.dart';
-//Does not import EmailAuthProvider from firebase_auth to prevent conflict with firebase_ui_auth's EmailAuthProvider used in this class
+// Does not import EmailAuthProvider from firebase_auth to prevent conflict with firebase_ui_auth's EmailAuthProvider already in use
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +22,7 @@ class AuthGate extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return; // Safeguard: if no user, do nothing.
 
-    //Gets the FirestoreService from Provider to allow CRUD operations within class.
+    // Gets the FirestoreService from Provider to allow CRUD operations within class.
     final firestoreService =
         Provider.of<FirestoreService>(context, listen: false);
 
@@ -54,21 +54,21 @@ class AuthGate extends StatelessWidget {
   ///
   /// This function ensures that the UI dynamically updates whenever authentication changes.
   ///
-  /// **Returns:**
+  /// Returns:
   /// - `SignInScreen` if no user is logged in.
   /// - `BaseLayout` if the user is logged in and Firestore setup is complete.
   /// - A loading indicator if Firestore document creation is still in progress.
   @override
   Widget build(BuildContext context) {
-    //StreamBuilder listens to stream and (re)builds the UI based on latest snapshot of stream
-    //"User?" means stream will return User object if logged in and null if logged out
+    // StreamBuilder listens to stream and (re)builds the UI based on latest snapshot of stream
+    // "User?" means stream will return User object if logged in and null if logged out
     return StreamBuilder<User?>(
-      //Singleton FirebaseAuth instance's method call returns stream detailing auth state changes.
+      // Singleton FirebaseAuth instance's method call returns stream detailing auth state changes.
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        //Checks if snapshot of stream contains a User object.
+        // Checks if snapshot of stream contains a User object.
         if (!snapshot.hasData) {
-          //No User object causes SignInScreen widget to be returned.
+          // No User object causes SignInScreen widget to be returned.
           return SignInScreen(
             providers: [EmailAuthProvider()],
             subtitleBuilder: (context, action) {
@@ -91,7 +91,7 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        //Existing User object triggers ensuring user document exists then return of main application UI
+        // Existing User object triggers ensuring user document exists then return of main application UI
         return FutureBuilder<void>(
           future: _checkAndCreateUserDoc(context),
           builder: (context, snapshot) {

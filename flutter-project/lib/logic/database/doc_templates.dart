@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-///Returns user document template
+/// Returns user document template
 /*
 Map<String, dynamic> createUserDoc(String userId, String firstName, String lastName, String email,
   DateTime accountCreatedAt, bool signedIn, bool calendarLinked, bool locationEnabled) {
@@ -37,7 +37,7 @@ Map<String, dynamic> createUserDocTemplate() {
   }
 }
 
-///Returns condition document template
+/// Returns condition document template
 Map<String, dynamic> createConditionDoc(
     String conditionId, String conditionName, List<String> medicationIds) {
   return {
@@ -47,7 +47,7 @@ Map<String, dynamic> createConditionDoc(
   };
 }
 
-///Returns medication document template
+/// Returns medication document template
 Map<String, dynamic> createMedDoc(
     String medicationID,
     String medicationName,
@@ -73,13 +73,12 @@ Map<String, dynamic> createMedDoc(
       "medType": medType,
       "recApplicationSite": recApplicationSite
     },
-    "conditionIDs":
-        conditionIds, /**
-	  potentially redundant as relationship already defined in Conditions**/
+    "conditionIDs": conditionIds,
+    // potentially redundant as relationship already defined in Conditions
   };
 }
 
-///Returns user eye medication document template
+/// Returns user eye medication document template
 Map<String, dynamic> createUserEyeMedDoc(
     String userEyeMedicationID,
     String medicationID,
@@ -95,10 +94,10 @@ Map<String, dynamic> createUserEyeMedDoc(
     bool reminderSet,
     String userID) {
   return {
-    "_id": userEyeMedicationID, //primary key
-    "medicationID": medicationID, //foreign key
+    "_id": userEyeMedicationID, // primary key
+    "medicationID": medicationID, // foreign key
     "datePrescribed":
-        datePrescribed, //if user does not know exact day/month, need alternative
+        datePrescribed, // if user does not know exact day/month, need alternative
     "durationUnits": durationUnits,
     "durationLength": durationLength,
     "scheduleType": schedule, //daily, weekly, as needed, etc.

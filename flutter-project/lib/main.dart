@@ -35,8 +35,11 @@ class MyApp extends StatelessWidget {
   ///
   /// It provides routes which allows display of the screens defined by route-associated widgets.
   ///
-  /// @param context A reference to the widget's location in the widget tree.
-  /// @returns The route-associated widget.
+  /// Parameters:
+  /// `context`: A reference to the widget's location in the widget tree.
+  ///
+  /// Returns:
+  /// The route-associated widget.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

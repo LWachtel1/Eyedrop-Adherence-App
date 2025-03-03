@@ -37,9 +37,13 @@ class FirestoreService {
 
   /// Checks if a given document exists.
   ///
-  /// @param collectionPath The collection in which document to check for document.
-  /// @param docId The id of alleged document.
-  /// @returns A boolean value stating whether or not document exists.
+  /// Parameters:
+  /// - `collectionPath`: The collection in which document to check for document.
+  /// - `docId`: The id of alleged document for which to check.
+  ///
+  /// Returns:
+  /// - `true` if the document exists.
+  /// - `false` if the document does not exist or an error occurs while checking for the document.
   Future<bool> checkDocExists({
     required String collectionPath,
     required String docId,
@@ -47,18 +51,21 @@ class FirestoreService {
     try {
       DocumentSnapshot doc =
           await _firestore.collection(collectionPath).doc(docId).get();
-      return doc.exists; // Returns true if document exists, false otherwise
+      return doc.exists; // Returns true if document exists, false otherwise.
     } catch (e) {
       log("Error checking document existence in $collectionPath/$docId: $e");
-      return false; // Assume false if an error occurs
+      return false; // Assume false if an error occurs.
     }
   }
 
   /// Generates a unique document id for a document, with an attached prefix.
   ///
-  /// @param collectionPath The cllection to which document belongs.
-  /// @param prefix The prefix to attach to uniquely generated document id (based on document type).
-  /// @returns A String comprised of prefix followed by unique document id.
+  /// Parameters:
+  /// - `collectionPath`: The cllection to which document belongs.
+  /// - `prefix`: The prefix to attach to uniquely generated document id (based on document type).
+  ///
+  /// Returns:
+  /// A String comprised of prefix followed by unique document id.
   String _generatePrefixedId(
       {required String collectionPath, required String prefix}) {
     // FireStore-generated ID
@@ -69,14 +76,16 @@ class FirestoreService {
 
   /// Creates a new document or updates an existing document, depending on value of merge parameter.
   ///
-  /// @param collectionPath The collection in which to add or update document.
-  /// @param prefix The prefix to attach to id of new documents (based on document type).
-  /// @param data The data for a new document or updated data for an existing document.
-  /// @param merge Whether or not to create/overwrite a document or to update instead.
+  /// Parameters:
+  ///
+  /// - `collectionPath`: The collection in which to add or update document.
+  /// - `prefix`: The prefix to attach to id of new documents (based on document type).
+  /// - `data`: The data for a new document or updated data for an existing document.
+  /// - `merge`: Whether or not to create/overwrite a document or to update instead.
   Future<void> addDoc({
-    required String collectionPath, // e.g., "users" or "medications"
+    required String collectionPath,
     required String prefix,
-    required Map<String, dynamic> data, // Document data
+    required Map<String, dynamic> data, // Document data.
     bool merge =
         false, // If true, merges existing doc. Otherwise, overwrites by default.
   }) async {
@@ -107,9 +116,13 @@ class FirestoreService {
 
   /// Reads a document from Cloud FireStore database.
   ///
-  /// @param collectionPath The collection from which to get document.
-  /// @param docId The The id of alleged document.
-  /// @returns `Map<String, dynamic>` containing document's data if it exists. Otherwise returns null.
+  /// Parameters:
+  /// `collectionPath`: The collection from which to retrieve document.
+  /// `docId`: The id of alleged document to retrieve.
+  ///
+  /// Returns:
+  /// A `Map<String, dynamic>` containing document's data if the document exists.
+  /// Otherwise, returns null.
   Future<Map<String, dynamic>?> readDoc({
     required String collectionPath,
     required String docId,
@@ -118,7 +131,7 @@ class FirestoreService {
       DocumentSnapshot doc =
           await _firestore.collection(collectionPath).doc(docId).get();
       return doc.exists ? doc.data() as Map<String, dynamic> : null;
-      //returns document data if it exists, otherwise returns null
+      // Returns document data if it exists, otherwise returns null.
     } catch (e) {
       log("Error reading document  in $collectionPath/$docId: $e");
       return null;
@@ -127,19 +140,28 @@ class FirestoreService {
 
   /// Compares two maps of document data to see if they are the same; used for the purpose of updating a document.
   ///
-  /// @param oldData First map, corresponding to existing data within document.
-  /// @param newData Second map, corresponding to updated data.
-  /// @returns Whether or not the two maps contain the same data.
+  /// Parameters:
+  /// `oldData`: The first map, corresponding to existing data within document.
+  /// `newData`: The second map, corresponding to updated data.
+  ///
+  /// Returns:
+  /// - `true` if the maps contain the same data.
+  /// - `false` if the maps do not contain the same data.
   bool _isSameData(Map<String, dynamic> oldData, Map<String, dynamic> newData) {
     return DeepCollectionEquality().equals(oldData, newData);
   }
 
   /// Updates an existing document.
   ///
-  /// @param collectionPath The collection in which to update document.
-  /// @param docId The id of alleged document.
-  /// @param newData The data with which to update.
-  /// @returns Whether or not the update occurred.
+  /// Parameters:
+  /// - `collectionPath`: The collection in which to update document.
+  /// - `docId`: The id of alleged document to update.
+  /// - `newData`: The data with which to update.
+  ///
+  /// Returns:
+  /// - `true` if the document was updated successfully.
+  /// - `false` if the document does not exist, already contains the same data,
+  ///   or if an error occurred during the update process.
   Future<bool> updateDoc({
     required String collectionPath,
     required String docId,
@@ -176,11 +198,11 @@ class FirestoreService {
 
   /// Deletes a document.
   ///
-  /// @param collectionPath The collection from which to delete document.
-  /// @param docId The id of alleged document.
+  /// Parameters:
+  /// - `collectionPath`: The collection from which to delete document.
+  /// - `docId`: The id of alleged document to delete.
   Future<void> deleteDoc(
-      {required String collectionPath, // e.g., "users" or "medications"
-      required String docId}) async {
+      {required String collectionPath, required String docId}) async {
     try {
       await _firestore.collection(collectionPath).doc(docId).delete();
 

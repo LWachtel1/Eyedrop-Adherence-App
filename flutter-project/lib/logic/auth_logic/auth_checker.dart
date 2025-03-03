@@ -8,19 +8,22 @@ class AuthChecker extends ChangeNotifier {
   String? uid;
 
   AuthChecker() {
-    //Listens to stream returned by authStateChanges and returns StreamSubscription object.
-    //StreamSubscription object provides a callback function whenever value changes.
+    // Listens to stream returned by authStateChanges and returns StreamSubscription object.
+    // StreamSubscription object provides a callback function whenever value changes.
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      //Updates app's stored user id given that a change in authentication state has occurred.
-      //If a user is logged in, it assigns their Firebase uid.
-      //If no user is logged in (user == null), uid is set to null.
+      // Updates app's stored user id given that a change in authentication state has occurred.
+      // If a user is logged in, it assigns their Firebase uid.
+      // If no user is logged in (user == null), uid is set to null.
       uid = user?.uid;
 
-      //Tells all listening widgets to rebuild to reflect the changed authentication state.
+      // Tells all listening widgets to rebuild to reflect the changed authentication state.
       notifyListeners();
     });
   }
 
+  /// Gets the current [User] from Firebase Authentication.
   User? get user => FirebaseAuth.instance.currentUser;
+
+  /// Indicates whether a user is currently logged in.
   bool get isLoggedIn => user != null;
 }

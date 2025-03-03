@@ -10,7 +10,6 @@ class BaseLayout extends StatelessWidget {
   // A child widget, which may be equal to null if there is no content to display in page body.
   final Widget? child;
 
-
   // Constructor.
   const BaseLayout({
     required this.child, // This ensures 'child' must be provided when creating an instance.
