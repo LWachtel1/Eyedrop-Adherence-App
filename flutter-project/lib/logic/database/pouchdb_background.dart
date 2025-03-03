@@ -1,3 +1,6 @@
+//UNUSED
+
+/*
 import 'dart:convert';
 
 import 'package:eyedrop/logic/database/doc_templates.dart';
@@ -106,7 +109,8 @@ Future<void> createUserDocument() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
 
-  Map<String, dynamic> userDoc = createUserDocTemplate(user.uid);
+  //Map<String, dynamic> userDoc = createUserDocTemplate(user.uid);
+  Map<String, dynamic> userDoc = createUserDocTemplate();
 
   // Use the service to add the document.
   await pouchDBService.addDocumentToDB(userDoc);
@@ -161,4 +165,4 @@ Future<void> createUserDocument() async {
   }*/
 
 }
-
+*/
