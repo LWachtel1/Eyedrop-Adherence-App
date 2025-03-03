@@ -3,11 +3,10 @@ import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/logic/auth_logic/auth_gate.dart';
 import 'package:eyedrop/screens/onetime_intro.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-
+import 'firebase_options.dart';
 
 ///Provides the entry point for the application.
 Future<void> main() async {
@@ -17,7 +16,7 @@ Future<void> main() async {
   //Uses Firebase config settings for app's specific platform as defined in firebase_options.dart.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  //Registers AuthChecker & FirestoreService globally, so all widgets can check auth state and run CRUD operations with Cloud FireStore. 
+  //Registers AuthChecker & FirestoreService globally, so all widgets can check auth state and run CRUD operations with Cloud FireStore.
   runApp(ChangeNotifierProvider(
     create: (context) => AuthChecker(),
     child: MultiProvider(
@@ -33,26 +32,27 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   /// Builds root widget of entire application.
-  /// 
+  ///
   /// It provides routes which allows display of the screens defined by route-associated widgets.
-  /// 
-  /// @param context A reference to the widget's location in the widget tree. 
+  ///
+  /// @param context A reference to the widget's location in the widget tree.
   /// @returns The route-associated widget.
   @override
   Widget build(BuildContext context) {
-    return  MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
 
       //The initial route is the first-time user welcome screen.
-      initialRoute:  IntroScreen.id, 
+      initialRoute: IntroScreen.id,
 
       routes: <String, WidgetBuilder>{
-      IntroScreen.id: (BuildContext context) => IntroScreen(),
+        IntroScreen.id: (BuildContext context) => IntroScreen(),
 
-      //The home route, which triggers authentication via AuthGate widget.
-      //If the user is signed in, the base layout is displayed, otherwise a sign-in/registration screen is shown.
-      '/home': (BuildContext context) => AuthGate(),
-    }, builder: (context, child) {
+        //The home route, which triggers authentication via AuthGate widget.
+        //If the user is signed in, the base layout is displayed, otherwise a sign-in/registration screen is shown.
+        '/home': (BuildContext context) => AuthGate(),
+      },
+      builder: (context, child) {
         return Stack(
           children: [
             // The app's actual content.
@@ -63,4 +63,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
