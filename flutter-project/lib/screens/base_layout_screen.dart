@@ -7,12 +7,12 @@ import 'package:flutter/material.dart';
 ///
 /// Provides top and bottom navigation bars surrounding the body of a page.
 /// Contains child widget that exists with the body of a page, displaying feature-specific content.
-class BaseLayout extends StatelessWidget {
+class BaseLayoutScreen extends StatelessWidget {
   // A child widget, which may be equal to null if there is no content to display in page body.
   final Widget? child;
 
   // Constructor
-  const BaseLayout({
+  const BaseLayoutScreen({
     required this.child, // This ensures 'child' must be provided when creating an instance.
     super.key,
   });

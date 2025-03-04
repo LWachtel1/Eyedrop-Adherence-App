@@ -4,7 +4,7 @@
 */
 
 import 'package:eyedrop/logic/auth_logic/auth_gate.dart';
-import 'package:eyedrop/screens/base_layout.dart';
+import 'package:eyedrop/screens/base_layout_screen.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -23,7 +23,7 @@ class AccountScreen extends StatelessWidget {
   /// * A sign-out action that returns the user to [AuthGate], which displays the login screen.
   /// * An account deletion action
   Widget build(BuildContext context) {
-    return BaseLayout(
+    return BaseLayoutScreen(
         child: ProfileScreen(actions: [
       SignedOutAction((context) {
         Navigator.of(context).pushReplacement(

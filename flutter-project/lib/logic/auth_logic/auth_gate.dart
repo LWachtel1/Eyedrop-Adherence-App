@@ -1,6 +1,6 @@
 import 'package:eyedrop/logic/database/doc_templates.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
-import 'package:eyedrop/screens/base_layout.dart';
+import 'package:eyedrop/screens/base_layout_screen.dart';
 // Does not import EmailAuthProvider from firebase_auth to prevent conflict with firebase_ui_auth's EmailAuthProvider already in use
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
@@ -100,7 +100,7 @@ class AuthGate extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator()),
               );
             }
-            return BaseLayout(child: null);
+            return BaseLayoutScreen(child: null);
           },
         );
       },
