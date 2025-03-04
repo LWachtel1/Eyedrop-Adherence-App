@@ -1,9 +1,6 @@
 /*
   TO DO:
-  - Implement stricter checks and error-handling in CRUD operations
-    - checking whether document exists before attempting CRUD
-    etc.
-
+ 
   - Test how addDoc() with merge: True works 
     i.e., does it truly update a document with removing fields not mentioned in data
   
@@ -48,13 +45,22 @@ class FirestoreService {
     required String collectionPath,
     required String docId,
   }) async {
+
+    if (collectionPath.isEmpty || docId.isEmpty) {
+      log("Error: Collection path or document ID cannot be empty.");
+      return false;
+    }
+
     try {
       DocumentSnapshot doc =
           await _firestore.collection(collectionPath).doc(docId).get();
       return doc.exists; // Returns true if document exists, false otherwise.
+    } on FirebaseException catch (e) {
+      log("Firestore error checking document in $collectionPath/$docId: ${e.message}");
+      return false;
     } catch (e) {
-      log("Error checking document existence in $collectionPath/$docId: $e");
-      return false; // Assume false if an error occurs.
+      log("Unexpected error checking document in $collectionPath/$docId: $e");
+      return false;
     }
   }
 
@@ -74,6 +80,8 @@ class FirestoreService {
     return "$prefix$uniqueId";
   }
 
+  
+
   /// Creates a new document or updates an existing document, depending on value of merge parameter.
   ///
   /// Parameters:
@@ -82,15 +90,24 @@ class FirestoreService {
   /// - `prefix`: The prefix to attach to id of new documents (based on document type).
   /// - `data`: The data for a new document or updated data for an existing document.
   /// - `merge`: Whether or not to create/overwrite a document or to update instead.
+  /// - `docId`: The document id for the document to update if using addDoc with merge: True
   Future<void> addDoc({
     required String collectionPath,
     required String prefix,
     required Map<String, dynamic> data, // Document data.
     bool merge =
         false, // If true, merges existing doc. Otherwise, overwrites by default.
+    String? docId
   }) async {
+
+     if (collectionPath.isEmpty || data.isEmpty) {
+      log("Error: Collection path or data cannot be empty.");
+      return;
+    }
+
+
     try {
-      String docId = "";
+      String documentId = "";
 
       if (collectionPath == "users") {
         User? user = FirebaseAuth.instance.currentUser;
@@ -98,19 +115,24 @@ class FirestoreService {
           log("Error: No authenticated user found.");
           return;
         }
-        docId = user.uid;
+        //If altering a user document, sets document id to id of current user.
+        documentId = user.uid;
       } else {
-        docId =
+        //Otherwise, sets id to provided parameter (for update) or generates a unique id (for create).
+        documentId = docId ??
             _generatePrefixedId(collectionPath: collectionPath, prefix: prefix);
+
       }
 
-      await _firestore.collection(collectionPath).doc(docId).set(
+      await _firestore.collection(collectionPath).doc(documentId).set(
             data,
             SetOptions(merge: merge), // Merge existing data if needed
           );
       log("Document added to $collectionPath/$docId successfully!");
+    } on FirebaseException catch (e) {
+      log("Firestore error adding document to $collectionPath: ${e.message}");
     } catch (e) {
-      log("Error adding document to $collectionPath: $e");
+      log("Unexpected error adding document to $collectionPath: $e");
     }
   }
 
@@ -127,13 +149,34 @@ class FirestoreService {
     required String collectionPath,
     required String docId,
   }) async {
+
+    if (collectionPath.isEmpty || docId.isEmpty) {
+      log("Error: Collection path or document ID cannot be empty.");
+      return null;
+    }
+
     try {
       DocumentSnapshot doc =
           await _firestore.collection(collectionPath).doc(docId).get();
-      return doc.exists ? doc.data() as Map<String, dynamic> : null;
-      // Returns document data if it exists, otherwise returns null.
+      
+      if (!doc.exists) return null; //returns
+
+      final data = doc.data();
+
+      if (data is Map<String, dynamic>) {
+        return data;
+      } else {
+        log("Error: Document data in $collectionPath/$docId is not a valid Map.");
+        return null;
+      }
+
+      //return doc.exists ? doc.data() as Map<String, dynamic> : null;
+    
+    } on FirebaseException catch (e) {
+      log("Firestore error reading document in $collectionPath/$docId: ${e.message}");
+      return null;
     } catch (e) {
-      log("Error reading document  in $collectionPath/$docId: $e");
+      log("Unexpected error reading document in $collectionPath/$docId: $e");
       return null;
     }
   }
@@ -167,6 +210,12 @@ class FirestoreService {
     required String docId,
     required Map<String, dynamic> newData,
   }) async {
+
+    if (collectionPath.isEmpty || docId.isEmpty || newData.isEmpty) {
+      log("Error: Collection path, document ID, or new data cannot be empty.");
+      return false;
+    }
+
     try {
       DocumentSnapshot docSnapshot =
           await _firestore.collection(collectionPath).doc(docId).get();
@@ -190,10 +239,15 @@ class FirestoreService {
       await _firestore.collection(collectionPath).doc(docId).update(newData);
       log("Document updated successfully.");
       return true; // Document was updated successfully.
+    } 
+    on FirebaseException catch (e) {
+      log("Firestore error updating document from $collectionPath/$docId: ${e.message}");
+      return false; // Error occurred - no update performed.
     } catch (e) {
-      log("Error checking/updating document: $e");
+      log("Unexpected error updating document from $collectionPath/$docId: $e");
       return false; // Error occurred - no update performed.
     }
+
   }
 
   /// Deletes a document.
@@ -203,12 +257,21 @@ class FirestoreService {
   /// - `docId`: The id of alleged document to delete.
   Future<void> deleteDoc(
       {required String collectionPath, required String docId}) async {
+
+    if (collectionPath.isEmpty || docId.isEmpty) {
+      log("Error: Collection path or document ID cannot be empty.");
+      return;
+    }
+
     try {
       await _firestore.collection(collectionPath).doc(docId).delete();
 
       log("Document deleted $collectionPath/$docId successfully!");
+    } on FirebaseException catch (e) {
+      log("Firestore error deleting document from $collectionPath/$docId: ${e.message}");
     } catch (e) {
-      log("Error deleting document from $collectionPath: $e");
+      log("Unexpected error deleting document from $collectionPath/$docId: $e");
     }
+
   }
 }
