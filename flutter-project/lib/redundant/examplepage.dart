@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:eyedrop/tutorial/entry_model.dart';
+import 'package:eyedrop/redundant/entry_model.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

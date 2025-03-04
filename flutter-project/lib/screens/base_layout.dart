@@ -1,5 +1,6 @@
-import 'package:eyedrop/screens/account_screen.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:eyedrop/widgets/custom_app_bar.dart';
+import 'package:eyedrop/widgets/custom_bottom_nav.dart';
+import 'package:eyedrop/widgets/custom_slide_out_menu.dart';
 import 'package:flutter/material.dart';
 
 /// The base layout of application's user interface.
@@ -10,7 +11,7 @@ class BaseLayout extends StatelessWidget {
   // A child widget, which may be equal to null if there is no content to display in page body.
   final Widget? child;
 
-  // Constructor.
+  // Constructor
   const BaseLayout({
     required this.child, // This ensures 'child' must be provided when creating an instance.
     super.key,
@@ -19,25 +20,15 @@ class BaseLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: appBar(),
-        bottomNavigationBar: bottomAppBar(),
-        drawer: slideOutMenu(),
+        appBar: CustomAppBar(),
+        bottomNavigationBar: CustomBottomNavBar(),
+        drawer: CustomSlideOutMenu(),
         body: child);
   }
 }
 
-/// Provides the top navigation bar.
-AppBar appBar() {
-  return AppBar(automaticallyImplyLeading: false, actions: [
-    Expanded(
-        child: Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            textDirection: TextDirection.rtl,
-            children: [addFormMenu(), linkExternalMenu()]))
-  ]);
-}
 
+/*
 /// Provides the dropdown menu for adding reminders and medications.
 ///
 /// Displayed as child widget within top navigation bar.
@@ -210,3 +201,4 @@ Drawer slideOutMenu() {
     ]))
   ]));
 }
+*/
