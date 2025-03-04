@@ -32,9 +32,11 @@ class IntroScreen extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
+
         final isFirstTime = snapshot.data ?? true;
         
         // Directs established user to home screen.
+        /*
         if (!isFirstTime) {
             //addPostFrameCallback ensures the UI fully finishes building before we navigate.
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -43,6 +45,20 @@ class IntroScreen extends StatelessWidget {
 
             // Prevents old screen from displaying while the app is navigating to the home screen.
             return const SizedBox.shrink();
+        }*/
+
+        // Directs established user to home screen.
+        if (!isFirstTime) {
+          //Ensures that navigation happens only after the current UI frame has been completely built.
+          Future.microtask((){
+              if (context.mounted) { 
+                _directToHome(context);
+              }
+          });
+
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         //If the user is a first-time user, they are 
