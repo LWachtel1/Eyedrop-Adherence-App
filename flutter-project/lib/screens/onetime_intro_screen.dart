@@ -1,7 +1,11 @@
 /* 
     TO DO:
     - add content to IntroScreen widget (add to build method)
+    - consider change this widget back to stateful widget as the previous implementation did not 
+    have a slower loading time like this one does
+    - potential risk of multiple rebuilds and therefore multiple navigations when using futurebuilder
 */
+import 'dart:developer';
 import 'package:eyedrop/logic/onboarding/onboarding_service.dart';
 import 'package:flutter/material.dart';
 
@@ -30,6 +34,13 @@ class IntroScreen extends StatelessWidget {
         // A loading screen is displayed until OnboardingService.isFirstTime() finishes.
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        //If the OnboardingService throws an error
+        if (snapshot.hasError) {
+          return Scaffold(
+          body: Center(child: Text("Something went wrong. Please try again.")),
+          );
         }
 
 
@@ -73,7 +84,11 @@ class IntroScreen extends StatelessWidget {
                   onPressed: () async {
                     // Button is pressed when first-time user finishes with the onboarding screen.
                     // User can go to the home screen and their first time is marked as complete.
-                    await OnboardingService.markFirstTimeComplete();
+                    try{
+                      await OnboardingService.markFirstTimeComplete();
+                    } catch(e) {
+                      log("Error marking onboarding as complete: $e");
+                    }
                     if(context.mounted) {
                       _directToHome(context);
                     }

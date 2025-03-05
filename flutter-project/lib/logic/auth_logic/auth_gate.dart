@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:eyedrop/logic/database/doc_templates.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/screens/base_layout_screen.dart';
@@ -19,8 +20,13 @@ class AuthGate extends StatelessWidget {
 
   /// Ensures a user document exists for an authenticated user.
   Future<void> _checkAndCreateUserDoc(BuildContext context) async {
+    
+    try{
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return; // Safeguard: if no user, do nothing.
+    if (user == null) {
+      log("No authenticated user found. Skipping Firestore setup.");
+      return; // Safeguard: if no user, do nothing.
+    } 
 
     // Gets the FirestoreService from Provider to allow CRUD operations within class.
     final firestoreService =
@@ -36,6 +42,13 @@ class AuthGate extends StatelessWidget {
     Map<String, dynamic> userData = createUserDocTemplate();
     await firestoreService.addDoc(
         collectionPath: "users", prefix: " ", data: userData, merge: true);
+    
+    log("Firestore user document exists for ${user.uid}");
+
+    } catch (e) {
+      log("Error ensuring Firestore user document exists: $e");
+    }
+
   }
 
   /// Builds the UI for the 'home' route based on the user's authentication state.
@@ -64,7 +77,9 @@ class AuthGate extends StatelessWidget {
     // "User?" means stream will return User object if logged in and null if logged out
     return StreamBuilder<User?>(
       // Singleton FirebaseAuth instance's method call returns stream detailing auth state changes.
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.authStateChanges().handleError((error) {
+        log("Firebase Auth Stream Error: $error");
+      }),
       builder: (context, snapshot) {
         // Checks if snapshot of stream contains a User object.
         if (!snapshot.hasData) {
@@ -100,7 +115,15 @@ class AuthGate extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator()),
               );
             }
+            if (snapshot.hasError) {
+              log("Error in FutureBuilder: ${snapshot.error}");
+              return const Scaffold(
+                body: Center(child: Text("Error loading data. Please try again.")),
+              );
+            }
+
             return BaseLayoutScreen(child: null);
+            
           },
         );
       },

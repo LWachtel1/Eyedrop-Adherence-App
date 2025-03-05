@@ -26,8 +26,16 @@ class AccountScreen extends StatelessWidget {
     return BaseLayoutScreen(
         child: ProfileScreen(actions: [
       SignedOutAction((context) {
-        Navigator.of(context).pushReplacement(
+
+        try {
+          Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const AuthGate()));
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error signing out: $e')),
+        );
+        }
+
       }),
       AccountDeletedAction((context, user) {})
     ]));

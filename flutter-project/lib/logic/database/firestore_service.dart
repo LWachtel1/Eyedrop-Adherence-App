@@ -128,7 +128,7 @@ class FirestoreService {
             data,
             SetOptions(merge: merge), // Merge existing data if needed
           );
-      log("Document added to $collectionPath/$docId successfully!");
+      log("Document added to $collectionPath/$documentId successfully!");
     } on FirebaseException catch (e) {
       log("Firestore error adding document to $collectionPath: ${e.message}");
     } catch (e) {

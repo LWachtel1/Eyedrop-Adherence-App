@@ -1,3 +1,10 @@
+/* 
+    TO DO:
+    - handle potential unknown route error
+*/
+
+import 'dart:developer';
+
 import 'package:eyedrop/logic/auth_logic/auth_checker.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/logic/auth_logic/auth_gate.dart';
@@ -12,9 +19,14 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  //Initiliases Firebase before running app to ensure its services are available.
-  //Uses Firebase config settings for app's specific platform as defined in firebase_options.dart.
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    // Initialises Firebase before running app to ensure its services are available.
+    // Uses Firebase config settings for app's specific platform as defined in firebase_options.dart.    
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e, stackTrace) {
+    log("Firebase failed to initialize: $e", stackTrace: stackTrace);
+    return; // Prevents app from running if Firebase fails.
+  }
 
   //Registers AuthChecker & FirestoreService globally, so all widgets can check auth state and run CRUD operations with Cloud FireStore.
   runApp(ChangeNotifierProvider(
@@ -54,12 +66,13 @@ class MyApp extends StatelessWidget {
         //The home route, which triggers authentication via AuthGate widget.
         //If the user is signed in, the base layout is displayed, otherwise a sign-in/registration screen is shown.
         '/home': (BuildContext context) => AuthGate(),
+        
       },
       builder: (context, child) {
         return Stack(
           children: [
             // The app's actual content.
-            child!
+            child ?? const Center(child: Text("Something went wrong!")),
           ],
         );
       },
