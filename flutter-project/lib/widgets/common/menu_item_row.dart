@@ -17,7 +17,7 @@ class MenuItemRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center, // Aligns vertically.      
       children: [
         Text(label, style:  TextStyle(fontSize:20.sp)),
-        SizedBox(width: 10.w),
+        SizedBox(width: 15.w),
         SvgPicture.asset(iconPath, height: 3.h, width: 3.w, ),
       ],
     );
