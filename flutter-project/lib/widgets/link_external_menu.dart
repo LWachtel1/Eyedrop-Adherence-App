@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
+
 import 'custom_popup_menu.dart';
 import 'common/menu_item_row.dart';
+
 
 /// Dropdown Menu for linking app to wearables, user's calendar or device location.
 /// 
@@ -12,28 +15,30 @@ class LinkExternalMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPopupMenu(
       iconPath: 'assets/icons/linkExternalMenu_icon.svg',
-      iconSize: 50,
+      iconSize: 12.w,
       items: [
         PopupMenuItem(
           value: '/wearable_link',
-          child: MenuItemRow(
-            label: 'Link wearable',
-            iconPath: 'assets/icons/linkWearable_icon.svg',
-          ),
+          child: Center( // Ensures menu items are centered.
+            child: MenuItemRow(
+              label: 'Link wearable',
+              iconPath: 'assets/icons/linkWearable_icon.svg',
+            )),
         ),
         PopupMenuItem(
           value: '/calendar_link',
-          child: MenuItemRow(
+          child: Center( 
+              child: MenuItemRow(
             label: 'Link calendar',
             iconPath: 'assets/icons/linkCalendar_icon.svg',
-          ),
+            )),
         ),
         PopupMenuItem(
           value: '/location_link',
-          child: MenuItemRow(
+          child: Center (child: MenuItemRow(
             label: 'Link location',
             iconPath: 'assets/icons/linkLocation_icon.svg',
-          ),
+          )),
         ),
       ],
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:sizer/sizer.dart';
 
+/// Dropdown menu item
 
 class MenuItemRow extends StatelessWidget {
   final String label;
@@ -11,10 +13,12 @@ class MenuItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures equal spacing.
+      crossAxisAlignment: CrossAxisAlignment.center, // Aligns vertically.      
       children: [
-        Text(label, style: const TextStyle(fontSize: 24)),
-        const SizedBox(width: 10),
-        SvgPicture.asset(iconPath),
+        Text(label, style:  TextStyle(fontSize:20.sp)),
+        SizedBox(width: 10.w),
+        SvgPicture.asset(iconPath, height: 3.h, width: 3.w, ),
       ],
     );
   }

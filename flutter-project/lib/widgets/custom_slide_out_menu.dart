@@ -8,22 +8,25 @@ class CustomSlideOutMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: const [
-                DrawerItem(label: 'Schedule', iconPath: 'assets/icons/schedule_icon.svg'),
-                DrawerItem(label: 'Medications', iconPath: 'assets/icons/medications_icon.svg'),
-                DrawerItem(label: 'Reminders', iconPath: 'assets/icons/reminders_icon.svg'),
-                DrawerItem(label: 'Education', iconPath: 'assets/icons/education_icon.svg'),
-                DrawerItem(label: 'Aim', iconPath: 'assets/icons/aim_icon.svg'),
-                DrawerItem(label: 'Progress & Tracking', iconPath: 'assets/icons/progress+tracking_icon.svg'),
-              ],
+      child: SafeArea( // Prevents overlap with status bar.
+        child: Column(
+          children: [
+            Expanded(
+              child: Column(
+                children: const [
+                  Expanded(child: DrawerItem(label: 'Schedule', iconPath: 'assets/icons/schedule_icon.svg')),
+                  Expanded(child: DrawerItem(label: 'Medications', iconPath: 'assets/icons/medications_icon.svg')),
+                  Expanded(child: DrawerItem(label: 'Reminders', iconPath: 'assets/icons/reminders_icon.svg')),
+                  Expanded(child: DrawerItem(label: 'Education', iconPath: 'assets/icons/education_icon.svg')),
+                  Expanded(child: DrawerItem(label: 'Aim', iconPath: 'assets/icons/aim_icon.svg')),
+                  Expanded(child: DrawerItem(label: 'Progress & Tracking', iconPath: 'assets/icons/progress+tracking_icon.svg')),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
 }

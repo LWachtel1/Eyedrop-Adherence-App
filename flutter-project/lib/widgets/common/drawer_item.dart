@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:sizer/sizer.dart';
 
 /// Reusable Drawer Item for slide-out menus
 class DrawerItem extends StatelessWidget {
@@ -8,6 +9,29 @@ class DrawerItem extends StatelessWidget {
 
   const DrawerItem({required this.label, required this.iconPath, super.key});
 
+
+  /// Builds slide-out menu drawer item with dynamically adapting icon and text sizing.
+  /// 
+  ///  The sizing is calculated as a percentage of screen widht or screen height.
+  @override
+  Widget build(BuildContext context) {
+        return ListTile(
+          dense: true,
+          leading: SvgPicture.asset(
+            iconPath,
+            height: 8.h, 
+            width: 8.w,  
+          ),
+          title: Text(
+            label,
+            style: TextStyle(fontSize: 20.sp), 
+          ),
+          onTap: () {},
+        );
+      
+  }
+
+  /*
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -17,5 +41,6 @@ class DrawerItem extends StatelessWidget {
       onTap: () {},
     );
   }
+  */
 
 }

@@ -1,5 +1,6 @@
 import 'package:eyedrop/screens/account_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
 
 
 /// Bottom Navigation Bar customised for application.
@@ -14,7 +15,7 @@ class CustomBottomNavBar extends StatelessWidget {
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu),
-              iconSize: 40,
+              iconSize: 12.w,
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
@@ -22,7 +23,7 @@ class CustomBottomNavBar extends StatelessWidget {
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.person),
-              iconSize: 40,
+              iconSize: 12.w,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AccountScreen()),
