@@ -64,8 +64,7 @@ class FirestoreService {
     }
   }
 
-  /// Generates a unique document id for a document, with an attached prefix.
-  ///
+ 
   /// Parameters:
   /// - `collectionPath`: The cllection to which document belongs.
   /// - `prefix`: The prefix to attach to uniquely generated document id (based on document type).
@@ -79,14 +78,78 @@ class FirestoreService {
         FirebaseFirestore.instance.collection(collectionPath).doc().id;
     return "$prefix$uniqueId";
   }
+ 
+  /*
+  /// Generates a unique document id for a document, with an attached prefix.
+  ///
+  /// Parameters:
+  /// - `path`: The FireStore path string to the document.
+  ///
+  /// Returns:
+  /// A String comprised of prefix followed by unique document id.
+  String _generateUniqueId(String path) {
+    String prefix = path.split('/').last.substring(0, 3); // Prefix from last segment
+    return "$prefix-${FirebaseFirestore.instance.collection(path).doc().id}";
+  }
+  */
+
+  /// Navigates a FireStore path string to return the correct DocumentReference.
+  /// 
+  /// Parameters:
+  /// - `path`: FireStore path string
+  /// - `docId`: the id of the alleged document
+  /// 
+  /// Returns:
+  /// A `DocumentReference` specifying the location at which to manipulate a document.
+  DocumentReference _getDocumentReference(String path, String? docId) {
+    if (path.trim().isEmpty) {
+      throw ArgumentError("Firestore path cannot be empty.");
+    }
+
+    List<String> segments = path.split('/').where((s) => s.isNotEmpty).toList(); // Remove empty parts
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    if (segments.isEmpty) {
+      throw ArgumentError("Invalid Firestore path: Path must have at least one segment.");
+    }
+
+    if (segments.length == 1) {
+      // If there's only one segment, it's a top-level collection.
+      if (docId == null || docId.isEmpty) {
+        throw ArgumentError("A document ID must be provided when adding to a root collection.");
+      }
+      return firestore.collection(segments[0]).doc(docId);
+    }
+
+    if (segments.length.isOdd) {
+      // If the number of segments is ODD, last segment is a COLLECTION.
+      DocumentReference parentDocRef = firestore.collection(segments[0]).doc(segments[1]);
+
+      for (int i = 2; i < segments.length - 1; i += 2) {
+        parentDocRef = parentDocRef.collection(segments[i]).doc(segments[i + 1]);
+      }
+
+      return parentDocRef.collection(segments.last).doc(docId);
+    } else {
+      // If the number of segments is EVEN, last segment is a DOCUMENT.
+      CollectionReference collectionRef = firestore.collection(segments[0]);
+
+      for (int i = 1; i < segments.length - 1; i += 2) {
+        collectionRef = collectionRef.doc(segments[i]).collection(segments[i + 1]);
+      }
+
+      return collectionRef.doc(docId);
+    }
+  }
 
   
 
+  /*
   /// Creates a new document or updates an existing document, depending on value of merge parameter.
-  ///
+  ///   
   /// Parameters:
   ///
-  /// - `collectionPath`: The collection in which to add or update document.
+  /// - `collectionPath`: The path to the collection in which to add or update document.
   /// - `prefix`: The prefix to attach to id of new documents (based on document type).
   /// - `data`: The data for a new document or updated data for an existing document.
   /// - `merge`: Whether or not to create/overwrite a document or to update instead.
@@ -109,7 +172,7 @@ class FirestoreService {
     try {
       String documentId = "";
 
-      if (collectionPath == "users") {
+      if (collectionPath.startsWith("users")) {
         User? user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           log("Error: No authenticated user found.");
@@ -124,6 +187,7 @@ class FirestoreService {
 
       }
 
+
       await _firestore.collection(collectionPath).doc(documentId).set(
             data,
             SetOptions(merge: merge), // Merge existing data if needed
@@ -135,6 +199,63 @@ class FirestoreService {
       log("Unexpected error adding document to $collectionPath: $e");
     }
   }
+  */
+
+
+  /// Creates a new document or updates an existing document, depending on value of merge parameter.
+  /// 
+  /// Can add documents to top-level collections and deeply nested sub-collections as well.
+  ///
+  /// Parameters:
+  ///
+  /// - `path`: The FireStore path string directing where to add or update document. 
+  /// This can be a top-level collection or nested sub-collection.
+  /// - `prefix`: The prefix to attach to id of new documents (based on document type).
+  /// - `data`: The data for a new document or updated data for an existing document.
+  /// - `docId`: The document id for the document to update if using addDoc with merge: True
+  /// - `merge`: Whether or not to create/overwrite a document or to update instead.
+  /// - `useAuthUid`: Whether or not to use authenticated user's UID as doc ID (for top-level user docs).
+  Future<void> addDoc({
+  required String path, 
+  required String prefix,
+  required Map<String, dynamic> data, 
+  String? docId, 
+  bool merge = false, 
+  bool useAuthUid = false, 
+}) async {
+
+  if (path.isEmpty || data.isEmpty) {
+    log("Error: Collection path or data cannot be empty.");
+    return;
+  }
+
+  try {
+    String finalDocId = docId ?? _generatePrefixedId(collectionPath: path, prefix: prefix);
+
+    //Use authenticated user's UID as doc ID (for top-level user docs).
+    if (useAuthUid) {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        log("Error: No authenticated user found.");
+        return;
+      }
+      finalDocId = user.uid;
+    }
+
+    // Gets Document Reference to the correct Firestore collection.
+    DocumentReference docRef = _getDocumentReference(path, finalDocId);
+
+    // Add or merge document.
+    await docRef.set(data, SetOptions(merge: merge));
+    log("Document successfully added/updated at ${docRef.path}");
+
+  } on FirebaseException catch (e) {
+    log("Firestore error adding document: ${e.message}");
+  } catch (e) {
+    log("Unexpected error adding document: $e");
+  }
+}
+
 
   /// Reads a document from Cloud FireStore database.
   ///
