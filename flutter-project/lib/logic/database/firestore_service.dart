@@ -1,6 +1,6 @@
 /*
   TO DO:
- 
+
   - Test how addDoc() with merge: True works 
     i.e., does it truly update a document with removing fields not mentioned in data
   
@@ -66,17 +66,16 @@ class FirestoreService {
 
  
   /// Parameters:
-  /// - `collectionPath`: The cllection to which document belongs.
-  /// - `prefix`: The prefix to attach to uniquely generated document id (based on document type).
+  /// - `collectionPath`: The collection to which document belongs.
   ///
   /// Returns:
-  /// A String comprised of prefix followed by unique document id.
-  String _generatePrefixedId(
-      {required String collectionPath, required String prefix}) {
+  /// A String consisting of a unique document id.
+  String _generateUniqueId(
+      {required String collectionPath}) {
     // FireStore-generated ID
     String uniqueId =
         FirebaseFirestore.instance.collection(collectionPath).doc().id;
-    return "$prefix$uniqueId";
+    return uniqueId;
   }
  
   /*
@@ -210,14 +209,12 @@ class FirestoreService {
   ///
   /// - `path`: The FireStore path string directing where to add or update document. 
   /// This can be a top-level collection or nested sub-collection.
-  /// - `prefix`: The prefix to attach to id of new documents (based on document type).
   /// - `data`: The data for a new document or updated data for an existing document.
   /// - `docId`: The document id for the document to update if using addDoc with merge: True
   /// - `merge`: Whether or not to create/overwrite a document or to update instead.
   /// - `useAuthUid`: Whether or not to use authenticated user's UID as doc ID (for top-level user docs).
   Future<void> addDoc({
   required String path, 
-  required String prefix,
   required Map<String, dynamic> data, 
   String? docId, 
   bool merge = false, 
@@ -230,9 +227,9 @@ class FirestoreService {
   }
 
   try {
-    String finalDocId = docId ?? _generatePrefixedId(collectionPath: path, prefix: prefix);
+    String finalDocId = docId ?? _generateUniqueId(collectionPath: path);
 
-    //Use authenticated user's UID as doc ID (for top-level user docs).
+    // Use authenticated user's UID as doc ID (for top-level user docs).
     if (useAuthUid) {
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
