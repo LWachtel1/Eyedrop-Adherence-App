@@ -41,7 +41,7 @@ class AuthGate extends StatelessWidget {
     //Uses merge: true so that if user document already exists, it is updated instead of being overwritten.
     Map<String, dynamic> userData = createUserDocTemplate();
     await firestoreService.addDoc(
-        path: "users", prefix: " ", data: userData, merge: true, useAuthUid: true);
+        path: "users", data: userData, merge: true, useAuthUid: true);
     
     log("Firestore user document exists for ${user.uid}");
 
