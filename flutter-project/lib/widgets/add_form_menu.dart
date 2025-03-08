@@ -1,3 +1,5 @@
+import 'package:eyedrop/screens/form_screens/medication_form.dart';
+import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -22,6 +24,7 @@ class AddFormMenu extends StatelessWidget {
             child: MenuItemRow(
               label: 'Add reminder',
               iconPath: 'assets/icons/addReminder_icon.svg',
+              destinationScreen: BaseLayoutScreen(child: null),
             ),
           ),
         ),
@@ -31,6 +34,7 @@ class AddFormMenu extends StatelessWidget {
             child: MenuItemRow(
               label: 'Add medication',
               iconPath: 'assets/icons/addMedication_icon.svg',
+              destinationScreen: MedicationForm(),
             ),
           ),
         ),

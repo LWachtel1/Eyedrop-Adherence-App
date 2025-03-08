@@ -1,3 +1,4 @@
+import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -23,6 +24,8 @@ class LinkExternalMenu extends StatelessWidget {
             child: MenuItemRow(
               label: 'Link wearable',
               iconPath: 'assets/icons/linkWearable_icon.svg',
+              destinationScreen: BaseLayoutScreen(child: null)
+
             )),
         ),
         PopupMenuItem(
@@ -31,6 +34,7 @@ class LinkExternalMenu extends StatelessWidget {
               child: MenuItemRow(
             label: 'Link calendar',
             iconPath: 'assets/icons/linkCalendar_icon.svg',
+            destinationScreen: BaseLayoutScreen(child: null)
             )),
         ),
         PopupMenuItem(
@@ -38,6 +42,7 @@ class LinkExternalMenu extends StatelessWidget {
           child: Center (child: MenuItemRow(
             label: 'Link location',
             iconPath: 'assets/icons/linkLocation_icon.svg',
+            destinationScreen: BaseLayoutScreen(child: null)
           )),
         ),
       ],

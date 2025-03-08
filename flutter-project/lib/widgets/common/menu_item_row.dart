@@ -7,12 +7,20 @@ import 'package:sizer/sizer.dart';
 class MenuItemRow extends StatelessWidget {
   final String label;
   final String iconPath;
+  final Widget destinationScreen;
 
-  const MenuItemRow({required this.label, required this.iconPath, super.key});
+  const MenuItemRow({required this.label, required this.iconPath, 
+  required this.destinationScreen, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return InkWell( onTap: () {
+       Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destinationScreen), 
+        );
+      },
+    child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures equal spacing.
       crossAxisAlignment: CrossAxisAlignment.center, // Aligns vertically.      
       children: [
@@ -20,6 +28,8 @@ class MenuItemRow extends StatelessWidget {
         SizedBox(width: 15.w),
         SvgPicture.asset(iconPath, height: 3.h, width: 3.w, ),
       ],
-    );
+    ));
   }
+
+  
 }
