@@ -1,7 +1,7 @@
 import 'dart:developer';
 import 'package:eyedrop/logic/database/doc_templates.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
-import 'package:eyedrop/screens/base_layout_screen.dart';
+import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 // Does not import EmailAuthProvider from firebase_auth to prevent conflict with firebase_ui_auth's EmailAuthProvider already in use
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
@@ -41,7 +41,7 @@ class AuthGate extends StatelessWidget {
     //Uses merge: true so that if user document already exists, it is updated instead of being overwritten.
     Map<String, dynamic> userData = createUserDocTemplate();
     await firestoreService.addDoc(
-        collectionPath: "users", prefix: " ", data: userData, merge: true);
+        path: "users", prefix: " ", data: userData, merge: true, useAuthUid: true);
     
     log("Firestore user document exists for ${user.uid}");
 
