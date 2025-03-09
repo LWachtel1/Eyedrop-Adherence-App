@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:eyedrop/logic/navigation_utils.dart';
 import 'package:sizer/sizer.dart';
 
 /// Dropdown menu item
@@ -14,12 +15,8 @@ class MenuItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell( onTap: () {
-       Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => destinationScreen), 
-        );
-      },
+    return InkWell(       
+    onTap: () => safeNavigate(context, destinationScreen), 
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures equal spacing.
       crossAxisAlignment: CrossAxisAlignment.center, // Aligns vertically.      
