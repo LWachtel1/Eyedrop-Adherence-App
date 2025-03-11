@@ -17,6 +17,7 @@ import 'package:collection/collection.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 
+
 ///The main API for Cloud FireStore interactions
 ///
 ///It provides CRUD operations for interacting with th app's Cloud FireStore database.
@@ -392,4 +393,43 @@ class FirestoreService {
     }
 
   }
+
+
+  /// Retrieves all documents from a specified Firestore collection.
+  /// 
+  /// Parameters:
+  /// - `collectionPath`: The Firestore collection from which to retrieve documents.
+  /// 
+  /// Returns:
+  /// - A `List<Map<String, dynamic>>` containing all documents from the collection.
+  /// - If the collection is empty or an error occurs, returns an empty list.
+  Future<List<Map<String, dynamic>>> getAllDocs({
+    required String collectionPath,
+  }) async {
+
+    if (collectionPath.isEmpty) {
+      log("Error: Collection path cannot be empty.");
+      return [];
+    }
+
+    try {
+      QuerySnapshot querySnapshot = await _firestore.collection(collectionPath).get();
+
+      // Convert Firestore documents into a List<Map<String, dynamic>>
+      List<Map<String, dynamic>> documents = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Include document ID in the returned map
+        return data;
+      }).toList();
+
+      return documents;
+    } on FirebaseException catch (e) {
+      log("Firestore error retrieving documents from $collectionPath: ${e.message}");
+      return [];
+    } catch (e) {
+      log("Unexpected error retrieving documents from $collectionPath: $e");
+      return [];
+    }
+  }
+
 }
