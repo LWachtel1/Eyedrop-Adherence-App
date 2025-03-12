@@ -1,22 +1,24 @@
 /* 
   TO DO:
-  - add FireStore UserMeds
-  - return to previous page
-  - format cleanly with sizer
-
+  - add option for indefinitely taken medication
   - add medications page to read UserMeds
-  - add missing documentation to all files
 
+  - format cleanly with sizer
+  - add missing documentation to all files
+  - add error handling
   - refactor to enhance readability, improve cohesion and reduce coupling and allow
   reusability for reminders
 
   - add condition IDs to link to added medication
+  - add check for exact duplicates before we add to FireStore
+  - DateTimes for prescription dates automatically start at 12am - determine if I need to change that
 */
-
-import 'package:eyedrop/logic/navigation_utils.dart';
+import 'dart:developer';
+import 'package:eyedrop/logic/database/doc_templates.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/screens/form_screens/medication_selection_screen.dart';
 import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +33,7 @@ class MedicationForm extends StatefulWidget {
 class _MedicationFormState extends State<MedicationForm> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>(); // A key for managing the form
   String _medType = '';
-  String _medicationID = '';
+  String? _commonMedicationID; // For common eye medications pre-defined in `medications` collection.
   String _medicationName = ''; 
   DateTime? _prescriptionDate;
   String _durationUnits = '';
@@ -42,6 +44,8 @@ class _MedicationFormState extends State<MedicationForm> {
 
   double _doseQuantity = 0.0;
   String _applicationSite = ''; // Eye Medication Only Field
+
+  Map<String, dynamic> medData = {};
 
   TextEditingController _medicationController = TextEditingController();
   // Manages the value of a TextField or TextFormField dynamically.
@@ -84,7 +88,7 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
 }
 
   /// Checks if the form is valid and if it is, saves the forms data.
-  void _submitForm() {
+  Future<void> _submitForm() async {
     setState(() {}); // Forces UI update for validation message
 
     if (_medType.isEmpty) {
@@ -100,9 +104,59 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
           Provider.of<FirestoreService>(context, listen: false);
       
       try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        log("No authenticated user found. Cannot add medication.");
+        return; // Safeguard: if no user, do nothing.
+      } 
+
+      if (_medType == "Eye Medication") {
+
+      List<Map<String, dynamic>> results = await firestoreService.queryCollection(collectionPath: 'medications', 
+      filters: [{"field": "medicationName", "operator": "==", "value": _medicationName}],
+      limit: 1);
+
+      if(results.isNotEmpty) {
+        _commonMedicationID = results.first["id"];
+      }
+
+       medData = createUserEyeMedDoc(
+            _commonMedicationID,
+            _medicationName,
+            _prescriptionDate ?? DateTime.now(),
+            _durationUnits,
+            _durationLength,
+            _scheduleType,
+            _frequency,
+            _doseUnits,
+            _doseQuantity,
+            _applicationSite);
+          
+        await firestoreService.addDoc(path: "users/${user.uid}/eye_medications", data:medData);
+
+      } else if(_medType == "Non-Eye Medication") {
+          medData = createUserNonEyeMedDoc(
+            _medicationName,
+            _prescriptionDate ?? DateTime.now(),
+            _durationUnits,
+            _durationLength, 
+            _scheduleType,
+            _frequency,
+            _doseUnits,
+            _doseQuantity,
+          );
+
+          await firestoreService.addDoc(path: "users/${user.uid}/noneye_medications", data:medData);
+      }
+
+      log("Medication successfully added.");
+      if(mounted){
+      Navigator.pop(context); 
+      }
+
 
       } catch(e) {
-
+          log("Unexpected error while adding medication: $e");
       }
 
     }
@@ -403,7 +457,7 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
                 // Numeric Input Field
                 Expanded(
                   child: TextFormField(
-                    controller: _durationController,
+                    controller: _frequencyController,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)), 
                       contentPadding: EdgeInsets.symmetric(vertical: 2.h, horizontal: 4.w), // Compact height
@@ -417,11 +471,11 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a duration';
+                        return 'Please enter a frequency';
                       }
                       final n = int.tryParse(value);
                       if (n == null || n < 1) {
-                        return 'Duration must be at least 1';
+                        return 'Frequency must be at least 1';
                       }
                       return null; 
                     },
