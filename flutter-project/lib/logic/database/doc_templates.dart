@@ -80,22 +80,20 @@ Map<String, dynamic> createMedDoc(
 
 /// Returns user eye medication document template
 Map<String, dynamic> createUserEyeMedDoc(
-    String userEyeMedicationID,
-    String medicationID,
+    String? commonMedicationId,
     DateTime datePrescribed,
     String durationUnits,
-    double durationLength,
+    int durationLength,
     String schedule,
     int frequency,
     String doseUnits,
     double doseQuantity,
     String applicationSite,
-    List<TimeOfDay> medTimings,
-    bool reminderSet,
-    String userID) {
+    //List<TimeOfDay> medTimings,
+    //bool reminderSet
+    ) {
   return {
-    "_id": userEyeMedicationID, // primary key
-    "medicationID": medicationID, // foreign key
+    "commonMedicationID": commonMedicationId, // foreign key
     "datePrescribed":
         datePrescribed, // if user does not know exact day/month, need alternative
     "durationUnits": durationUnits,
@@ -105,20 +103,17 @@ Map<String, dynamic> createUserEyeMedDoc(
     "doseUnits": doseUnits,
     "doseQuantity": doseQuantity,
     "applicationSite": applicationSite,
-    "medTimings": medTimings, //optional
+    //"medTimings": medTimings, //optional
     /**
 	  for purposes of scheduling reminders around medications that do not have reminders 
 	  set but user still takes them
 	  **/
-    "reminderSet": reminderSet,
-    "userID": userID //foreign key
+    //"reminderSet": reminderSet,
   };
 }
 
 ///Returns user non eye medication document template
 Map<String, dynamic> createUserNonEyeMedDoc(
-    String userNonEyeMedicationID,
-    String medicationID,
     DateTime datePrescribed,
     String durationUnits,
     double durationLength,
@@ -126,12 +121,11 @@ Map<String, dynamic> createUserNonEyeMedDoc(
     int frequency,
     String doseUnits,
     double doseQuantity,
-    String applicationSite,
-    List<TimeOfDay> medTimings,
-    String userID) {
+    //String applicationSite,
+    //List<TimeOfDay> medTimings,
+    //String userID
+    ) {
   return {
-    "_id": userNonEyeMedicationID, //primary key
-    "medicationID": medicationID, //foreign key
     "datePrescribed":
         datePrescribed, //if user does not know exact day/month, need alternative
     "durationUnits": durationUnits,
@@ -140,12 +134,12 @@ Map<String, dynamic> createUserNonEyeMedDoc(
     "frequency": frequency,
     "doseUnits": doseUnits,
     "doseQuantity": doseQuantity,
-    "medTimings": medTimings, //optional
+    //"medTimings": medTimings, //optional
     /**
 	  for purposes of scheduling reminders around medications that do not have reminders 
 	  set but user still takes them
 	  **/
-    "userID": userID //foreign key
+    //"userID": userID //foreign key
   };
 }
 
