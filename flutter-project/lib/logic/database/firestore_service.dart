@@ -432,4 +432,121 @@ class FirestoreService {
     }
   }
 
+  /// Queries a Firestore collection with optional filtering, ordering, and limiting.
+  ///
+  /// Parameters:
+  /// - `collectionPath`: The Firestore collection to query.
+  /// - `filters`: A list of maps, each containing a filter condition.
+  ///   - Each map should have:
+  ///     - `field` (String): The field name to filter by.
+  ///     - `operator` (String): The comparison operator (`==`, `<`, `>`, `<=`, `>=`, `array-contains`, etc.).
+  ///     - `value` (dynamic): The value to compare against.
+  /// - `orderBy`: A map specifying how to order the results (optional).
+  ///   - `field` (String): The field name to sort by.
+  ///   - `descending` (bool, default: `false`): Whether to sort in descending order.
+  /// - `limit`: The maximum number of documents to return (optional).
+  ///
+  /// Returns:
+  /// - A `List<Map<String, dynamic>>` containing documents that match the query.
+  /// - If an error occurs or no results are found, returns an empty list.
+  ///
+  /// Example Usage:
+  /// ```dart
+  /// List<Map<String, dynamic>> results = await queryCollection(
+  ///   collectionPath: "medications",
+  ///   filters: [
+  ///     {"field": "category", "operator": "==", "value": "antibiotic"},
+  ///     {"field": "stock", "operator": ">", "value": 0}
+  ///   ],
+  ///   orderBy: {"field": "name", "descending": false},
+  ///   limit: 10,
+  /// );
+  /// ```
+  Future<List<Map<String, dynamic>>> queryCollection({
+    required String collectionPath,
+    List<Map<String, dynamic>>? filters,
+    Map<String, dynamic>? orderBy,
+    int? limit,
+  }) async {
+    if (collectionPath.isEmpty) {
+      log("Error: Collection path cannot be empty.");
+      return [];
+    }
+
+    try {
+      Query query = _firestore.collection(collectionPath);
+
+      // Applies filters (WHERE conditions).
+      if (filters != null && filters.isNotEmpty) {
+        for (var filter in filters) {
+          String field = filter["field"];
+          String operator = filter["operator"];
+          dynamic value = filter["value"];
+
+          switch (operator) {
+            case "==":
+              query = query.where(field, isEqualTo: value);
+              break;
+            case "<":
+              query = query.where(field, isLessThan: value);
+              break;
+            case ">":
+              query = query.where(field, isGreaterThan: value);
+              break;
+            case "<=":
+              query = query.where(field, isLessThanOrEqualTo: value);
+              break;
+            case ">=":
+              query = query.where(field, isGreaterThanOrEqualTo: value);
+              break;
+            case "array-contains":
+              query = query.where(field, arrayContains: value);
+              break;
+            case "array-contains-any":
+              query = query.where(field, arrayContainsAny: value);
+              break;
+            case "in":
+              query = query.where(field, whereIn: value);
+              break;
+            case "not-in":
+              query = query.where(field, whereNotIn: value);
+              break;
+            default:
+              log("Error: Unsupported query operator $operator");
+              return [];
+          }
+        }
+      }
+
+      // Applies ordering (ORDER BY).
+      if (orderBy != null && orderBy.containsKey("field")) {
+        String orderField = orderBy["field"];
+        bool descending = orderBy["descending"] ?? false;
+        query = query.orderBy(orderField, descending: descending);
+      }
+
+      // Applies limit.
+      if (limit != null && limit > 0) {
+        query = query.limit(limit);
+      }
+
+      // Executes query and process results.
+      QuerySnapshot querySnapshot = await query.get();
+      List<Map<String, dynamic>> results = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Includes document ID.
+        return data;
+      }).toList();
+
+      return results;
+    } on FirebaseException catch (e) {
+      log("Firestore query error in $collectionPath: ${e.message}");
+      return [];
+    } catch (e) {
+      log("Unexpected error querying $collectionPath: $e");
+      return [];
+    }
+  }
+
+
 }
