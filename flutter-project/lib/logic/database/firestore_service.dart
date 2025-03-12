@@ -548,5 +548,51 @@ class FirestoreService {
     }
   }
 
+  /// Checks if an exact duplicate document exists within a Firestore collection.
+  /// 
+  /// This function compares all fields in `data` against existing documents.
+  /// 
+  /// Parameters:
+  /// - `collectionPath`: The path to the Firestore collection/sub-collection.
+  /// - `data`: The document data to check for duplication.
+  /// 
+  /// Returns:
+  /// - `true` if an exact duplicate exists.
+  /// - `false` if no duplicate is found.
+  Future<bool> checkExactDuplicateDoc({
+    required String collectionPath,
+    required Map<String, dynamic> data,
+  }) async {
+    if (collectionPath.isEmpty || data.isEmpty) {
+      log("Error: Collection path and data cannot be empty.");
+      return false;
+    }
+
+    try {
+      // Fetch all documents from the specified collection.
+      QuerySnapshot querySnapshot = await _firestore.collection(collectionPath).get();
+
+      for (var doc in querySnapshot.docs) {
+        Map<String, dynamic> existingData = doc.data() as Map<String, dynamic>;
+
+        // Use deep equality check to compare both maps
+        if (DeepCollectionEquality().equals(existingData, data)) {
+          log("Exact duplicate document found in $collectionPath with ID: ${doc.id}");
+          return true; // Duplicate found
+        }
+      }
+
+      log("No exact duplicate document found in $collectionPath.");
+      return false; // No duplicates found
+
+    } on FirebaseException catch (e) {
+      log("Firestore error checking duplicates in $collectionPath: ${e.message}");
+      return false;
+    } catch (e) {
+      log("Unexpected error checking duplicates in $collectionPath: $e");
+      return false;
+    }
+  }
+
 
 }
