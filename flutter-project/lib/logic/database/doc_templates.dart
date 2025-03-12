@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 
 /// Returns user document template
 /*
@@ -81,6 +80,7 @@ Map<String, dynamic> createMedDoc(
 /// Returns user eye medication document template
 Map<String, dynamic> createUserEyeMedDoc(
     String? commonMedicationId,
+    String medicationName,
     DateTime datePrescribed,
     String durationUnits,
     int durationLength,
@@ -94,6 +94,7 @@ Map<String, dynamic> createUserEyeMedDoc(
     ) {
   return {
     "commonMedicationID": commonMedicationId, // foreign key
+    "medicationName":medicationName,
     "datePrescribed":
         datePrescribed, // if user does not know exact day/month, need alternative
     "durationUnits": durationUnits,
@@ -114,9 +115,10 @@ Map<String, dynamic> createUserEyeMedDoc(
 
 ///Returns user non eye medication document template
 Map<String, dynamic> createUserNonEyeMedDoc(
+    String medicationName,
     DateTime datePrescribed,
     String durationUnits,
-    double durationLength,
+    int durationLength,
     String schedule,
     int frequency,
     String doseUnits,
@@ -126,6 +128,7 @@ Map<String, dynamic> createUserNonEyeMedDoc(
     //String userID
     ) {
   return {
+    "medicationName":medicationName,
     "datePrescribed":
         datePrescribed, //if user does not know exact day/month, need alternative
     "durationUnits": durationUnits,
