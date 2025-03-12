@@ -82,8 +82,9 @@ Map<String, dynamic> createUserEyeMedDoc(
     String? commonMedicationId,
     String medicationName,
     DateTime datePrescribed,
-    String durationUnits,
-    int durationLength,
+    bool isIndefinite,
+    String? durationUnits,
+    int? durationLength,
     String schedule,
     int frequency,
     String doseUnits,
@@ -97,6 +98,7 @@ Map<String, dynamic> createUserEyeMedDoc(
     "medicationName":medicationName,
     "datePrescribed":
         datePrescribed, // if user does not know exact day/month, need alternative
+    "isIndefinite": isIndefinite,
     "durationUnits": durationUnits,
     "durationLength": durationLength,
     "scheduleType": schedule, //daily, weekly, as needed, etc.
@@ -117,8 +119,9 @@ Map<String, dynamic> createUserEyeMedDoc(
 Map<String, dynamic> createUserNonEyeMedDoc(
     String medicationName,
     DateTime datePrescribed,
-    String durationUnits,
-    int durationLength,
+    bool isIndefinite,
+    String? durationUnits,
+    int? durationLength,
     String schedule,
     int frequency,
     String doseUnits,
@@ -131,6 +134,7 @@ Map<String, dynamic> createUserNonEyeMedDoc(
     "medicationName":medicationName,
     "datePrescribed":
         datePrescribed, //if user does not know exact day/month, need alternative
+    "isIndefinite": isIndefinite,    
     "durationUnits": durationUnits,
     "durationLength": durationLength,
     "scheduleType": schedule, //daily, weekly, as needed, etc.

@@ -1,17 +1,15 @@
 /* 
   TO DO:
-  - add option for indefinitely taken medication
+  - add check for exact duplicates before we add to FireStore
   - add medications page to read UserMeds
-
-  - format cleanly with sizer
-  - add missing documentation to all files
-  - add error handling
-  - refactor to enhance readability, improve cohesion and reduce coupling and allow
-  reusability for reminders
+  - REFINE CODE:
+    - format cleanly with sizer
+    - add missing documentation to all files
+    - add error handling
+    - refactor to enhance readability, improve cohesion and reduce coupling and allow
+    reusability for reminders
 
   - add condition IDs to link to added medication
-  - add check for exact duplicates before we add to FireStore
-  - DateTimes for prescription dates automatically start at 12am - determine if I need to change that
 */
 import 'dart:developer';
 import 'package:eyedrop/logic/database/doc_templates.dart';
@@ -36,6 +34,8 @@ class _MedicationFormState extends State<MedicationForm> {
   String? _commonMedicationID; // For common eye medications pre-defined in `medications` collection.
   String _medicationName = ''; 
   DateTime? _prescriptionDate;
+  TimeOfDay? _prescriptionTime;
+  bool _isIndefinite = false;
   String _durationUnits = '';
   int _durationLength = 1;
   String _scheduleType = '';
@@ -87,6 +87,34 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
   }
 }
 
+/// Shows a time picker.
+Future<void> _selectPrescriptionTime(BuildContext context) async {
+  TimeOfDay? pickedTime = await showTimePicker(
+    context: context,
+    initialTime: _prescriptionTime ?? TimeOfDay.now(),
+  );
+
+  if (pickedTime != null) {
+    setState(() {
+      _prescriptionTime = pickedTime;
+    });
+  }
+}
+
+/// Combines date and time to save together.
+DateTime getFinalPrescriptionDateTime() {
+  if (_prescriptionDate == null) return DateTime.now();
+
+  // If user selected a time, use it, otherwise default to 12:00 AM
+  return DateTime(
+    _prescriptionDate!.year,
+    _prescriptionDate!.month,
+    _prescriptionDate!.day,
+    _prescriptionTime?.hour ?? 0,
+    _prescriptionTime?.minute ?? 0,
+  );
+}
+
   /// Checks if the form is valid and if it is, saves the forms data.
   Future<void> _submitForm() async {
     setState(() {}); // Forces UI update for validation message
@@ -110,6 +138,8 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
         return; // Safeguard: if no user, do nothing.
       } 
 
+      _prescriptionDate = getFinalPrescriptionDateTime();
+
       if (_medType == "Eye Medication") {
 
       List<Map<String, dynamic>> results = await firestoreService.queryCollection(collectionPath: 'medications', 
@@ -124,8 +154,9 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
             _commonMedicationID,
             _medicationName,
             _prescriptionDate ?? DateTime.now(),
-            _durationUnits,
-            _durationLength,
+            _isIndefinite,
+            _isIndefinite ? null : _durationUnits,
+           _isIndefinite ? null : _durationLength,
             _scheduleType,
             _frequency,
             _doseUnits,
@@ -138,8 +169,9 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
           medData = createUserNonEyeMedDoc(
             _medicationName,
             _prescriptionDate ?? DateTime.now(),
-            _durationUnits,
-            _durationLength, 
+           _isIndefinite,
+            _isIndefinite ? null : _durationUnits,
+           _isIndefinite ? null : _durationLength, 
             _scheduleType,
             _frequency,
             _doseUnits,
@@ -315,6 +347,186 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
                 ),
               ),
 
+              // Time Picker (Optional)
+            if (_prescriptionDate != null) ...[
+              Text("Prescription Time (Optional)", style: TextStyle(fontWeight: FontWeight.bold)),
+              GestureDetector(
+                onTap: () => _selectPrescriptionTime(context),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 3.w),
+                  margin: EdgeInsets.only(bottom: 5.w),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(5.w),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _prescriptionTime != null
+                            ? "${_prescriptionTime!.hour}:${_prescriptionTime!.minute.toString().padLeft(2, '0')}"
+                            : "Select Time (Optional)",
+                        style: TextStyle(fontSize: 16.sp),
+                      ),
+                      Icon(Icons.access_time, color: Colors.blue),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+              // Checkbox for Indefinite Medication
+              Row(
+                children: [
+                  Checkbox(
+                    value: _isIndefinite,
+                    onChanged: (value) {
+                      setState(() {
+                        _isIndefinite = value!;
+                        if (_isIndefinite) {
+                          _durationUnits = ''; // Reset duration fields
+                          _durationLength = 0;
+                          _durationController.text = ''; // Clear text field
+                        }
+                      });
+                    },
+                  ),
+                  Text("Taken Indefinitely"),
+                ],
+              ),
+
+              // Duration Units Dropdown (Completely Disabled if Indefinite)
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: "Select Duration",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
+                ),
+                value: !_isIndefinite && _durationUnits.isNotEmpty ? _durationUnits : null,
+                items: ["Days", "Weeks", "Months", "Years"]
+                    .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
+                    .toList(),
+                onChanged: _isIndefinite ? null : (value) {
+                  setState(() {
+                    _durationUnits = value!;
+                  });
+                },
+                validator: (value) {
+                  if (!_isIndefinite && (value == null || value.isEmpty)) {
+                    return 'Please select a duration unit.';
+                  }
+                  return null;
+                },
+                onSaved: (value) {
+                  _durationUnits = value ?? '';
+                },
+                disabledHint: Text("Indefinite"), // Shows when disabled
+              ),
+
+              // Duration Length Field (Fully Disabled if Indefinite)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Duration Length", style: TextStyle(fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      // Numeric Input Field (Disabled if Indefinite)
+                      Expanded(
+                        child: TextFormField(
+                          controller: _durationController,
+                          decoration: InputDecoration(
+                            labelText: "Duration Length",
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          enabled: !_isIndefinite, // Disables input if indefinite
+                          onChanged: (value) {
+                            if (!_isIndefinite) {
+                              setState(() {
+                                _durationLength = int.tryParse(value) ?? 1;
+                              });
+                            }
+                          },
+                          validator: (value) {
+                            if (!_isIndefinite && (value == null || value.isEmpty)) {
+                              return 'Please enter a duration length';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+
+                      // Up/Down Buttons (Disabled if Indefinite)
+                      Column(
+                        children: [
+                          // Increment Button (Up Arrow)
+                          IconButton(
+                            icon: Icon(Icons.arrow_drop_up, size: 24),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(),
+                            onPressed: _isIndefinite
+                                ? null // Disables button if indefinite
+                                : () {
+                                    int currentValue = int.tryParse(_durationController.text) ?? 1;
+                                    currentValue++;
+                                    _durationController.text = '$currentValue';
+                                    setState(() => _durationLength = currentValue);
+                                  },
+                          ),
+
+                          // Divider Line Directly Under the Number
+                          Container(
+                            width: 30,
+                            height: 1,
+                            color: Colors.grey[400],
+                          ),
+
+                          // Decrement Button (Down Arrow)
+                          IconButton(
+                            icon: Icon(Icons.arrow_drop_down, size: 24),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(),
+                            onPressed: _isIndefinite
+                                ? null // Disables button if indefinite
+                                : () {
+                                    int currentValue = int.tryParse(_durationController.text) ?? 1;
+                                    if (currentValue > 1) {
+                                      currentValue--;
+                                      _durationController.text = '$currentValue';
+                                      setState(() => _durationLength = currentValue);
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+
+              /*
+
+              Row(
+              children: [
+                Checkbox(
+                  value: _isIndefinite,
+                  onChanged: (value) {
+                    setState(() {
+                      _isIndefinite = value!;
+                      if (_isIndefinite) {
+                        _durationUnits = ''; // Reset duration fields
+                        _durationLength = 0;
+                        _durationController.text = ''; // Clear text field
+                      }
+                    });
+                  },
+                ),
+                Text("Taken Indefinitely"),
+              ],
+            ),
+
+              
               // Duration Units
               Text("Duration Units", style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height:1.h),
@@ -418,7 +630,7 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
                   ],
                 ),
               ],
-            ),]),
+            ),]), */
 
             Text("Schedule type", style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height:1.h),
