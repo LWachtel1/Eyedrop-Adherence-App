@@ -1,5 +1,6 @@
 /* 
     TO DO:
+    implement deletion and altering of user medications 
 
 */
 
@@ -12,68 +13,76 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-
 /// Screen displaying a user's medications.
 class MedicationsScreen extends StatefulWidget {
-
-  // StatefulWidget chosen as it fetches data asynchronously from Firestore & 
-  // updates the UI dynamically when users searches through their list of medications.
-
   @override
   _MedicationsScreenState createState() => _MedicationsScreenState();
 }
 
 class _MedicationsScreenState extends State<MedicationsScreen> {
-  // Gets the FirestoreService from Provider to allow CRUD operations within class.
-
   List<Map<String, dynamic>> _medications = [];
-  List<Map<String, dynamic>> _filteredMedications = []; 
+  List<Map<String, dynamic>> _filteredMedications = [];
 
-  bool _isLoading = true; // Whether medications data is still loading or not.
-  TextEditingController _searchController = TextEditingController(); // Manages user searchbar input.
+  bool _isLoading = true;
+  TextEditingController _searchController = TextEditingController();
+
+  String _sortFilterOption = "Show All"; // Default option
 
   @override
   void initState() {
     super.initState();
-    _fetchUserMedications(); // Calls _fetchMedications() when the screen loads.
-
-    // Adds a listener to filter results as user types (if they search list instead of scrolling).
-     // _filterMedications() is called whenver user types.
-    _searchController.addListener(_filterMedications); 
-
-
+    _fetchUserMedications();
+    _searchController.addListener(_filterMedications);
   }
 
-  /// Fetches user medications from FireStore 
+  /// Fetches user medications from Firestore.
   Future<void> _fetchUserMedications() async {
-  try {
-    // Get FirestoreService instance
-    // `listen: false` means this widget won’t rebuild when FirestoreService updates.
-    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    try {
+      final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-    return;
+      List<Map<String, dynamic>> eyeMeds =
+          await firestoreService.getAllDocs(collectionPath: "users/${user.uid}/eye_medications");
+      List<Map<String, dynamic>> nonEyeMeds =
+          await firestoreService.getAllDocs(collectionPath: "users/${user.uid}/noneye_medications");
+      List<Map<String, dynamic>> allMeds = eyeMeds + nonEyeMeds;
+
+      setState(() {
+        _medications = allMeds;
+        _applySortingAndFiltering(); // Apply default sorting/filtering
+        _isLoading = false;
+      });
+    } catch (e) {
+      log("Error fetching medications: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Filters and sorts medications based on the selected option.
+  void _applySortingAndFiltering() {
+    List<Map<String, dynamic>> tempList = List.from(_medications);
+
+    // Apply filtering
+    if (_sortFilterOption == "Show Only Eye Medications") {
+      tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
+    } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
+      tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
     }
 
-    // Fetch medications using FirestoreService's getAllDocs method
-    List<Map<String, dynamic>> eyeMeds = await firestoreService.getAllDocs(collectionPath: "users/${user.uid}/eye_medications");
-    List<Map<String, dynamic>> nonEyeMeds = await firestoreService.getAllDocs(collectionPath: "users/${user.uid}/noneye_medications");
-    List<Map<String, dynamic>> allMeds = eyeMeds + nonEyeMeds;
+    // Apply sorting
+    if (_sortFilterOption == "Sort A-Z") {
+      tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
+    } else if (_sortFilterOption == "Sort Z-A") {
+      tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
+    }
 
     setState(() {
-      _medications = allMeds;
-      _filteredMedications = allMeds; // Initialises with full list of medications.
-      _isLoading = false; // Stops loading indicator.
+      _filteredMedications = tempList;
     });
-  } catch (e) {
-    log("Error fetching medications: $e");
-    setState(() => _isLoading = false); // Stops loading on error.
   }
 
-}
-
-  /// Filters the medication list based on the search query.
+  /// Filters medications based on search query.
   void _filterMedications() {
     String query = _searchController.text.toLowerCase();
     setState(() {
@@ -86,18 +95,17 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose(); // Prevents memory leaks from the TextEditingController.
+    _searchController.dispose();
     super.dispose();
   }
 
-  /// Displays a scrollable list of the retrieved medications with a search bar for filtering. 
+  /// Displays the list of medications with sorting and filtering options.
   @override
   Widget build(BuildContext context) {
     return BaseLayoutScreen(
       child: Column(
         children: [
-
-          // Provides search bar.
+          // Search Bar
           Padding(
             padding: EdgeInsets.all(5.w),
             child: TextField(
@@ -110,8 +118,33 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
             ),
           ),
 
-          // Displays scrollable medication summary cards.
-           // Medication Summary Cards
+          // Sorting & Filtering Dropdown
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 5.w),
+            child: DropdownButtonFormField<String>(
+              value: _sortFilterOption,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
+              ),
+              items: [
+                "Show All",
+                "Show Only Eye Medications",
+                "Show Only Non-Eye Medications",
+                "Sort A-Z",
+                "Sort Z-A",
+              ].map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _sortFilterOption = value!;
+                  _applySortingAndFiltering();
+                });
+              },
+            ),
+          ),
+
+          SizedBox(height: 2.h),
+
+          // Medication Summary Cards
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
@@ -147,7 +180,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                                     ),
                                     SizedBox(height: 0.5.h),
                                     Text(
-                                      medication["isEyeMedication"] ? "Eye" : "Non-Eye",
+                                      medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
                                       style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
                                     ),
                                   ],
