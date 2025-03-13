@@ -1,3 +1,4 @@
+import 'package:eyedrop/logic/navigation_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sizer/sizer.dart';
@@ -6,8 +7,11 @@ import 'package:sizer/sizer.dart';
 class DrawerItem extends StatelessWidget {
   final String label;
   final String iconPath;
+  final Widget destinationScreen;
 
-  const DrawerItem({required this.label, required this.iconPath, super.key});
+
+  const DrawerItem({required this.label, required this.iconPath,  required this.destinationScreen, 
+  super.key});
 
 
   /// Builds slide-out menu drawer item with dynamically adapting icon and text sizing.
@@ -26,7 +30,7 @@ class DrawerItem extends StatelessWidget {
             label,
             style: TextStyle(fontSize: 20.sp), 
           ),
-          onTap: () {},
+        onTap: () => safeNavigate(context, destinationScreen), 
         );
       
   }

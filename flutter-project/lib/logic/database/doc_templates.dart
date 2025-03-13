@@ -94,6 +94,7 @@ Map<String, dynamic> createUserEyeMedDoc(
     //bool reminderSet
     ) {
   return {
+    "isEyeMedication": true,
     "commonMedicationID": commonMedicationId, // foreign key
     "medicationName":medicationName,
     "datePrescribed":
@@ -131,6 +132,7 @@ Map<String, dynamic> createUserNonEyeMedDoc(
     //String userID
     ) {
   return {
+    "isEyeMedication": false,
     "medicationName":medicationName,
     "datePrescribed":
         datePrescribed, //if user does not know exact day/month, need alternative
