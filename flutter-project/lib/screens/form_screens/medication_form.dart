@@ -236,6 +236,13 @@ DateTime getFinalPrescriptionDateTime() {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               
+              Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Back", style: TextStyle(fontSize: 17.5.sp)),
+              ),
+            ),
+        
               // Enables toggling between eye versus non-eye medication and subsequent
               // hiding of irrelevant fields and showing of fields relevant to type selected.
               
@@ -861,6 +868,8 @@ DateTime getFinalPrescriptionDateTime() {
                 onPressed: _submitForm, // Calls _submitForm function when the button is pressed.
                 child: Text('Submit'), 
               ),
+            
+            
 
             ],
           ),
