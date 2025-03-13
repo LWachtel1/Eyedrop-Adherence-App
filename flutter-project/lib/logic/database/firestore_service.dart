@@ -1,6 +1,5 @@
 /*
   TO DO:
-
   - Test how addDoc() with merge: True works 
     i.e., does it truly update a document with removing fields not mentioned in data
   
@@ -300,18 +299,21 @@ class FirestoreService {
     }
   }
 
-  /// Compares two maps of document data to see if they are the same; used for the purpose of updating a document.
+  /// Normalises then compares two maps of document data to see if they are the same; used for the purpose of updating a document.
   ///
   /// Parameters:
   /// `oldData`: The first map, corresponding to existing data within document.
   /// `newData`: The second map, corresponding to updated data.
   ///
   /// Returns:
-  /// - `true` if the maps contain the same data.
-  /// - `false` if the maps do not contain the same data.
+  /// - `true` if the normalised maps contain the same data.
+  /// - `false` if the normalised maps do not contain the same data.
   bool _isSameData(Map<String, dynamic> oldData, Map<String, dynamic> newData) {
-    return DeepCollectionEquality().equals(oldData, newData);
-  }
+  Map<String, dynamic> normalizedOld = _normalizeData(oldData);
+  Map<String, dynamic> normalizedNew = _normalizeData(newData);
+  return DeepCollectionEquality().equals(normalizedOld, normalizedNew);
+}
+
 
   /// Updates an existing document.
   ///
@@ -559,40 +561,74 @@ class FirestoreService {
   /// Returns:
   /// - `true` if an exact duplicate exists.
   /// - `false` if no duplicate is found.
-  Future<bool> checkExactDuplicateDoc({
-    required String collectionPath,
-    required Map<String, dynamic> data,
-  }) async {
-    if (collectionPath.isEmpty || data.isEmpty) {
-      log("Error: Collection path and data cannot be empty.");
-      return false;
-    }
-
-    try {
-      // Fetch all documents from the specified collection.
-      QuerySnapshot querySnapshot = await _firestore.collection(collectionPath).get();
-
-      for (var doc in querySnapshot.docs) {
-        Map<String, dynamic> existingData = doc.data() as Map<String, dynamic>;
-
-        // Use deep equality check to compare both maps
-        if (DeepCollectionEquality().equals(existingData, data)) {
-          log("Exact duplicate document found in $collectionPath with ID: ${doc.id}");
-          return true; // Duplicate found
-        }
-      }
-
-      log("No exact duplicate document found in $collectionPath.");
-      return false; // No duplicates found
-
-    } on FirebaseException catch (e) {
-      log("Firestore error checking duplicates in $collectionPath: ${e.message}");
-      return false;
-    } catch (e) {
-      log("Unexpected error checking duplicates in $collectionPath: $e");
-      return false;
-    }
+ Future<bool> checkExactDuplicateDoc({
+  required String collectionPath,
+  required Map<String, dynamic> data,
+}) async {
+  if (collectionPath.isEmpty || data.isEmpty) {
+    log("Error: Collection path and data cannot be empty.");
+    return false;
   }
 
+  try {
+    // Fetch all documents from the specified collection.
+    QuerySnapshot querySnapshot = await _firestore.collection(collectionPath).get();
+
+    for (var doc in querySnapshot.docs) {
+      // ✅ Explicitly cast Firestore data to `Map<String, dynamic>`
+      Map<String, dynamic> existingData = Map<String, dynamic>.from(doc.data() as Map);
+
+      // ✅ Remove Firestore metadata fields
+      existingData.remove("id");
+      data.remove("id");
+
+      // ✅ Normalize Firestore timestamps and numbers for comparison
+      existingData = _normalizeData(existingData);
+      data = _normalizeData(data);
+      log(existingData.toString());
+      log(data.toString());
+
+      // ✅ Perform deep equality check
+      if (DeepCollectionEquality().equals(existingData, data)) {
+        log("Exact duplicate document found in $collectionPath with ID: ${doc.id}");
+        return true; // Duplicate found
+      }
+    }
+
+    log("No exact duplicate document found in $collectionPath.");
+    return false; // No duplicates found
+
+  } on FirebaseException catch (e) {
+    log("Firestore error checking duplicates in $collectionPath: ${e.message}");
+    return false;
+  } catch (e) {
+    log("Unexpected error checking duplicates in $collectionPath: $e");
+    return false;
+  }
+}
+
+/// **Helper function: Normalizes Firestore data**
+Map<String, dynamic> _normalizeData(Map<String, dynamic> data) {
+  Map<String, dynamic> normalizedData = {};
+
+  data.forEach((key, value) {
+    if (value is Timestamp) {
+      normalizedData[key] = value.toDate().toIso8601String(); // ✅ Ensures consistent format
+    } else if (value is DateTime) {
+      normalizedData[key] = value.toIso8601String(); // ✅ Ensures consistent format
+    } else if (value is num) {
+      normalizedData[key] = value.toDouble(); // ✅ Converts int → double for consistency
+    } else if (value is List) {
+      normalizedData[key] = value.map((e) => _normalizeData({"listItem": e})["listItem"]).toList();
+      normalizedData[key].sort(); // ✅ Sorts lists to prevent order mismatches
+    } else if (value is Map) {
+      normalizedData[key] = _normalizeData(Map<String, dynamic>.from(value)); // ✅ Ensures Map<String, dynamic>
+    } else {
+      normalizedData[key] = value;
+    }
+  });
+
+  return normalizedData;
+}
 
 }
