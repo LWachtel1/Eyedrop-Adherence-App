@@ -1,7 +1,5 @@
 /* 
   TO DO:
-  - add check for exact duplicates before we add to FireStore
-  - add medications page to read UserMeds
   - REFINE CODE:
     - format cleanly with sizer
     - add missing documentation to all files
@@ -46,6 +44,7 @@ class _MedicationFormState extends State<MedicationForm> {
   String _applicationSite = ''; // Eye Medication Only Field
 
   Map<String, dynamic> medData = {};
+  bool isDuplicate = false;
 
   TextEditingController _medicationController = TextEditingController();
   // Manages the value of a TextField or TextFormField dynamically.
@@ -162,8 +161,12 @@ DateTime getFinalPrescriptionDateTime() {
             _doseUnits,
             _doseQuantity,
             _applicationSite);
-          
-        await firestoreService.addDoc(path: "users/${user.uid}/eye_medications", data:medData);
+        
+        isDuplicate = await firestoreService.checkExactDuplicateDoc(collectionPath: "users/${user.uid}/eye_medications", data: medData);
+
+        if(!isDuplicate) {
+          await firestoreService.addDoc(path: "users/${user.uid}/eye_medications", data:medData);
+        } 
 
       } else if(_medType == "Non-Eye Medication") {
           medData = createUserNonEyeMedDoc(
@@ -178,15 +181,39 @@ DateTime getFinalPrescriptionDateTime() {
             _doseQuantity,
           );
 
-          await firestoreService.addDoc(path: "users/${user.uid}/noneye_medications", data:medData);
+          isDuplicate = await firestoreService.checkExactDuplicateDoc(collectionPath: "users/${user.uid}/noneye_medications", data: medData);
+
+          if(!isDuplicate) {
+            await firestoreService.addDoc(path: "users/${user.uid}/noneye_medications", data:medData);
+          } 
       }
 
-      log("Medication successfully added.");
-      if(mounted){
-      Navigator.pop(context); 
-      }
-
-
+        if (isDuplicate) {
+        // Show pop-up if a duplicate is found
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text("Duplicate Medication"),
+                  content: Text("Medication already in user records."),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context), 
+                      child: Text("OK")
+                    )
+                  ],
+                );
+              }
+            );
+          }
+        } else {
+          log("Medication successfully added.");
+          if (mounted) {
+            Navigator.pop(context); // Go back to previous screen after successful submission.
+          }
+        }
+        
       } catch(e) {
           log("Unexpected error while adding medication: $e");
       }
