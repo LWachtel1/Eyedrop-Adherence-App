@@ -27,11 +27,13 @@ import 'package:sizer/sizer.dart';
 /// 
 /// Validates user input and prevents duplicate medications from being stored.
 class MedicationForm extends StatefulWidget {
+  const MedicationForm({super.key});
+  
   @override
-  _MedicationFormState createState() => _MedicationFormState();
+  MedicationFormState createState() => MedicationFormState();
 }
 
-class _MedicationFormState extends State<MedicationForm> {
+class MedicationFormState extends State<MedicationForm> {
   // A unique key used to validate and manage the form state.
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>(); 
 
@@ -53,7 +55,7 @@ class _MedicationFormState extends State<MedicationForm> {
   Map<String, dynamic> medData = {}; // Stores the submitted data to be added to FireStore in a document.
   bool isDuplicate = false; // Whether the medication details submitted are a duplicate of an already existing user medication.
 
-  TextEditingController _medicationController = TextEditingController();
+  final TextEditingController _medicationController = TextEditingController();
   // Manages the value of a TextField or TextFormField dynamically.
   // Can programatically retrieve, update and clear. Also listens for text changes.
 
@@ -104,6 +106,8 @@ class _MedicationFormState extends State<MedicationForm> {
 /// - Updates `_prescriptionDate` and rebuilds the UI.
 /// - If no date is selected, keeps the existing value.
 Future<void> _selectPrescriptionDate(BuildContext context) async {
+  final localContext = context; // Store context locally to avoid async gap issues.
+
   try {
   DateTime? pickedDate = await showDatePicker(
     context: context,
@@ -122,8 +126,8 @@ Future<void> _selectPrescriptionDate(BuildContext context) async {
     }
   } catch (e) {
     log("Error selecting date: $e");
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (localContext.mounted) {
+      ScaffoldMessenger.of(localContext).showSnackBar(
         SnackBar(content: Text("Failed to select date. Please try again.")),
       );
     }
