@@ -1,7 +1,5 @@
 /* 
     TO DO:
-    implement deletion and altering of user medications 
-
 */
 
 import 'dart:developer';
@@ -57,6 +55,66 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       log("Error fetching medications: $e");
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Deletes a medication from Firestore.
+  Future<void> _deleteMedication(Map<String, dynamic> medication) async {
+    try {
+      final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Determine collection path
+      String collectionPath = medication["isEyeMedication"] == true
+          ? "users/${user.uid}/eye_medications"
+          : "users/${user.uid}/noneye_medications";
+
+      // Ensure the document has an ID before trying to delete
+      if (!medication.containsKey("id") || medication["id"] == null) {
+        log("Error: Medication does not have an ID.");
+        return;
+      }
+
+      await firestoreService.deleteDoc(collectionPath: collectionPath, docId: medication["id"]);
+
+      setState(() {
+        _medications.removeWhere((med) => med["id"] == medication["id"]);
+        _applySortingAndFiltering();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Medication deleted successfully.")),
+      );
+    } catch (e) {
+      log("Error deleting medication: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error deleting medication.")),
+      );
+    }
+  }
+
+  /// Shows a confirmation dialog before deleting a medication.
+  void _showDeleteConfirmationDialog(BuildContext context, Map<String, dynamic> medication) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Delete Medication?"),
+        content: Text("Are you sure you want to delete ${medication["medicationName"]}?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Cancel deletion
+            child: Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close the dialog
+              _deleteMedication(medication);
+            },
+            child: Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Filters and sorts medications based on the selected option.
@@ -144,7 +202,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
           SizedBox(height: 2.h),
 
-          // Medication Summary Cards
+           // Medication Summary Cards with Delete Icon
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
@@ -154,38 +212,33 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                         itemCount: _filteredMedications.length,
                         itemBuilder: (context, index) {
                           Map<String, dynamic> medication = _filteredMedications[index];
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MedicationDetailScreen(medication: medication),
-                                ),
-                              );
-                            },
-                            child: Card(
-                              elevation: 3,
-                              margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          return Card(
+                            elevation: 3,
+                            margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                medication["medicationName"] ?? "Unnamed Medication",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
                               ),
-                              child: Padding(
-                                padding: EdgeInsets.all(4.w),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      medication["medicationName"] ?? "Unnamed Medication",
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
-                                    ),
-                                    SizedBox(height: 0.5.h),
-                                    Text(
-                                      medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
-                                      style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
-                                    ),
-                                  ],
-                                ),
+                              subtitle: Text(
+                                medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
+                                style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
                               ),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _showDeleteConfirmationDialog(context, medication),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MedicationDetailScreen(medication: medication),
+                                  ),
+                                );
+                              },
                             ),
                           );
                         },
