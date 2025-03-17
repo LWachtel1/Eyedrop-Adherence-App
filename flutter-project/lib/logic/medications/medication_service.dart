@@ -16,6 +16,36 @@ class MedicationService {
 
   MedicationService(this.firestoreService);
 
+/// Fetches common medications from Firestore.
+///
+/// - Retrieves all documents from the `medications` collection.
+/// - Handles Firestore and network-related errors.
+///
+/// Returns:
+/// - `List<Map<String, dynamic>>` whcih provides a list of medications.
+/// 
+/// Throws:
+/// - `Exception` if an error occurs while fetching the medications e.g., network issue.
+Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
+  try {
+    log("Fetching common medications...");
+
+    List<Map<String, dynamic>> meds = await firestoreService.getAllDocs(collectionPath: "medications");
+
+    if (meds.isEmpty) {
+      throw Exception("No medications found in the database.");
+    }
+
+    return meds;
+  } on FirebaseException catch (e) {
+    log("Firestore error while fetching medications: ${e.message}");
+    throw Exception("Failed to fetch medications. Check your internet connection.");
+  } catch (e) {
+    log("Unexpected error fetching medications: $e");
+    throw Exception("Something went wrong. Please try again later.");
+  }
+}
+
   /// Creates a user medication data map to be stored in FireStore.
   /// 
   /// Parameters:
