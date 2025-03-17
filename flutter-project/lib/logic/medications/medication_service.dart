@@ -95,6 +95,7 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
       if(medType == "Eye Medication" && applicationSite.isNotEmpty) {
         return {
           "medType": medType,
+          //"isEyeMedication": true,
           "medicationName": medicationName,
           "prescriptionDate": prescriptionDate,
           "isIndefinite": isIndefinite,
@@ -110,6 +111,7 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
         return {
           "medType": medType,
           "medicationName": medicationName,
+          //"isEyeMedication": false,
           "prescriptionDate": prescriptionDate,
           "isIndefinite": isIndefinite,
           "durationUnits": isIndefinite ? null : durationUnits,

@@ -26,11 +26,16 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   String _sortFilterOption = "Show All"; // Default option
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_filterMedications);
-  }
+ @override
+void initState() {
+  super.initState();
+  // Instead of attaching listener that calls setState, we'll rely on the stream
+  _searchController.addListener(() {
+    setState(() {
+      // Just trigger a rebuild, filtering happens in build
+    });
+  });
+}
 
 
 
@@ -42,7 +47,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       if (user == null) return;
 
       // Determine collection path
-      String collectionPath = medication["isEyeMedication"] == true
+      String collectionPath = medication["medType"] == "Eye Medication" // medication["isEyeMedication"] == true
           ? "users/${user.uid}/eye_medications"
           : "users/${user.uid}/noneye_medications";
 
@@ -89,35 +94,32 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     );
   }
 
+List<Map<String, dynamic>> _processFilteredMedications(List<Map<String, dynamic>> sourceMedications) {
+  String query = _searchController.text.toLowerCase();
+  List<Map<String, dynamic>> tempList = sourceMedications.where((med) {
+    String name = (med["medicationName"] ?? "").toLowerCase();
+    return name.contains(query);
+  }).toList();
+  
+  // Apply filtering
+  if (_sortFilterOption == "Show Only Eye Medications") {
+    tempList = tempList.where((med) => med["medType"] == "Eye Medication").toList();
+    // tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
+  } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
+        tempList = tempList.where((med) => med["medType"] != "Eye Medication").toList();
+        // tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
+  }
 
-
-  /// Filters and sorts medications based on search query.
-  void _filterMedications() {
-    String query = _searchController.text.toLowerCase();
-    List<Map<String, dynamic>> tempList = _medications.where((med) {
-      String name = (med["medicationName"] ?? "").toLowerCase();
-      return name.contains(query);
-    }).toList();
-    
-    // Apply filtering
-    if (_sortFilterOption == "Show Only Eye Medications") {
-      tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
-    } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
-      tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
-    }
-
-    // Apply sorting
-    if (_sortFilterOption == "Sort A-Z") {
-      tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
-    } else if (_sortFilterOption == "Sort Z-A") {
-      tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
-    }
-    
-    setState(() {
-      _filteredMedications = tempList;
-    });
+  // Apply sorting
+  if (_sortFilterOption == "Sort A-Z") {
+    tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
+  } else if (_sortFilterOption == "Sort Z-A") {
+    tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
   }
   
+  return tempList;
+}
+
 
   @override
   void dispose() {
@@ -163,11 +165,10 @@ Widget build(BuildContext context) {
               "Sort Z-A",
             ].map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
             onChanged: (value) {
-              setState(() {
-                _sortFilterOption = value!;
-                _filterMedications();
-              });
-            },
+  setState(() {
+    _sortFilterOption = value!;
+  });
+},
           ),
         ),
 
@@ -184,13 +185,10 @@ Widget build(BuildContext context) {
                       return Center(child: CircularProgressIndicator());
                     }
                     
-                    // Process data WITHOUT setState
-                    if (snapshot.hasData) {
-                      // Update local data without setState
-                      _medications = snapshot.data!;
-                      // Apply filtering without setState
-                      _updateFilteredMedicationsWithoutSetState();
-                    }
+                   if (snapshot.hasData) {
+  _medications = snapshot.data!;
+  _filteredMedications = _processFilteredMedications(_medications);
+}
                     
                     if (_filteredMedications.isEmpty) {
                       return Center(child: Text("No medications found"));
@@ -212,7 +210,8 @@ Widget build(BuildContext context) {
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
                             ),
                             subtitle: Text(
-                              medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
+                              medication["medType"] == "Eye Medication" ? "Eye" : "Non-Eye",
+                             // medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
                               style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
                             ),
                             trailing: IconButton(
@@ -239,31 +238,7 @@ Widget build(BuildContext context) {
   );
 }
 
-// New method that filters without calling setState
-void _updateFilteredMedicationsWithoutSetState() {
-  String query = _searchController.text.toLowerCase();
-  List<Map<String, dynamic>> tempList = _medications.where((med) {
-    String name = (med["medicationName"] ?? "").toLowerCase();
-    return name.contains(query);
-  }).toList();
-  
-  // Apply filtering
-  if (_sortFilterOption == "Show Only Eye Medications") {
-    tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
-  } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
-    tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
-  }
 
-  // Apply sorting
-  if (_sortFilterOption == "Sort A-Z") {
-    tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
-  } else if (_sortFilterOption == "Sort Z-A") {
-    tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
-  }
-  
-  // Direct assignment instead of setState
-  _filteredMedications = tempList;
-}
   // Create a stream that combines both eye and non-eye medications
   Stream<List<Map<String, dynamic>>> _buildMedicationsStream(FirestoreService firestoreService, String userId) {
     Stream<List<Map<String, dynamic>>> eyeStream = 
