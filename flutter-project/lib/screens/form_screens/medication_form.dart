@@ -183,7 +183,7 @@ class MedicationFormState extends State<MedicationForm> {
           FormComponents.buildNumericStepperField(
             label: "Frequency",
             controller: controller.frequencyController,
-            isEnabled: !controller.isIndefinite,
+            isEnabled: true,
             step: 1.0,
             minValue: 1.0, // Ensures a minimum of 1
             allowDecimals: false,
