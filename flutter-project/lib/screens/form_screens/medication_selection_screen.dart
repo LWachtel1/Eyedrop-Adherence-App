@@ -145,12 +145,24 @@ class _MedicationSelectionScreenState extends State<MedicationSelectionScreen> {
                     ? _buildErrorWidget() // Shows error message.
                 : _medicationNames.isEmpty
                     ? Center(child: Text("No medications found"))
-                 : SearchableList( // Provides search bar and searchable list.
+                 : SearchableList<String>(
                       items: _medicationNames,
-                      hintText: "Search Medications",
+                      getSearchString: (medication) => medication,
+                      itemBuilder: (medication, index) => Card(
+                        margin: EdgeInsets.symmetric(vertical: 0.5.h, horizontal: 5.w),
+                        elevation: 2,
+                        child: ListTile(
+                          title: Text(
+                            medication,
+                            style: TextStyle(fontSize: 16.sp),
+                          ),
+                          trailing: Icon(Icons.chevron_right),
+                        ),
+                      ),
                       onSelect: (selectedMedication) {
-                        Navigator.pop(context, selectedMedication); // Returns selection to form.
+                        Navigator.pop(context, selectedMedication);
                       },
+                      hintText: "Search Medications",
                     ),
           ),
         ],

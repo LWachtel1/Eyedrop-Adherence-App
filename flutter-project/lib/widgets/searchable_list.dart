@@ -2,26 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 /// A reusable widget for displaying a searchable list of items.
-class SearchableList extends StatefulWidget {
-  final List<String> items; // Items to be displayed in list.
-  final Function(String) onSelect; 
-  final String hintText; //Text to be displayed in search bar as a hint.
+class SearchableList<T> extends StatefulWidget {
+  final List<T> items; // List of any type of items
+  final String Function(T) getSearchString; // Function to extract search string from item
+  final Widget Function(T, int) itemBuilder; // Function to build widget for each item
+  final Function(T) onSelect; // Callback when item is selected
+  final String hintText; // Text to be displayed in search bar as a hint
 
   const SearchableList({
     required this.items,
+    required this.getSearchString,
+    required this.itemBuilder,
     required this.onSelect,
     this.hintText = "Search...",
     super.key,
   });
 
   @override
-  _SearchableListState createState() => _SearchableListState();
+  _SearchableListState<T> createState() => _SearchableListState<T>();
 }
 
-class _SearchableListState extends State<SearchableList> {
-  late List<String> _filteredItems; // Filtered items based on search query.
+class _SearchableListState<T> extends State<SearchableList<T>> {
+  late List<T> _filteredItems; // Filtered items based on search query
   final TextEditingController _searchController = TextEditingController();
-  // Manages search bar text.
 
   @override
   void initState() {
@@ -29,17 +32,23 @@ class _SearchableListState extends State<SearchableList> {
     _filteredItems = widget.items;
     _searchController.addListener(_filterItems);
   }
+  
+  @override
+  void didUpdateWidget(SearchableList<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.items != oldWidget.items) {
+      _filterItems();
+    }
+  }
 
-  /// Filters the list of medications based on user input.
-  ///
-  /// - Converts search query and items  to lowercase to ensure case-insensitive search.
-  /// - Updates `_filteredItems` list dynamically.
+  /// Filters the list of items based on user input.
   void _filterItems() {
     String query = _searchController.text.toLowerCase();
     setState(() {
       _filteredItems = widget.items
-          .where((item) => item.toLowerCase().contains(query))
-            // Any item that contains the search query as a substring will be included in the filtered results.
+          .where((item) => widget.getSearchString(item)
+              .toLowerCase()
+              .contains(query))
           .toList();
     });
   }
@@ -54,10 +63,9 @@ class _SearchableListState extends State<SearchableList> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-
-        // Search bar.
+        // Search bar
         Padding(
-          padding: EdgeInsets.all(5.w),
+          padding: EdgeInsets.only(left: 5.w, right: 5.w, top: 0.h, bottom: 2.h),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -68,17 +76,19 @@ class _SearchableListState extends State<SearchableList> {
           ),
         ),
 
-        // List of items.
+        // List of items
         Expanded(
-          child: ListView.builder(
-            itemCount: _filteredItems.length,
-            itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(_filteredItems[index], style: TextStyle(fontWeight: FontWeight.bold)),
-                onTap: () => widget.onSelect(_filteredItems[index]),
-              );
-            },
-          ),
+          child: _filteredItems.isEmpty
+              ? Center(child: Text("No items found"))
+              : ListView.builder(
+                  itemCount: _filteredItems.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () => widget.onSelect(_filteredItems[index]),
+                      child: widget.itemBuilder(_filteredItems[index], index),
+                    );
+                  },
+                ),
         ),
       ],
     );

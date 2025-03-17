@@ -6,6 +6,9 @@ import 'dart:developer';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:eyedrop/screens/main_screens/medications/medication_details_screen.dart';
+import 'package:eyedrop/widgets/form_components.dart';
+import 'package:eyedrop/widgets/medication_card.dart';
+import 'package:eyedrop/widgets/searchable_list.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -136,43 +139,27 @@ Widget build(BuildContext context) {
   return BaseLayoutScreen(
     child: Column(
       children: [
-        // Search Bar
-        Padding(
-          padding: EdgeInsets.all(5.w),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              labelText: "Search Medications",
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
-            ),
-          ),
-        ),
-
+        
         // Sorting & Filtering Dropdown
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 5.w),
-          child: DropdownButtonFormField<String>(
+          padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
+          child: FormComponents.buildDropdown(
+            label: "Filter/Sort",
             value: _sortFilterOption,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
-            ),
             items: [
               "Show All",
               "Show Only Eye Medications",
               "Show Only Non-Eye Medications",
               "Sort A-Z",
               "Sort Z-A",
-            ].map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+            ],
             onChanged: (value) {
-  setState(() {
-    _sortFilterOption = value!;
-  });
-},
+              setState(() {
+                _sortFilterOption = value!;
+              });
+            },
           ),
         ),
-
-        SizedBox(height: 2.h),
 
         // Medication List with StreamBuilder
         Expanded(
@@ -186,49 +173,36 @@ Widget build(BuildContext context) {
                     }
                     
                    if (snapshot.hasData) {
-  _medications = snapshot.data!;
-  _filteredMedications = _processFilteredMedications(_medications);
-}
+                    _medications = snapshot.data!;
+                    _filteredMedications = _processFilteredMedications(_medications);
+                  }
                     
                     if (_filteredMedications.isEmpty) {
                       return Center(child: Text("No medications found"));
                     }
                     
-                    return ListView.builder(
-                      itemCount: _filteredMedications.length,
-                      itemBuilder: (context, index) {
-                        Map<String, dynamic> medication = _filteredMedications[index];
-                        return Card(
-                          elevation: 3,
-                          margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                    return SearchableList<Map<String, dynamic>>(
+                      items: _filteredMedications,
+                      getSearchString: (med) => med["medicationName"] ?? "Unnamed Medication",
+                      itemBuilder: (med, index) => MedicationCard(
+                        medication: med,
+                        onDelete: (medication) => _showDeleteConfirmationDialog(context, medication),
+                        onTap: (medication) => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MedicationDetailScreen(medication: medication),
                           ),
-                          child: ListTile(
-                            title: Text(
-                              medication["medicationName"] ?? "Unnamed Medication",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
-                            ),
-                            subtitle: Text(
-                              medication["medType"] == "Eye Medication" ? "Eye" : "Non-Eye",
-                             // medication["isEyeMedication"] == true ? "Eye" : "Non-Eye",
-                              style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
-                            ),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _showDeleteConfirmationDialog(context, medication),
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MedicationDetailScreen(medication: medication),
-                                ),
-                              );
-                            },
+                        ),
+                      ),
+                      onSelect: (medication) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MedicationDetailScreen(medication: medication),
                           ),
                         );
                       },
+                      hintText: "Search Medications",
                     );
                   },
                 ),
