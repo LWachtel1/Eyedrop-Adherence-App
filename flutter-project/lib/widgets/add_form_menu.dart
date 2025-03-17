@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import 'custom_popup_menu.dart';
-import 'common/menu_item_row.dart';
+import 'menu_item_row.dart';
 
 /// Dropdown Menu for Adding Reminders and Medications
 /// 

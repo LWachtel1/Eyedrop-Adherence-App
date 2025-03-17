@@ -1,7 +1,7 @@
 import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:eyedrop/screens/main_screens/medications/medications_screen.dart';
 import 'package:flutter/material.dart';
-import 'common/drawer_item.dart';
+import 'drawer_item.dart';
 
 /// Slide-out drawer implementation customised to act as slide-out navigation menu for app.
 class CustomSlideOutMenu extends StatelessWidget {
