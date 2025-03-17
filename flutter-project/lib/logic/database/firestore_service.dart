@@ -631,4 +631,15 @@ Map<String, dynamic> _normalizeData(Map<String, dynamic> data) {
   return normalizedData;
 }
 
+/// Fetches a Firestore collection as a real-time stream.
+Stream<List<Map<String, dynamic>>> getCollectionStream(String collectionPath) {
+  return _firestore.collection(collectionPath).snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) {
+      Map<String, dynamic> data = doc.data();
+      data["id"] = doc.id; 
+      return data;
+    }).toList();
+  });
+}
+
 }
