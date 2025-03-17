@@ -8,6 +8,8 @@ import 'dart:developer';
 import 'package:eyedrop/logic/auth_logic/auth_checker.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
 import 'package:eyedrop/logic/auth_logic/auth_gate.dart';
+import 'package:eyedrop/logic/medications/medication_form_controller.dart';
+import 'package:eyedrop/logic/medications/medication_service.dart';
 import 'package:eyedrop/screens/main_screens/onetime_intro_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +18,14 @@ import 'package:sizer/sizer.dart';
 
 import 'firebase_options.dart';
 
-///Provides the entry point for the application.
+/// Application Entry Point.
+/// 
+/// This function initializes Firebase and runs the application.
+/// 
+/// - Ensures Firebase services are available before launching the app.
+/// - Uses `Provider` for dependency injection.
+/// - Sets up authentication state management.
+/// - Handles database services using Firestore.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -29,14 +38,19 @@ Future<void> main() async {
     return; // Prevents app from running if Firebase fails.
   }
 
-  //Registers AuthChecker & FirestoreService globally, so all widgets can check auth state and run CRUD operations with Cloud FireStore.
+  //Registers providers globally, so all widgets can check use their functionalities.
   runApp(ChangeNotifierProvider(
     create: (context) => AuthChecker(),
-    child: MultiProvider(
+    child: MultiProvider( // Groups Providers together to be used by the app.
       providers: [
         Provider<FirestoreService>(create: (_) => FirestoreService()),
+        ProxyProvider<FirestoreService, MedicationService>(
+              update: (_, firestoreService, __) => MedicationService(firestoreService),
+            ),    
+            // ProxyProvider is a provider that builds a value based on other providers.    
+        ChangeNotifierProvider(create: (context) => MedicationFormController(medicationService: context.read<MedicationService>())),
       ],
-      child: Sizer( // Wrap the app in Sizer
+      child: Sizer( // Wraps the app in Sizer.
           builder: (context, orientation, deviceType) {
             return const MyApp();
           }),
@@ -47,15 +61,19 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  /// Builds root widget of entire application.
-  ///
-  /// It provides routes which allows display of the screens defined by route-associated widgets.
-  ///
+  
+  /// Builds Root Application Widget.
+  /// 
+  /// This widget is responsible for:
+  /// - Navigation routes to different screens.
+  /// - UI setup.
+  /// - Authentication handling.
+  /// 
   /// Parameters:
-  /// `context`: A reference to the widget's location in the widget tree.
+  /// - `context`: A reference to the widget's location in the widget tree.
   ///
   /// Returns:
-  /// The route-associated widget.
+  /// - The route-associated widget.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
