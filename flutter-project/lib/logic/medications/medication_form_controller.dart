@@ -228,6 +228,28 @@ class MedicationFormController extends ChangeNotifier {
     }
   }
 
+  /// Resets all form fields to their default values
+  void resetForm() {
+    // Reset text controllers
+    medicationController.text = '';
+    durationController.text = '1';
+    frequencyController.text = '1';
+    doseQuantityController.text = '0.0';
+    
+    // Reset form state variables
+    medType = '';
+    prescriptionDate = null;
+    prescriptionTime = null;
+    isIndefinite = false;
+    _durationUnit = '';
+    scheduleType = '';
+    doseUnits = '';
+    applicationSite = '';
+    
+    notifyListeners();
+  }
+
+
   /// Submits the form and saves the medication to FireStore.
   ///
   /// - Ensures required fields are filled before submission.
@@ -267,6 +289,9 @@ class MedicationFormController extends ChangeNotifier {
 
 
         await medicationService.addMedication(user.uid, medData, medType == "Eye Medication");
+        resetForm();
+
+        
         if (context.mounted){
           Navigator.pop(context);
         }
