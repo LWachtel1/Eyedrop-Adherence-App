@@ -1,7 +1,11 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:rxdart/rxdart.dart';
 
 
 
@@ -219,4 +223,94 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
       throw Exception("An unexpected error occurred. Please try again.");
     }
   }
+
+
+  /// Deletes a medication from Firestore.
+  ///
+  /// Parameters:
+  /// - `medication`: A `Map<String, dynamic>` containing the details of the medication.
+  ///   - Must contain a `"medType"` key to determine the collection path.
+  ///   - Must contain an `"id"` key representing the document ID in Firestore.
+  ///
+  /// Behavior:
+  /// - If the user is not authenticated (`FirebaseAuth.instance.currentUser` returns `null`), 
+  ///   the function exits early.
+  /// - If the medication does not contain a valid `"id"`, an error is logged, and the function exits.
+  /// - Deletes the document from Firestore using the `FirestoreService.deleteDoc` method.
+  /// - Logs any errors encountered during deletion and throws an exception.
+  Future<void> deleteMedication(Map<String, dynamic> medication) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      String collectionPath = medication["medType"] == "Eye Medication"
+          ? "users/${user.uid}/eye_medications"
+          : "users/${user.uid}/noneye_medications";
+
+      if (!medication.containsKey("id") || medication["id"] == null) {
+        log("Error: Medication does not have an ID.");
+        return;
+      }
+
+      await firestoreService.deleteDoc(collectionPath: collectionPath, docId: medication["id"]);
+    } catch (e) {
+      log("Error deleting medication: $e");
+      throw Exception("Error deleting medication");
+    }
+  }
+
+  
+  /// Creates a stream that combines both eye and non-eye medication data.
+  ///
+  /// This method listens to Firestore collections for the logged-in user and 
+  /// merges the streams of eye medications and non-eye medications into a single stream.
+  ///
+  /// Parameters:
+  /// - `firestoreService`: An instance of `FirestoreService` used to fetch the data streams.
+  /// - `userId`: The unique identifier (`UID`) of the authenticated user.
+  ///
+  /// Behavior:
+  /// - Retrieves a stream of eye medications from `"users/{userId}/eye_medications"`.
+  /// - Retrieves a stream of non-eye medications from `"users/{userId}/noneye_medications"`.
+  /// - Merges both streams using `_combineStreams`, which ensures real-time updates.
+  ///
+  /// Returns:
+  /// - A `Stream<List<Map<String, dynamic>>>` containing a combined list of medications.
+  Stream<List<Map<String, dynamic>>> buildMedicationsStream(FirestoreService firestoreService, String userId) {
+    Stream<List<Map<String, dynamic>>> eyeStream = 
+        firestoreService.getCollectionStream("users/$userId/eye_medications");
+    Stream<List<Map<String, dynamic>>> nonEyeStream = 
+        firestoreService.getCollectionStream("users/$userId/noneye_medications");
+        
+    return _combineStreams(eyeStream, nonEyeStream);
+  }
+  
+  /// Combines two medication data streams into a single stream.
+  ///
+  /// This method merges two Firestore collection streams (`stream1` and `stream2`) into 
+  /// a single real-time stream using RxDart's `combineLatest2`. It ensures that the UI 
+  /// always has the latest medication data from both collections.
+  ///
+  /// Parameters:
+  /// - `stream1`: A `Stream<List<Map<String, dynamic>>>` representing the first collection (e.g., eye medications).
+  /// - `stream2`: A `Stream<List<Map<String, dynamic>>>` representing the second collection (e.g., non-eye medications).
+  ///
+  /// Behavior:
+  /// - Whenever either of the two streams emits new data, `combineLatest2` merges their latest values.
+  /// - The result is a combined list of medications from both collections.
+  ///
+  /// Returns:
+  /// - A `Stream<List<Map<String, dynamic>>>` containing the merged medication list.
+  Stream<List<Map<String, dynamic>>> _combineStreams(
+      Stream<List<Map<String, dynamic>>> stream1, 
+      Stream<List<Map<String, dynamic>>> stream2) {
+    return Rx.combineLatest2(
+      stream1, 
+      stream2,
+      (List<Map<String, dynamic>> list1, List<Map<String, dynamic>> list2) {
+        return [...list1, ...list2];
+      }
+    );
+  }
+
 }

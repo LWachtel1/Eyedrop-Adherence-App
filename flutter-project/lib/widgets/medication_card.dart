@@ -1,6 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+/// A reusable widget that displays a medication card.
+///
+/// This card includes the medication's name, type (Eye/Non-Eye), 
+/// and provides options for deleting or selecting the medication.
+///
+/// Parameters:
+/// - `medication`: A map containing medication details (e.g., name, type).
+/// - `onDelete`: A callback function triggered when the delete button is pressed.
+/// - `onTap`: A callback function triggered when the card is tapped.
+///
+/// Example Usage:
+/// ```dart
+/// MedicationCard(
+///   medication: {
+///     "medicationName": "Artificial Tears",
+///     "medType": "Eye Medication"
+///   },
+///   onDelete: (med) => print("Deleted: ${med['medicationName']}"),
+///   onTap: (med) => print("Selected: ${med['medicationName']}"),
+/// )
+/// ```
 class MedicationCard extends StatelessWidget {
   final Map<String, dynamic> medication;
   final Function(Map<String, dynamic>) onDelete;
@@ -22,19 +43,45 @@ class MedicationCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
+        // Displays the medication name.
         title: Text(
-          medication["medicationName"] ?? "Unnamed Medication",
+          medication["medicationName"].toString() ?? "Unnamed Medication",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
         ),
+        // Displays whether the medication is for the eyes or not.
         subtitle: Text(
-          medication["medType"] == "Eye Medication" ? "Eye" : "Non-Eye",
+          medication["medType"].toString() == "Eye Medication" ? "Eye" : "Non-Eye",
           style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
         ),
+
+        // Delete button to remove the medication.
         trailing: IconButton(
           icon: Icon(Icons.delete, color: Colors.red),
-          onPressed: () => onDelete(medication),
+          onPressed: () {
+            try {
+              onDelete(medication);
+            } catch (e) {
+              debugPrint("Error deleting medication: $e");
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Failed to delete medication.")),
+              );
+            }
+          },
         ),
-        onTap: () => onTap(medication),
+        onTap: () {
+          try {
+            if (medication.isNotEmpty) {
+              onTap(medication);
+            } else {
+              throw Exception("Invalid medication data");
+            }
+          } catch (e) {
+            debugPrint("Error selecting medication: $e");
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Failed to open medication details.")),
+            );
+          }
+        },
       ),
     );
   }

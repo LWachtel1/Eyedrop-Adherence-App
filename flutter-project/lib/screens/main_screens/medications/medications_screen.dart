@@ -4,8 +4,10 @@
 
 import 'dart:developer';
 import 'package:eyedrop/logic/database/firestore_service.dart';
+import 'package:eyedrop/logic/medications/medication_service.dart';
 import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:eyedrop/screens/main_screens/medications/medication_details_screen.dart';
+import 'package:eyedrop/widgets/delete_confirmation_dialog.dart';
 import 'package:eyedrop/widgets/form_components.dart';
 import 'package:eyedrop/widgets/medication_card.dart';
 import 'package:eyedrop/widgets/searchable_list.dart';
@@ -15,13 +17,27 @@ import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sizer/sizer.dart';
 
-/// Screen displaying a user's medications.
+/// A screen that displays a list of medications for the logged-in user.
+///
+/// This screen provides functionalities such as:
+/// - Real-time Firestore Syncing: Retrieves medication data dynamically.
+/// - Filtering and Sorting: Allows users to filter by medication type and sort alphabetically.
+/// - Searchable List: Users can search for medications by name.
+/// - Delete Confirmation: Users must confirm before deleting a medication.
+/// - Navigation to Details: Tapping on a medication opens its detail screen.
+///
+/// Features
+/// - Uses `StreamBuilder` to update the list in real-time.
+/// - Filters and sorts medications based on user input.
+/// - Displays a `SearchableList` of `MedicationCard` widgets.
+/// - Integrates a `DeleteConfirmationDialog` for safe deletion.
 class MedicationsScreen extends StatefulWidget {
   @override
   _MedicationsScreenState createState() => _MedicationsScreenState();
 }
 
 class _MedicationsScreenState extends State<MedicationsScreen> {
+  late MedicationService medicationService;
   List<Map<String, dynamic>> _medications = [];
   List<Map<String, dynamic>> _filteredMedications = [];
 
@@ -29,99 +45,55 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   String _sortFilterOption = "Show All"; // Default option
 
- @override
-void initState() {
-  super.initState();
-  // Instead of attaching listener that calls setState, we'll rely on the stream
-  _searchController.addListener(() {
-    setState(() {
-      // Just trigger a rebuild, filtering happens in build
+  @override
+  void initState() {
+    super.initState();
+
+    medicationService = Provider.of<MedicationService>(context, listen: false);
+    // Instead of attaching listener that calls setState, we'll rely on the stream
+    _searchController.addListener(() {
+      setState(() {
+        // Just trigger a rebuild, filtering happens in build
+      });
     });
-  });
-}
+  }
 
-
-
-  /// Deletes a medication from Firestore.
-  Future<void> _deleteMedication(Map<String, dynamic> medication) async {
-    try {
-      final firestoreService = Provider.of<FirestoreService>(context, listen: false);
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      // Determine collection path
-      String collectionPath = medication["medType"] == "Eye Medication" // medication["isEyeMedication"] == true
-          ? "users/${user.uid}/eye_medications"
-          : "users/${user.uid}/noneye_medications";
-
-      // Ensure the document has an ID before trying to delete
-      if (!medication.containsKey("id") || medication["id"] == null) {
-        log("Error: Medication does not have an ID.");
-        return;
-      }
-
-      await firestoreService.deleteDoc(collectionPath: collectionPath, docId: medication["id"]);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Medication deleted successfully.")),
-      );
-    } catch (e) {
-      log("Error deleting medication: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting medication.")),
-      );
+  /// Filters and sorts the medications based on search query and selected options.
+  ///
+  /// - Search Query: Filters medications containing the query in their name.
+  /// - Filtering Options: Allows filtering by medication type (Eye/Non-Eye).
+  /// - Sorting Options: Allows sorting alphabetically (A-Z, Z-A).
+  ///
+  /// Parameters:
+  /// - `sourceMedications`: List of medications to process.
+  ///
+  /// Returns:
+  /// - A new filtered and sorted list of medications.
+  List<Map<String, dynamic>> _processFilteredMedications(List<Map<String, dynamic>> sourceMedications) {
+    String query = _searchController.text.toLowerCase();
+    List<Map<String, dynamic>> tempList = sourceMedications.where((med) {
+      String name = (med["medicationName"] ?? "").toLowerCase();
+      return name.contains(query);
+    }).toList();
+    
+    // Apply filtering
+    if (_sortFilterOption == "Show Only Eye Medications") {
+      tempList = tempList.where((med) => med["medType"] == "Eye Medication").toList();
+      // tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
+    } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
+          tempList = tempList.where((med) => med["medType"] != "Eye Medication").toList();
+          // tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
     }
-  }
 
-  /// Shows a confirmation dialog before deleting a medication.
-  void _showDeleteConfirmationDialog(BuildContext context, Map<String, dynamic> medication) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Delete Medication?"),
-        content: Text("Are you sure you want to delete ${medication["medicationName"]}?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Cancel deletion
-            child: Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close the dialog
-              _deleteMedication(medication);
-            },
-            child: Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+    // Apply sorting
+    if (_sortFilterOption == "Sort A-Z") {
+      tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
+    } else if (_sortFilterOption == "Sort Z-A") {
+      tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
+    }
+    
+    return tempList;
   }
-
-List<Map<String, dynamic>> _processFilteredMedications(List<Map<String, dynamic>> sourceMedications) {
-  String query = _searchController.text.toLowerCase();
-  List<Map<String, dynamic>> tempList = sourceMedications.where((med) {
-    String name = (med["medicationName"] ?? "").toLowerCase();
-    return name.contains(query);
-  }).toList();
-  
-  // Apply filtering
-  if (_sortFilterOption == "Show Only Eye Medications") {
-    tempList = tempList.where((med) => med["medType"] == "Eye Medication").toList();
-    // tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
-  } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
-        tempList = tempList.where((med) => med["medType"] != "Eye Medication").toList();
-        // tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
-  }
-
-  // Apply sorting
-  if (_sortFilterOption == "Sort A-Z") {
-    tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
-  } else if (_sortFilterOption == "Sort Z-A") {
-    tempList.sort((a, b) => (b["medicationName"] ?? "").compareTo(a["medicationName"] ?? ""));
-  }
-  
-  return tempList;
-}
 
 
   @override
@@ -130,109 +102,91 @@ List<Map<String, dynamic>> _processFilteredMedications(List<Map<String, dynamic>
     super.dispose();
   }
 
-/// Displays the list of medications with sorting and filtering options.
-@override
-Widget build(BuildContext context) {
-  final firestoreService = Provider.of<FirestoreService>(context, listen: false);
-  User? user = FirebaseAuth.instance.currentUser;
-  
-  return BaseLayoutScreen(
-    child: Column(
-      children: [
-        
-        // Sorting & Filtering Dropdown
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
-          child: FormComponents.buildDropdown(
-            label: "Filter/Sort",
-            value: _sortFilterOption,
-            items: [
-              "Show All",
-              "Show Only Eye Medications",
-              "Show Only Non-Eye Medications",
-              "Sort A-Z",
-              "Sort Z-A",
-            ],
-            onChanged: (value) {
-              setState(() {
-                _sortFilterOption = value!;
-              });
-            },
+  /// Displays the list of medications with sorting and filtering options.
+  @override
+  Widget build(BuildContext context) {
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    User? user = FirebaseAuth.instance.currentUser;
+    
+    return BaseLayoutScreen(
+      child: Column(
+        children: [
+          
+          // Sorting & Filtering Dropdown
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
+            child: FormComponents.buildDropdown(
+              label: "Filter/Sort",
+              value: _sortFilterOption,
+              items: [
+                "Show All",
+                "Show Only Eye Medications",
+                "Show Only Non-Eye Medications",
+                "Sort A-Z",
+                "Sort Z-A",
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _sortFilterOption = value!;
+                });
+              },
+            ),
           ),
-        ),
 
-        // Medication List with StreamBuilder
-        Expanded(
-          child: user == null
-              ? Center(child: Text("Please log in"))
-              : StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _buildMedicationsStream(firestoreService, user.uid),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && _medications.isEmpty) {
-                      return Center(child: CircularProgressIndicator());
+          // Medication List with StreamBuilder
+          Expanded(
+            child: user == null
+                ? Center(child: Text("Please log in"))
+                : StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: medicationService.buildMedicationsStream(firestoreService, user.uid),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting && _medications.isEmpty) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      
+                    if (snapshot.hasData) {
+                      _medications = snapshot.data!;
+                      _filteredMedications = _processFilteredMedications(_medications);
                     }
-                    
-                   if (snapshot.hasData) {
-                    _medications = snapshot.data!;
-                    _filteredMedications = _processFilteredMedications(_medications);
-                  }
-                    
-                    if (_filteredMedications.isEmpty) {
-                      return Center(child: Text("No medications found"));
-                    }
-                    
-                    return SearchableList<Map<String, dynamic>>(
-                      items: _filteredMedications,
-                      getSearchString: (med) => med["medicationName"] ?? "Unnamed Medication",
-                      itemBuilder: (med, index) => MedicationCard(
-                        medication: med,
-                        onDelete: (medication) => _showDeleteConfirmationDialog(context, medication),
-                        onTap: (medication) => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MedicationDetailScreen(medication: medication),
+                      
+                      if (_filteredMedications.isEmpty) {
+                        return Center(child: Text("No medications found"));
+                      }
+                      
+                      return SearchableList<Map<String, dynamic>>(
+                        items: _filteredMedications,
+                        getSearchString: (med) => med["medicationName"] ?? "Unnamed Medication",
+                        itemBuilder: (med, index) => MedicationCard(
+                          medication: med,
+                          onDelete: (medication) => showDialog(
+                              context: context,
+                              builder: (context) => DeleteConfirmationDialog(
+                                medicationName: medication["medicationName"] ?? "Unnamed Medication",
+                                onConfirm: () => medicationService.deleteMedication(medication),
+                              ),
+                            ),
+                          onTap: (medication) => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MedicationDetailScreen(medication: medication),
+                            ),
                           ),
                         ),
-                      ),
-                      onSelect: (medication) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MedicationDetailScreen(medication: medication),
-                          ),
-                        );
-                      },
-                      hintText: "Search Medications",
-                    );
-                  },
-                ),
-        ),
-      ],
-    ),
-  );
-}
-
-
-  // Create a stream that combines both eye and non-eye medications
-  Stream<List<Map<String, dynamic>>> _buildMedicationsStream(FirestoreService firestoreService, String userId) {
-    Stream<List<Map<String, dynamic>>> eyeStream = 
-        firestoreService.getCollectionStream("users/$userId/eye_medications");
-    Stream<List<Map<String, dynamic>>> nonEyeStream = 
-        firestoreService.getCollectionStream("users/$userId/noneye_medications");
-        
-    return _combineStreams(eyeStream, nonEyeStream);
-  }
-  
-  // Helper method to combine two streams
-  Stream<List<Map<String, dynamic>>> _combineStreams(
-      Stream<List<Map<String, dynamic>>> stream1, 
-      Stream<List<Map<String, dynamic>>> stream2) {
-    return Rx.combineLatest2(
-      stream1, 
-      stream2,
-      (List<Map<String, dynamic>> list1, List<Map<String, dynamic>> list2) {
-        return [...list1, ...list2];
-      }
+                        onSelect: (medication) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MedicationDetailScreen(medication: medication),
+                            ),
+                          );
+                        },
+                        hintText: "Search Medications",
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
