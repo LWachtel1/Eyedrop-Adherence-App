@@ -221,6 +221,7 @@ class FormComponents {
   /// - `isEnabled`: Whether the field is editable.
   /// - `onIncrement`: Callback triggered when the increment button is pressed.
   /// - `onDecrement`: Callback triggered when the decrement button is pressed.
+  /// - `onChanged`: Callback triggered when the text is manually edited, receiving the new value.
   /// - `step`: The increment/decrement step size.
   /// - `minValue`: The minimum allowed value.
   /// - `allowDecimals`: Whether decimal values are allowed.
@@ -230,6 +231,7 @@ class FormComponents {
   required bool isEnabled,
   required VoidCallback onIncrement,
   required VoidCallback onDecrement,
+  Function(String)? onChanged, 
   double step = 1.0, // Default step is 1 (for duration & frequency).
   double minValue = 1.0, // Flexible minimum (0.0 for dose, 1.0 for duration/frequency).
   bool allowDecimals = false, // Allows different behavior for integers vs decimals.
@@ -260,7 +262,9 @@ class FormComponents {
                   ),
                 ],
                 enabled: isEnabled,
-               validator: (value) {
+                // Add onChanged handler to capture text input
+                onChanged: onChanged,
+                validator: (value) {
                   if (isEnabled && (value == null || value.isEmpty)) {
                     return 'Please enter a value';
                   }
@@ -280,14 +284,8 @@ class FormComponents {
                   icon: Icon(Icons.arrow_drop_up, size: 24),
                   padding: EdgeInsets.zero,
                   constraints: BoxConstraints(),
-                                   onPressed: isEnabled
-                      ? () {
-                          double currentValue = double.tryParse(controller.text) ?? minValue;
-                          currentValue += step;
-                          controller.text = currentValue.toStringAsFixed(1); 
-                        }
-                      : null,
-
+                  // Use the provided callback instead of inline logic
+                  onPressed: isEnabled ? onIncrement : null,
                 ),
 
                 Container(
@@ -300,15 +298,8 @@ class FormComponents {
                   icon: Icon(Icons.arrow_drop_down, size: 24),
                   padding: EdgeInsets.zero,
                   constraints: BoxConstraints(),
-                                     onPressed: isEnabled
-                      ? () {
-                          double currentValue = double.tryParse(controller.text) ?? minValue;
-                          if (currentValue > minValue) {
-                            currentValue -= step;
-                            controller.text = currentValue.toStringAsFixed(1); // 
-                          }
-                        }
-                      : null,
+                  // Use the provided callback instead of inline logic
+                  onPressed: isEnabled ? onDecrement : null,
                 ),
               ],
             ),

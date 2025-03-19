@@ -264,23 +264,13 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
   ///
   /// This method listens to Firestore collections for the logged-in user and 
   /// merges the streams of eye medications and non-eye medications into a single stream.
-  ///
-  /// Parameters:
-  /// - `firestoreService`: An instance of `FirestoreService` used to fetch the data streams.
-  /// - `userId`: The unique identifier (`UID`) of the authenticated user.
-  ///
-  /// Behavior:
-  /// - Retrieves a stream of eye medications from `"users/{userId}/eye_medications"`.
-  /// - Retrieves a stream of non-eye medications from `"users/{userId}/noneye_medications"`.
-  /// - Merges both streams using `_combineStreams`, which ensures real-time updates.
-  ///
-  /// Returns:
-  /// - A `Stream<List<Map<String, dynamic>>>` containing a combined list of medications.
+  /// Each medication document will include its document ID in an "id" field.
   Stream<List<Map<String, dynamic>>> buildMedicationsStream(FirestoreService firestoreService, String userId) {
+    // Get streams with document IDs included
     Stream<List<Map<String, dynamic>>> eyeStream = 
-        firestoreService.getCollectionStream("users/$userId/eye_medications");
+        firestoreService.getCollectionStreamWithIds("users/$userId/eye_medications");
     Stream<List<Map<String, dynamic>>> nonEyeStream = 
-        firestoreService.getCollectionStream("users/$userId/noneye_medications");
+        firestoreService.getCollectionStreamWithIds("users/$userId/noneye_medications");
         
     return _combineStreams(eyeStream, nonEyeStream);
   }

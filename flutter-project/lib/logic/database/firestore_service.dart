@@ -642,4 +642,48 @@ Stream<List<Map<String, dynamic>>> getCollectionStream(String collectionPath) {
   });
 }
 
+/// Returns a stream of documents from a collection, including document IDs.
+///
+/// This method is similar to getCollectionStream but explicitly adds the document ID
+/// as an "id" field in each document's data map.
+Stream<List<Map<String, dynamic>>> getCollectionStreamWithIds(String collectionPath) {
+  try {
+    return FirebaseFirestore.instance
+        .collection(collectionPath)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            // Create a map with the document data
+            Map<String, dynamic> data = doc.data();
+            // Add the document ID as a field named "id"
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        });
+  } catch (e) {
+    log("Error getting collection stream with IDs: $e");
+    // Return an empty stream in case of error
+    return Stream.value([]);
+  }
+}
+
+/// Gets all documents from a collection, including their IDs.
+Future<List<Map<String, dynamic>>> getAllDocsWithIds(
+    {required String collectionPath}) async {
+  try {
+    final snapshot =
+        await FirebaseFirestore.instance.collection(collectionPath).get();
+    
+    return snapshot.docs.map((doc) {
+      Map<String, dynamic> data = doc.data();
+      // Add the document ID as a field named "id"
+      data['id'] = doc.id;
+      return data;
+    }).toList();
+  } catch (e) {
+    log("Error getting all docs with IDs: $e");
+    return [];
+  }
+}
+
 }

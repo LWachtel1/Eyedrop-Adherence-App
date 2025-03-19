@@ -1,20 +1,18 @@
-/* 
-  TO DO:
-  check it works correctly
-*/
-
-import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:eyedrop/screens/form_screens/medication_selection_screen.dart';
-import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
 import 'package:eyedrop/logic/database/firestore_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:eyedrop/logic/medications/medication_details_controller.dart';
+import 'package:eyedrop/screens/main_screens/base_layout_screen.dart';
+import 'package:eyedrop/widgets/edit_action_buttons.dart';
+import 'package:eyedrop/widgets/medication_details_fields.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-/// Displays full details of a selected medication with inline editing.
+/// Screen for displaying and editing medication details.
+/// 
+/// - Supports viewing and inline editing of medication details.
+/// - Retrieves data from Firestore and updates it upon saving.
+/// - Uses `MedicationDetailsController` for business logic.
 class MedicationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> medication;
 
@@ -25,115 +23,49 @@ class MedicationDetailScreen extends StatefulWidget {
 }
 
 class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
-  bool isEditing = false; // Toggles between view and edit mode
-  bool isLoading = true; // **Flag to track loading state**
-
-   Map<String, dynamic> editableMedication = {};
-
+  late MedicationDetailsController _controller;
   final _formKey = GlobalKey<FormState>();
 
   @override
-  @override
-void initState() {
-  super.initState();
-  _fetchMedicationData();
-}
-
-/// Fetches latest medication data from Firestore
-/// Fetches latest medication data from Firestore
- /// Fetches latest medication data from Firestore
-  Future<void> _fetchMedicationData() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      String uid = user.uid;
-      String collectionPath = widget.medication["isEyeMedication"] == true
-          ? "users/$uid/eye_medications"
-          : "users/$uid/noneye_medications";
-      String docId = widget.medication["id"];
-
-      final firestoreService =
-          Provider.of<FirestoreService>(context, listen: false);
-
-      final fetchedData =
-          await firestoreService.readDoc(collectionPath: collectionPath, docId: docId);
-
-      setState(() {
-        editableMedication = fetchedData ?? {};
-        isLoading = false; // **Stop loading once data is fetched**
-      });
-
-    } catch (e) {
-      log("Error fetching medication: $e");
-      setState(() {
-        isLoading = false; // **Even if error occurs, stop loading**
-      });
-    }
+  void initState() {
+    super.initState();
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    _controller = MedicationDetailsController(
+      firestoreService: firestoreService, 
+      originalMedication: widget.medication
+    );
+    _loadData(); // Fetch individual medication's data from Firestore
   }
 
-
-  /// Saves the edited data back to Firestore
-  Future<void> _saveEdits() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
-
-    // Ensure correct values for duration
-    if (editableMedication["isIndefinite"] == true) {
-      editableMedication["durationLength"] = null;
-      editableMedication["durationUnits"] = null;
-    }
-
-       // Remove applicationSite if switching to Non-Eye Medication
-    if (editableMedication["isEyeMedication"] == false) {
-      editableMedication.remove("applicationSite");
-    }
-
-
+  /// Loads medication data from Firestore and updates the UI.
+  Future<void> _loadData() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        log("No authenticated user found. Cannot edit medication.");
-        return;
+      await _controller.fetchMedicationData();
+      // Update UI after data is loaded
+      if (mounted) setState(() {});
+    } catch (e) {
+      print("Error loading medication data: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to load medication details. Please try again.")),
+        );
       }
-
-      String uid = user.uid;
-      String collectionPath = editableMedication["isEyeMedication"] == true
-          ? "users/$uid/eye_medications"
-          : "users/$uid/noneye_medications";
-      String docId = editableMedication["id"];
-
-      final firestoreService =
-          Provider.of<FirestoreService>(context, listen: false);
-
-      await firestoreService.updateDoc(
-        collectionPath: collectionPath,
-        docId: docId,
-        newData: editableMedication,
-      );
-
-      setState(() {
-        isEditing = false; // Exit edit mode after saving
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Medication updated successfully")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error updating medication: $e")),
-      );
     }
   }
-}
 
+  /// Updates a field value in the controller and triggers UI update.
+  void _updateFieldValue(String fieldKey, dynamic value) {
+    setState(() {
+      _controller.updateField(fieldKey, value);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    bool isEyeMedication = editableMedication["isEyeMedication"] == true;
-    bool isIndefinite = editableMedication["isIndefinite"] == true;
+    bool isEyeMedication = _controller.editableMedication["medType"] == "Eye Medication";
+    bool isIndefinite = _controller.editableMedication["isIndefinite"] == true;
 
-    if (isLoading) {
+    if (_controller.isLoading) {
       return BaseLayoutScreen(
         child: Center(child: CircularProgressIndicator()),
       );
@@ -152,7 +84,7 @@ void initState() {
               ),
             ),
 
-            // Scrollable Form
+            // Scrollable Form.
             Expanded(
               child: SingleChildScrollView(
                 physics: AlwaysScrollableScrollPhysics(),
@@ -163,129 +95,160 @@ void initState() {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-_buildEditableField("Medication Name", "medicationName", allowSelection: true),
-
-if (isEditing)
-  Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Expanded(
-        child: GestureDetector(
-          onTap: () {
-            setState(() {
-              editableMedication["isEyeMedication"] = true;
-
-              // Ensure "applicationSite" exists when selecting Eye Medication
-              if (!editableMedication.containsKey("applicationSite")) {
-                editableMedication["applicationSite"] = "Both"; // Default value
-              }
-            });
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            margin: EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: editableMedication["isEyeMedication"] == true ? Colors.blue : Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                "Eye Medication",
-                style: TextStyle(
-                  color: editableMedication["isEyeMedication"] == true ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-      Expanded(
-        child: GestureDetector(
-          onTap: () {
-            setState(() {
-              editableMedication["isEyeMedication"] = false;
-
-              // Remove "applicationSite" when switching to Non-Eye Medication
-              editableMedication.remove("applicationSite");
-            });
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            margin: EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: editableMedication["isEyeMedication"] == false ? Colors.blue : Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                "Non-Eye Medication",
-                style: TextStyle(
-                  color: editableMedication["isEyeMedication"] == false ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ],
-  )
-else
-  _buildDetailRow("Type", editableMedication["isEyeMedication"] == true ? "Eye Medication" : "Non-Eye Medication"),
-
-// Show or disable Application Site field
-if (isEditing && editableMedication["isEyeMedication"] == true)
-  _buildDropdownField("Application Site", "applicationSite", ["Left", "Right", "Both"])
-else if (!isEditing && editableMedication["isEyeMedication"] == true)
-  _buildDetailRow("Application Site", editableMedication["applicationSite"] ?? "N/A"),
+                        // Rearranged fields in the requested order
                         
-                        _buildDropdownField("Schedule Type", "scheduleType", ["daily", "weekly", "monthly"]),
-                        _buildEditableField("Frequency", "frequency", isNumeric: true),
-                        _buildEditableField("Dose Quantity", "doseQuantity", isNumeric: true),
-                        _buildDropdownField("Dose Units", "doseUnits", ["drops", "sprays", "mL", "pills"]),
-                        _buildDatePicker("Prescription Date", "datePrescribed"),
-                        _buildTimePicker("Time of prescribing", "datePrescribed"), // Uses same field
+                        // 1. Medication Type.
+                        _controller.isEditing
+                          ? MedicationDetailsFields.buildToggleButtons(
+                              medicationData: _controller.editableMedication,
+                              isEditing: _controller.isEditing,
+                              onValueChanged: (fieldKey, value) {
+                                setState(() {
+                                  _controller.updateMedicationType(value);
+                                });
+                              },
+                              options: ["Eye Medication", "Non-Eye Medication"],
+                              fieldKey: "medType",
+                            )
+                          : MedicationDetailsFields.buildDetailRow(
+                              "Type",
+                              _controller.editableMedication["medType"] == "Eye Medication"
+                                ? "Eye Medication" 
+                                : "Non-Eye Medication"
+                            ),
+                        
+                        // 2. Medication Name.
+                        MedicationDetailsFields.buildEditableField(
+                          label: "Medication Name",
+                          fieldKey: "medicationName",
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          allowSelection: true,
+                          context: context,
+                          onValueChanged: _updateFieldValue,
+                        ),
 
+                        // 3. Date/Time.
+                        // Prescription Date.
+                        MedicationDetailsFields.buildDatePicker(
+                          label: "Prescription Date",
+                          fieldKey: "prescriptionDate",
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          context: context,
+                          onValueChanged: _updateFieldValue,
+                        ),
+                        
+                        // Time of prescribing.
+                        MedicationDetailsFields.buildTimePicker(
+                          label: "Time of prescribing",
+                          fieldKey: "prescriptionDate",
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          context: context,
+                          onValueChanged: _updateFieldValue,
+                        ),
+                        
+                        // Duration section.
+                        // View Mode: Show correct duration value.
+                        if (!_controller.isEditing) 
+                          MedicationDetailsFields.buildDetailRow(
+                            "Duration",
+                            _controller.editableMedication["isIndefinite"] == true
+                                ? "Indefinite"
+                                : "${_controller.editableMedication["durationLength"] ?? "N/A"} ${_controller.editableMedication["durationUnits"] ?? ""}",
+                          ),
 
-                        // View Mode: Show correct duration value
-if (!isEditing) 
-  _buildDetailRow(
-    "Duration",
-    editableMedication["isIndefinite"] == true
-        ? "Indefinite"
-        : "${editableMedication["durationLength"] ?? "N/A"} ${editableMedication["durationUnits"] ?? ""}",
-  ),
-
-// Edit Mode: Show fields correctly
-if (isEditing) 
-  Row(
-    children: [
-      Checkbox(
-        value: editableMedication["isIndefinite"] ?? false,
-        onChanged: (value) {
-          setState(() {
-            editableMedication["isIndefinite"] = value!;
-            if (value) {
-              // Clear fields when indefinite is selected
-              editableMedication["durationLength"] = null;
-              editableMedication["durationUnits"] = null;
-            }
-          });
-        },
-      ),
-      Text("Taken Indefinitely", style: TextStyle(fontSize: 17.5.sp)),
-    ],
-  ),
-  
-// Show duration fields only if NOT indefinite
-if (isEditing && (editableMedication["isIndefinite"] == false)) ...[
-  _buildEditableField("Duration Length", "durationLength", isNumeric: true),
-  _buildDropdownField("Duration Units", "durationUnits", ["Days", "Weeks", "Months", "Years"]),
-],
-
-                        // Show Application Site only for eye medications
-                        if (isEyeMedication) _buildDropdownField("Application Site", "applicationSite", ["Left", "Right", "Both"]),
+                        // Edit Mode: Show Indefinite checkbox.
+                        if (_controller.isEditing) 
+                          MedicationDetailsFields.buildCheckbox(
+                            label: "Taken Indefinitely",
+                            fieldKey: "isIndefinite",
+                            medicationData: _controller.editableMedication,
+                            isEditing: _controller.isEditing,
+                            onValueChanged: (fieldKey, value) {
+                              setState(() {
+                                _controller.updateIndefiniteDuration(value);
+                              });
+                            },
+                          ),
+    
+                        // 4. Duration Units and 5. Duration Length (if not indefinite).
+                        if (_controller.isEditing && (_controller.editableMedication["isIndefinite"] == false)) ...[
+                          // 4. Duration Units
+                          MedicationDetailsFields.buildDropdownField(
+                            label: "Duration Units",
+                            fieldKey: "durationUnits",
+                            options: ["Days", "Weeks", "Months", "Years"],
+                            medicationData: _controller.editableMedication,
+                            isEditing: _controller.isEditing,
+                            onValueChanged: _updateFieldValue,
+                          ),
+                          
+                          // 5. Duration Length.
+                          MedicationDetailsFields.buildNumericStepperField(
+                            label: "Duration Length",
+                            fieldKey: "durationLength",
+                            medicationData: _controller.editableMedication,
+                            isEditing: _controller.isEditing,
+                            onValueChanged: _updateFieldValue,
+                            minValue: 1,
+                          ),
+                        ],
+                        
+                        // 6. Schedule Type.
+                        MedicationDetailsFields.buildDropdownField(
+                          label: "Schedule Type",
+                          fieldKey: "scheduleType",
+                          options: ["daily", "weekly", "monthly"],
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          onValueChanged: _updateFieldValue,
+                        ),
+                        
+                        // 7. Frequency.
+                        MedicationDetailsFields.buildNumericStepperField(
+                          label: "Frequency",
+                          fieldKey: "frequency",
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          onValueChanged: _updateFieldValue,
+                          minValue: 1,
+                        ),
+                        
+                        // Application Site (moved here) - only shown for eye medications.
+                        if ((_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication") ||
+                           (!_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication"))
+                          MedicationDetailsFields.buildDropdownField(
+                            label: "Application Site",
+                            fieldKey: "applicationSite",
+                            options: ["Left", "Right", "Both"],
+                            medicationData: _controller.editableMedication,
+                            isEditing: _controller.isEditing,
+                            onValueChanged: _updateFieldValue,
+                          ),
+                        
+                        // 8. Dose Units.
+                        MedicationDetailsFields.buildDropdownField(
+                          label: "Dose Units",
+                          fieldKey: "doseUnits",
+                          options: ["drops", "sprays", "mL", "teaspoon", "tablespoon", "pills/tablets"],
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          onValueChanged: _updateFieldValue,
+                        ),
+                        
+                        // 9. Dose Quantity.
+                        MedicationDetailsFields.buildNumericStepperField(
+                          label: "Dose Quantity",
+                          fieldKey: "doseQuantity",
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          onValueChanged: _updateFieldValue,
+                          minValue: 0.1,
+                          step: 0.1,  // Explicitly set step to 0.1 for dose quantity
+                          allowDecimals: true,
+                        ),
                         
                         SizedBox(height: 2.h),
                       ],
@@ -295,37 +258,23 @@ if (isEditing && (editableMedication["isIndefinite"] == false)) ...[
               ),
             ),
 
-            // Back and Edit/Save Buttons
+            // Back and Edit/Save Buttons.
             Center(
-              child: 
-              Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Back Button
-                 ElevatedButton(
-                  onPressed: () {
-                    if (isEditing) {
-                      setState(() {
-                        isEditing = false; 
-                        editableMedication = Map.from(widget.medication); // Revert changes
-                      });
-                    } else {
-                      Navigator.pop(context); // Normal back navigation
-                    }
-                  },
-                  child: Text("Back", style: TextStyle(fontSize: 17.5.sp)),
-                ),
-
-
-                        ElevatedButton(
-              child: Text(isEditing ? "Save" : "Edit", style: TextStyle(fontSize: 17.5.sp)),
-              onPressed: isEditing ? _saveEdits : () => setState(() => isEditing = true),
-            ),
-              ],
-            ),
-              
-              
-            
+              child: EditActionButtons(
+                isEditing: _controller.isEditing,
+                onBack: () {
+                  if (_controller.isEditing) {
+                    setState(() {
+                      _controller.cancelEditing();
+                    });
+                  } else {
+                    Navigator.pop(context); // Normal back navigation
+                  }
+                },
+                onEditSave: _controller.isEditing 
+                  ? () => _saveChanges() 
+                  : () => setState(() => _controller.startEditing()),
+              ),
             ),
             SizedBox(height: 2.h),
           ],
@@ -334,347 +283,85 @@ if (isEditing && (editableMedication["isIndefinite"] == false)) ...[
     );
   }
 
-  /// Builds an editable text field for modifying data.
-/// Builds an editable text field with optional selection support.
-Widget _buildEditableField(
-  String label,
-  String fieldKey, {
-  bool isNumeric = false,
-  bool allowSelection = false,
-}) {
-  TextEditingController controller =
-      TextEditingController(text: editableMedication[fieldKey]?.toString());
-
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 1.2.h),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17.5.sp,
-              color: Colors.grey[700]),
-        ),
-        SizedBox(height: 0.5.h),
-        Row(
-          children: [
-            Expanded(
-              child: isEditing
-                  ? TextFormField(
-                      controller: controller,
-                      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-                      onChanged: (value) => editableMedication[fieldKey] = value,
-                      onSaved: (value) => editableMedication[fieldKey] = value!,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return "This field cannot be empty";
-                        if (isNumeric) {
-                          double? numValue = double.tryParse(value);
-                          if (numValue == null || numValue < 1) {
-                            return "Value must be a number and at least 1";
-                          }
-                        }
-                        return null;
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(5)),
-                      ),
-                    )
-                  : Text(
-                      editableMedication[fieldKey]?.toString() ?? "N/A",
-                      style: TextStyle(fontSize: 17.5.sp),
-                    ),
-            ),
-            if (isEditing && allowSelection && editableMedication["isEyeMedication"] == true)
-              IconButton(
-                icon: Icon(Icons.search, color: Colors.blue),
-                onPressed: () => _selectMedicationFromFirestore(fieldKey, controller),
-              ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-
-
-Future<void> _selectMedicationFromFirestore(String fieldKey, TextEditingController controller) async {
-  if (!isEditing || editableMedication["isEyeMedication"] != true) return; // Prevent selection if not editing
-
-  final selectedMedication = await Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => MedicationSelectionScreen()),
-  );
-
-  if (selectedMedication != null) {
-    setState(() {
-      controller.text = selectedMedication;
-      editableMedication[fieldKey] = selectedMedication;
-    });
-  }
-}
-
-
-
-  /// Builds a dropdown field for selection.
-  Widget _buildDropdownField(String label, String fieldKey, List<String> options) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 1.2.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17.5.sp, color: Colors.grey[700]),
-          ),
-          SizedBox(height: 0.5.h),
-          isEditing
-              ? DropdownButtonFormField<String>(
-                  value: editableMedication[fieldKey],
-                  items: options.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      editableMedication[fieldKey] = value!;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(5)),
-                  ),
-                )
-              : Text(
-                  editableMedication[fieldKey]?.toString() ?? "N/A",
-                  style: TextStyle(fontSize: 17.5.sp),
-                ),
-        ],
-      ),
-    );
-  }
-
-/// Builds a time picker field that extracts time from prescribedDate.
-Widget _buildTimePicker(String label, String fieldKey) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 1.2.h),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17.5.sp, color: Colors.grey[700]),
-        ),
-        SizedBox(height: 0.5.h),
-        isEditing
-            ? GestureDetector(
-                onTap: () => _selectTime(fieldKey),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 3.w),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _formatTime(editableMedication[fieldKey]), // Formats only time
-                        style: TextStyle(fontSize: 16.sp),
-                      ),
-                      Icon(Icons.access_time, color: Colors.blue),
-                    ],
-                  ),
-                ),
-              )
-            : Text(
-                _formatTime(editableMedication[fieldKey]), // Show time when not editing
-                style: TextStyle(fontSize: 17.5.sp),
-              ),
-      ],
-    ),
-  );
-}
-
-/// Extracts and formats only the time from Firestore Timestamp or DateTime.
-String _formatTime(dynamic date) {
-  if (date == null) return "N/A";
-
-  // If it's a Firestore Timestamp, convert it to DateTime first
-  DateTime dateTime = _extractDateTime(date);
-
-  return DateFormat('HH:mm').format(dateTime); // Formats as "14:03"
-}
-
-/// Extracts DateTime from a Firestore Timestamp or DateTime.
-DateTime _extractDateTime(dynamic date) {
-  if (date is Timestamp) return date.toDate();
-  if (date is DateTime) return date;
-  return DateTime.now(); // Fallback in case of null or invalid type
-}
-
-
-/// Opens a time picker and updates only the time in prescribedDate.
-Future<void> _selectTime(String fieldKey) async {
-  DateTime originalDateTime = _extractDateTime(editableMedication[fieldKey]);
-
-  TimeOfDay? pickedTime = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay(hour: originalDateTime.hour, minute: originalDateTime.minute),
-  );
-
-  if (pickedTime != null) {
-    setState(() {
-      // Create a new DateTime with the updated time
-      DateTime updatedDateTime = DateTime(
-        originalDateTime.year,
-        originalDateTime.month,
-        originalDateTime.day,
-        pickedTime.hour,
-        pickedTime.minute,
+  /// Handle saving changes with form validation.
+  Future<void> _saveChanges() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(child: CircularProgressIndicator()),
       );
 
-      // Store back as Firestore Timestamp
-      editableMedication[fieldKey] = Timestamp.fromDate(updatedDateTime);
-    });
-  }
-}
+      try {
+        
+        // Ensures duration fields have string values.
+        if (_controller.editableMedication["isIndefinite"] == true) {
+          // For indefinite medications, explicitly set empty strings instead of null
+          _controller.editableMedication["durationLength"] = "";
+          _controller.editableMedication["durationUnits"] = "";
+        } else {
+          // For definite medications, ensure we have valid values.
+          if (_controller.editableMedication["durationLength"] == null) {
+            _controller.editableMedication["durationLength"] = "1";
+          }
+          if (_controller.editableMedication["durationUnits"] == null) {
+            _controller.editableMedication["durationUnits"] = "Days";
+          }
+        }
 
-
-
-  /// Builds a date picker field.
- /// Builds a date picker field that correctly formats the Firestore Timestamp.
-/// Builds a date picker field that correctly formats Firestore Timestamp.
-Widget _buildDatePicker(String label, String fieldKey) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 1.2.h),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17.5.sp, color: Colors.grey[700]),
-        ),
-        SizedBox(height: 0.5.h),
-        isEditing
-            ? GestureDetector(
-                onTap: () => _selectDate(fieldKey),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 3.w),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _formatDateOnly(editableMedication[fieldKey]), // Only date in edit mode
-                        style: TextStyle(fontSize: 16.sp),
-                      ),
-                      Icon(Icons.calendar_today, color: Colors.blue),
-                    ],
-                  ),
-                ),
-              )
-            : Text(
-                _formatDateOnly(editableMedication[fieldKey]), // Only date in non-edit mode
-                style: TextStyle(fontSize: 17.5.sp),
-              ),
-      ],
-    ),
-  );
-}
-
-
-Future<void> _selectDate(String fieldKey) async {
-  DateTime originalDateTime = _extractDateTime(editableMedication[fieldKey]);
-
-  DateTime? pickedDate = await showDatePicker(
-    context: context,
-    initialDate: originalDateTime,
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2100),
-  );
-
-  if (pickedDate != null) {
-    setState(() {
-      // Retain the existing time and update only the date
-      DateTime updatedDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        originalDateTime.hour,
-        originalDateTime.minute,
-      );
-
-      // Store back as Firestore Timestamp
-      editableMedication[fieldKey] = Timestamp.fromDate(updatedDateTime);
-    });
-  }
-}
-
-
-}
-
-
-  /// Builds a static detail row (non-editable fields).
-  Widget _buildDetailRow(String label, String? value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 1.2.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17.5.sp, color: Colors.grey[700]),
-          ),
-          SizedBox(height: 0.5.h),
-          Text(
-            value ?? "N/A",
-            style: TextStyle(fontSize: 17.5.sp),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Formats date-time values from Firestore.
-/// Formats date-time values from Firestore correctly.
-String _formatDateTime(dynamic date) {
-  if (date == null) return "N/A";
-
-  // If it's already a DateTime, format it
-  if (date is DateTime) {
-    return DateFormat('dd-MM-yyyy HH:mm').format(date); // Formats as "12-03-2025 14:03"
-  }
-
-  // If it's a Firestore Timestamp, convert it to DateTime
-  if (date is Timestamp) {
-    return DateFormat('dd-MM-yyyy HH:mm').format(date.toDate());
-  }
-
-  return "Invalid Date";
-}
-
-
-/// Formats and returns only the date from Firestore Timestamp or DateTime.
-String _formatDateOnly(dynamic date) {
-  if (date == null) return "N/A";
-
-  // If it's already a DateTime, format it
-  if (date is DateTime) {
-    return DateFormat('dd-MM-yyyy').format(date); // Formats as "12-03-2025"
-  }
-
-  // If it's a Firestore Timestamp, convert it to DateTime
-  if (date is Timestamp) {
-    return DateFormat('dd-MM-yyyy').format(date.toDate());
-  }
-
-  return "Invalid Date";
-}
-
-
+      await _controller.saveEdits();
+      // Closes loading dialog.
+      if (mounted) Navigator.of(context).pop();
+        
+        
+      if (mounted) {
+        setState(() {}); // Updates UI after save.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Medication updated successfully")),
+        );
+      }        
 
   
+      } catch (e) {
+          // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+        
+        print("Error saving medication: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to update medication. Please try again."), 
+              action: SnackBarAction(
+                label: 'Details',
+                onPressed: () {
+                  // Show error details in a dialog for advanced users
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text("Error Details"),
+                      content: Text(e.toString()),
+                      actions: [
+                        TextButton(
+                          child: Text("OK"),
+                          onPressed: () => Navigator.of(context).pop(),
+                        )
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+}
+
+
+
+
 
 
