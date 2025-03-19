@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-
 /// Form for user medication input.
 ///
 /// This form allows users to input details about their medication.
@@ -35,13 +34,12 @@ class MedicationFormState extends State<MedicationForm> {
         child: ListView(
           padding: EdgeInsets.all(5.w),
           children: [
-
-            // Medication Type Toggle (Eye vs. Non-Eye)
+            // 1. Medication Type Toggle (Eye vs. Non-Eye)
             _buildToggleButtons(controller),
             
             SizedBox(height: 1.h),
 
-            // Medication Name Field
+            // 2. Medication Name Field
             // - Manual entry is always allowed.
             // - If "Eye Medication" is selected, users can also search for a medication
             FormComponents.buildTextField(
@@ -53,176 +51,168 @@ class MedicationFormState extends State<MedicationForm> {
               icon: controller.medType == "Eye Medication" ? Icons.search : null,
             ),
           
-          SizedBox(height: 1.h),
+            SizedBox(height: 1.h),
 
-          // Date Prescribed
-          FormComponents.buildDateField(
-            label: "Date Prescribed",
-            value: controller.prescriptionDate,
-            onTap: () => controller.selectPrescriptionDate(context),
-          ),
+            // 3. Date/Time
+            // Date Prescribed
+            FormComponents.buildDateField(
+              label: "Date Prescribed",
+              value: controller.prescriptionDate,
+              onTap: () => controller.selectPrescriptionDate(context),
+            ),
 
-          SizedBox(height: 1.h),
+            SizedBox(height: 1.h),
 
+            // Time of prescription
+            FormComponents.buildTimeField(
+              label: "Prescription Time",
+              value: controller.prescriptionTime,
+              onTap: () => controller.selectPrescriptionTime(context),
+            ),
 
-          //  Time of prescription.
-          FormComponents.buildTimeField(
-            label: "Prescription Time",
-            value: controller.prescriptionTime,
-            onTap: () => controller.selectPrescriptionTime(context),
-          ),
+            SizedBox(height: 1.h),
 
-          SizedBox(height: 1.h),
-
-
-          // Taken Indefinitely Checkbox
-          // - If checked, the duration fields will be hidden.
-          FormComponents.buildCheckbox(
-            label: "Taken Indefinitely",
-            value: controller.isIndefinite,
-            onChanged: (val) {
-              setState(() {
-                controller.isIndefinite = val!;
-              });
-            },
-          ),
-
-          SizedBox(height: 1.h),
-
-
-          // Duration Fields (Only show if not medication not taken indefinitely)
-          if (!controller.isIndefinite) ...[
-            FormComponents.buildDropdown(
-              label: "Duration Unit",
-              value: controller.durationUnit.isNotEmpty ? controller.durationUnit : null,
-              items: ["Days", "Weeks", "Months", "Years"],
+            // 4. Taken Indefinitely Checkbox
+            // - If checked, the duration fields will be hidden.
+            FormComponents.buildCheckbox(
+              label: "Taken Indefinitely",
+              value: controller.isIndefinite,
               onChanged: (val) {
                 setState(() {
-                  controller.durationUnit = val!;
+                  controller.isIndefinite = val!;
                 });
               },
             ),
 
             SizedBox(height: 1.h),
 
-            // Duration Length field
+            // 5-6. Duration Fields (Only show if not medication not taken indefinitely)
+            if (!controller.isIndefinite) ...[
+              // 5. Duration Units
+              FormComponents.buildDropdown(
+                label: "Duration Unit",
+                value: controller.durationUnit.isNotEmpty ? controller.durationUnit : null,
+                items: ["Days", "Weeks", "Months", "Years"],
+                onChanged: (val) {
+                  setState(() {
+                    controller.durationUnit = val!;
+                  });
+                },
+              ),
+
+              SizedBox(height: 1.h),
+
+              // 6. Duration Length field
+              FormComponents.buildNumericStepperField(
+                label: "Duration Length",
+                controller: controller.durationController,
+                isEnabled: !controller.isIndefinite,
+                step: 1.0,
+                minValue: 1.0, // Ensures a minimum of 1
+                allowDecimals: false,
+                onIncrement: () {
+                  controller.incrementDurationLength();
+                },
+                onDecrement: () {
+                  controller.decrementDurationLength();
+                },
+              ),
+            ],
+
+            SizedBox(height: 1.h),
+
+            // 7. Schedule Type Dropdown field
+            FormComponents.buildDropdown(
+              label: "Schedule Type",
+              value: controller.scheduleType.isNotEmpty ? controller.scheduleType : null,
+              items: ["daily", "weekly", "monthly"],
+              onChanged: (val) {
+                setState(() {
+                  controller.scheduleType = val!;
+                });
+              },
+            ),
+
+            SizedBox(height: 1.h),
+
+            // 8. Frequency Field
+            // - Minimum value: 1
+            // - Increments/Decrements by 1
             FormComponents.buildNumericStepperField(
-              label: "Duration Length",
-              controller: controller.durationController,
-              isEnabled: !controller.isIndefinite,
+              label: "Frequency",
+              controller: controller.frequencyController,
+              isEnabled: true,
               step: 1.0,
               minValue: 1.0, // Ensures a minimum of 1
               allowDecimals: false,
               onIncrement: () {
-                    controller.incrementDurationLength();
-
+                controller.incrementFrequency();
               },
               onDecrement: () {
-                    controller.decrementDurationLength();
-
+                controller.decrementFrequency();
               },
             ),
 
-          ],
+            SizedBox(height: 1.h),
 
-          SizedBox(height: 1.h),
+            // 9. Application Site field (Only show if medication is eye medication)
+            if (controller.medType == "Eye Medication") ...[
+              FormComponents.buildDropdown(
+                label: "Application Site",
+                value: controller.applicationSite.isNotEmpty ? controller.applicationSite : null,
+                items: ["Left Eye", "Right Eye", "Both Eyes"],
+                onChanged: (val) {
+                  setState(() {
+                    controller.applicationSite = val!;
+                  });
+                },
+              ),
+              
+              SizedBox(height: 1.h),
+            ],
 
-          // Schedule Type Dropdown field.
-          FormComponents.buildDropdown(
-            label: "Schedule Type",
-            value: controller.scheduleType.isNotEmpty ? controller.scheduleType : null,
-            items: ["daily", "weekly", "monthly"],
-            onChanged: (val) {
-              setState(() {
-                controller.scheduleType = val!;
-              });
-            },
-          ),
-
-          SizedBox(height: 1.h),
-
-          // Dosage Fields.
-
-          FormComponents.buildDropdown(
-            label: "Dose Units",
-            value: controller.doseUnits.isNotEmpty ? controller.doseUnits : null,
-            items: ["drops", "sprays", "mL", "teaspoon", "tablespoon", "pills/tablets"],
-            onChanged: (val) {
-              setState(() {
-                controller.doseUnits = val!;
-              });
-            },
-          ),
-
-          SizedBox(height: 1.h),
-
-          //- Allows manual entry
-          // - Increments/Decrements by 0.1
-          // - Minimum dose: 0.0
-           FormComponents.buildNumericStepperField(
-            label: "Dose Quantity",
-            controller: controller.doseQuantityController,
-            isEnabled: true,
-            step: 0.1,
-            minValue: 0.0, // Allows exactly 0.0 minimum
-            allowDecimals: true,
-            onIncrement: () {
-              controller.incrementDoseQuantity();
-            },
-            onDecrement: () {
-              controller.decrementDoseQuantity();
-            },
-          ),
-
-
-          SizedBox(height: 1.h),
-
-          /// Frequency Field
-          /// - Minimum value: 1
-          /// - Increments/Decrements by 1
-          FormComponents.buildNumericStepperField(
-            label: "Frequency",
-            controller: controller.frequencyController,
-            isEnabled: true,
-            step: 1.0,
-            minValue: 1.0, // Ensures a minimum of 1
-            allowDecimals: false,
-            onIncrement: () {
-                  controller.incrementFrequency();
-
-            },
-            onDecrement: () {
-                  controller.decrementFrequency();
-
-            },
-          ),
-
-          SizedBox(height: 1.h),
-
-          // Application Site field (Only show if medication is eye medication).
-          if (controller.medType == "Eye Medication")...[
+            // 10. Dose Units
             FormComponents.buildDropdown(
-              label: "Application Site",
-              value: controller.applicationSite.isNotEmpty ? controller.applicationSite : null,
-              items: ["Left Eye", "Right Eye", "Both Eyes"],
+              label: "Dose Units",
+              value: controller.doseUnits.isNotEmpty ? controller.doseUnits : null,
+              items: ["drops", "sprays", "mL", "teaspoon", "tablespoon", "pills/tablets"],
               onChanged: (val) {
                 setState(() {
-                  controller.applicationSite = val!;
+                  controller.doseUnits = val!;
                 });
               },
             ),
+
+            SizedBox(height: 1.h),
+
+            // 11. Dose Quantity
+            // - Allows manual entry
+            // - Increments/Decrements by 0.1
+            // - Minimum dose: 0.0
+            FormComponents.buildNumericStepperField(
+              label: "Dose Quantity",
+              controller: controller.doseQuantityController,
+              isEnabled: true,
+              step: 0.1,
+              minValue: 0.0, // Allows exactly 0.0 minimum
+              allowDecimals: true,
+              onIncrement: () {
+                controller.incrementDoseQuantity();
+              },
+              onDecrement: () {
+                controller.decrementDoseQuantity();
+              },
+            ),
+
+            SizedBox(height: 2.h),
+
+            // Submit Button
+            ElevatedButton(
+              onPressed: () => controller.submitForm(context),
+              child: const Text("Submit"),
+            ),
           ],
-
-          SizedBox(height: 1.h),
-
-
-          // Submit Button
-          ElevatedButton(
-            onPressed: () => controller.submitForm(context),
-            child: const Text("Submit"),
-          ),
-
-        ],),
+        ),
       ),
     );
   }
@@ -232,7 +222,6 @@ class MedicationFormState extends State<MedicationForm> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-
         FormComponents.buildToggleButton(
           label: "Eye Medication",
           isSelected: controller.medType == "Eye Medication",
@@ -253,7 +242,6 @@ class MedicationFormState extends State<MedicationForm> {
             });
           },
         ),
-
       ],
     );
   }
