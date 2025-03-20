@@ -5,18 +5,18 @@
 
 import 'dart:developer';
 
-import 'package:eyedrop/logic/auth_logic/auth_checker.dart';
-import 'package:eyedrop/logic/database/firestore_service.dart';
-import 'package:eyedrop/logic/auth_logic/auth_gate.dart';
-import 'package:eyedrop/logic/medications/medication_form_controller.dart';
-import 'package:eyedrop/logic/medications/medication_service.dart';
-import 'package:eyedrop/screens/main_screens/onetime_intro_screen.dart';
+import 'package:eyedrop/features/auth/controllers/auth_checker.dart';
+import 'package:eyedrop/shared/services/firestore_service.dart';
+import 'package:eyedrop/features/auth/screens/auth_gate.dart';
+import 'package:eyedrop/features/medications/controllers/medication_form_controller.dart';
+import 'package:eyedrop/features/medications/controllers/medication_service.dart';
+import 'package:eyedrop/features/onboarding/screens/onetime_intro_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-import 'firebase_options.dart';
+import 'core/firebase_options.dart';
 
 /// Application Entry Point.
 /// 
