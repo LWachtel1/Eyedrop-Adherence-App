@@ -4,7 +4,7 @@
 
 import 'dart:developer';
 import 'package:eyedrop/shared/services/firestore_service.dart';
-import 'package:eyedrop/features/medications/controllers/medication_service.dart';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:eyedrop/features/medications/screens/medication_details_screen.dart';
 import 'package:eyedrop/shared/widgets/delete_confirmation_dialog.dart';

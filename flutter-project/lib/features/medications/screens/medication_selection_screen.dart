@@ -7,7 +7,7 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
-import 'package:eyedrop/features/medications/controllers/medication_service.dart';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:eyedrop/shared/widgets/searchable_list.dart';
 import 'package:flutter/material.dart';
@@ -115,7 +115,6 @@ class _MedicationSelectionScreenState extends State<MedicationSelectionScreen> {
   /// - Back button for navigation.
   /// - Search bar for filtering medications.
   /// - List of medications, dynamically updating based on search.
-  /// 
   @override
   Widget build(BuildContext context) {
     return BaseLayoutScreen(

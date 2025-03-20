@@ -9,7 +9,7 @@ import 'package:eyedrop/features/auth/controllers/auth_checker.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/auth/screens/auth_gate.dart';
 import 'package:eyedrop/features/medications/controllers/medication_form_controller.dart';
-import 'package:eyedrop/features/medications/controllers/medication_service.dart';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/features/onboarding/screens/onetime_intro_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';

@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'package:eyedrop/features/medications/screens/medication_selection_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:eyedrop/features/medications/controllers/medication_service.dart';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 
 /// Manages form logic for adding a new medication.
 ///
