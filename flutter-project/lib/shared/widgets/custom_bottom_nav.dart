@@ -1,4 +1,4 @@
-import 'package:eyedrop/features/auth/screens/account_screen.dart';
+import 'package:eyedrop/features/account/screens/account_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
