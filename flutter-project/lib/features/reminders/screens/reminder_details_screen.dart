@@ -75,6 +75,39 @@ class ReminderDetailScreen extends StatelessWidget {
                           "Smart Scheduling",
                           reminder["smartScheduling"] == true ? "Enabled" : "Disabled",
                         ),
+                        // Add schedule type and frequency
+                        _buildDetailRow(
+                          "Schedule Type",
+                          _formatScheduleType(reminder["scheduleType"]),
+                        ),
+                        _buildDetailRow(
+                          "Frequency",
+                          _formatFrequency(reminder["frequency"], reminder["scheduleType"]),
+                        ),
+                      ],
+                    ),
+                    
+                    SizedBox(height: 2.h),
+                    
+                    // Dosage section (new)
+                    _buildDetailSection(
+                      title: "Dosage",
+                      children: [
+                        _buildDetailRow(
+                          "Dose Quantity",
+                          _formatDoseQuantity(reminder["doseQuantity"]),
+                        ),
+                        _buildDetailRow(
+                          "Dose Units",
+                          reminder["doseUnits"] ?? "N/A",
+                        ),
+                        // Only show application site for eye medications
+                        if (reminder["medicationType"] == "Eye Medication" && 
+                            reminder["applicationSite"] != null)
+                          _buildDetailRow(
+                            "Application Site",
+                            reminder["applicationSite"] ?? "N/A",
+                          ),
                       ],
                     ),
                     
@@ -136,6 +169,47 @@ class ReminderDetailScreen extends StatelessWidget {
     );
   }
 
+  /// Formats the schedule type into a readable string
+  String _formatScheduleType(dynamic scheduleType) {
+    if (scheduleType == null) return "N/A";
+    
+    String type = scheduleType.toString().toLowerCase();
+    // Capitalize first letter
+    return type.substring(0, 1).toUpperCase() + type.substring(1);
+  }
+
+  /// Formats the frequency into a readable string based on schedule type
+  String _formatFrequency(dynamic frequency, dynamic scheduleType) {
+    if (frequency == null) return "N/A";
+    
+    int freq = frequency is int ? frequency : int.tryParse(frequency.toString()) ?? 1;
+    String type = (scheduleType ?? "daily").toString().toLowerCase();
+    
+    if (type == "daily") {
+      return freq == 1 ? "Once daily" : "$freq times daily";
+    } else if (type == "weekly") {
+      return freq == 1 ? "Once weekly" : "$freq times per week";
+    } else if (type == "monthly") {
+      return freq == 1 ? "Once monthly" : "$freq times per month";
+    }
+    
+    return "$freq times per $type";
+  }
+
+  /// Formats the dose quantity to a readable string
+  String _formatDoseQuantity(dynamic quantity) {
+    if (quantity == null) return "N/A";
+    
+    if (quantity is int) return quantity.toString();
+    if (quantity is double) {
+      // Format to remove trailing zeros if it's a whole number
+      return quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 1);
+    }
+    
+    return quantity.toString();
+  }
+
+  // Existing methods...
   /// Builds a section with a title and multiple detail rows.
   Widget _buildDetailSection({
     required String title,

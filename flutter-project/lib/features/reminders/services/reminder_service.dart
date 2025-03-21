@@ -30,6 +30,11 @@ class ReminderService {
   /// - `durationLength`: The length of the duration
   /// - `smartScheduling`: Whether to use smart scheduling
   /// - `timings`: List of specific timings if not using smart scheduling
+  /// - `scheduleType`: Type of schedule (daily, weekly, monthly)
+  /// - `frequency`: How often the medication should be taken
+  /// - `doseUnits`: Units of the dose (e.g., drops, tablets)
+  /// - `doseQuantity`: Amount of medication per dose
+  /// - `applicationSite`: Where to apply the medication (for eye medications)
   Map<String, dynamic> createReminderData({
     required String userMedicationId,
     required String medicationType,
@@ -40,6 +45,12 @@ class ReminderService {
     String? durationLength,
     required bool smartScheduling,
     required List<TimeOfDay>? timings,
+    // Add additional medication details fields
+    required String scheduleType,
+    required int frequency,
+    required String doseUnits,
+    required double doseQuantity,
+    String? applicationSite,
   }) {
     try {
       // Basic validation
@@ -81,6 +92,12 @@ class ReminderService {
         'smartScheduling': smartScheduling,
         'timings': timingsData ?? [],
         'createdAt': Timestamp.fromDate(DateTime.now()),
+        // Add additional medication details
+        'scheduleType': scheduleType,
+        'frequency': frequency,
+        'doseUnits': doseUnits,
+        'doseQuantity': doseQuantity,
+        'applicationSite': applicationSite,
       };
     } catch (e) {
       log("Error creating reminder data: $e");

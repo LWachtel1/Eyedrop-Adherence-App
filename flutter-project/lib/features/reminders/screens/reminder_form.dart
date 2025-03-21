@@ -46,6 +46,11 @@ class _ReminderFormState extends State<ReminderForm> {
 
             // Only show the rest of the form if a medication is selected.
             if (controller.selectedMedication != null) ...[
+              // Display medication details in view-only mode
+              _buildMedicationDetails(controller),
+              
+              SizedBox(height: 2.h),
+              
               // 2. Start Date Field
               FormComponents.buildDateField(
                 label: "Start Date",
@@ -230,6 +235,118 @@ class _ReminderFormState extends State<ReminderForm> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Builds a view-only card displaying medication details
+  Widget _buildMedicationDetails(ReminderFormController controller) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(3.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Medication Details",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16.sp,
+                color: Colors.grey[700],
+              ),
+            ),
+            Divider(),
+            
+            // Schedule type
+            _buildDetailRow(
+              "Schedule Type",
+              _formatScheduleType(controller.scheduleType),
+            ),
+            
+            // Frequency
+            _buildDetailRow(
+              "Frequency",
+              _formatFrequency(controller.frequency, controller.scheduleType),
+            ),
+            
+            // Dose information
+            _buildDetailRow(
+              "Dose",
+              "${_formatDoseQuantity(controller.doseQuantity)} ${controller.doseUnits}",
+            ),
+            
+            // Application site (only for eye medications)
+            if (controller.medicationType == "Eye Medication" && 
+                controller.applicationSite.isNotEmpty)
+              _buildDetailRow(
+                "Application Site",
+                controller.applicationSite,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Formats the schedule type to a readable string
+  String _formatScheduleType(String scheduleType) {
+    if (scheduleType.isEmpty) return "N/A";
+    
+    String type = scheduleType.toLowerCase();
+    // Capitalize first letter
+    return type.substring(0, 1).toUpperCase() + type.substring(1);
+  }
+
+  /// Formats the frequency to a readable string
+  String _formatFrequency(int frequency, String scheduleType) {
+    String type = scheduleType.isEmpty ? "daily" : scheduleType.toLowerCase();
+    
+    if (type == "daily") {
+      return frequency == 1 ? "Once daily" : "$frequency times daily";
+    } else if (type == "weekly") {
+      return frequency == 1 ? "Once weekly" : "$frequency times per week";
+    } else if (type == "monthly") {
+      return frequency == 1 ? "Once monthly" : "$frequency times per month";
+    }
+    
+    return "$frequency times per $type";
+  }
+
+  /// Formats the dose quantity to a readable string
+  String _formatDoseQuantity(double quantity) {
+    // Format to remove trailing zeros if it's a whole number
+    return quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 1);
+  }
+
+  /// Builds a simple label-value row for read-only display
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 0.8.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 35.w,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14.sp,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 14.sp),
+            ),
+          ),
+        ],
       ),
     );
   }

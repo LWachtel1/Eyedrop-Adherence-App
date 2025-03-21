@@ -211,6 +211,29 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  /// Formats the schedule type and frequency into a readable string
+  String _formatScheduleFrequency(dynamic scheduleType, dynamic frequency) {
+    if (scheduleType == null) return "N/A";
+    
+    String type = scheduleType.toString().toLowerCase();
+    int freq = frequency is int ? 
+        frequency : 
+        int.tryParse(frequency?.toString() ?? '1') ?? 1;
+    
+    // Capitalize first letter of schedule type
+    String formattedType = type.substring(0, 1).toUpperCase() + type.substring(1);
+    
+    if (type == "daily") {
+      return freq == 1 ? "Once daily" : "$freq times daily";
+    } else if (type == "weekly") {
+      return freq == 1 ? "Once weekly" : "$freq times per week";
+    } else if (type == "monthly") {
+      return freq == 1 ? "Once monthly" : "$freq times per month";
+    }
+    
+    return "$formattedType: $freq times";
+  }
+
   /// Builds a card for displaying reminder information.
   Widget _buildReminderCard(Map<String, dynamic> reminder) {
     // Get basic info
@@ -231,6 +254,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     String duration = isIndefinite 
         ? "Indefinite" 
         : "${reminder["durationLength"] ?? ""} ${reminder["durationUnits"] ?? ""}";
+    
+    // Get schedule type and frequency for the card
+    String scheduleFrequency = _formatScheduleFrequency(
+      reminder["scheduleType"], 
+      reminder["frequency"]
+    );
     
     return Card(
       elevation: 2,
@@ -273,7 +302,34 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   ),
                 ],
               ),
-              SizedBox(height: 1.h),
+              
+              // Add schedule type and frequency to the card
+              Padding(
+                padding: EdgeInsets.only(top: 0.5.h, bottom: 1.h),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 14.sp,
+                      color: Colors.blue[700],
+                    ),
+                    SizedBox(width: 1.w),
+                    Expanded(
+                      child: Text(
+                        scheduleFrequency,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blue[700],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
               Row(
                 children: [
                   Icon(
@@ -281,7 +337,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         ? Icons.auto_awesome 
                         : Icons.access_time,
                     size: 14.sp,
-                    color: Colors.blue,
+                    color: Colors.grey[600],
                   ),
                   SizedBox(width: 1.w),
                   Text(
@@ -290,7 +346,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         : "Manual Scheduling",
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: Colors.blue,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],

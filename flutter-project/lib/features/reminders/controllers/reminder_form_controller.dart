@@ -24,6 +24,13 @@ class ReminderFormController extends ChangeNotifier {
   bool smartScheduling = true;
   List<TimeOfDay> timings = [];
 
+  // Additional medication details from the selected medication
+  String scheduleType = '';
+  int frequency = 1;
+  String doseUnits = '';
+  double doseQuantity = 0.0;
+  String applicationSite = '';
+
   // Controllers for text input fields.
   final TextEditingController durationController = TextEditingController(text: '1');
   
@@ -50,6 +57,17 @@ class ReminderFormController extends ChangeNotifier {
     userMedicationId = medication['id'] ?? '';
     medicationType = medication['medType'] ?? '';
     medicationName = medication['medicationName'] ?? '';
+    
+    // Extract medication details needed for reminder
+    scheduleType = medication['scheduleType'] ?? 'daily';
+    frequency = medication['frequency'] is int ? 
+        medication['frequency'] : 
+        int.tryParse(medication['frequency']?.toString() ?? '1') ?? 1;
+    doseUnits = medication['doseUnits'] ?? '';
+    doseQuantity = medication['doseQuantity'] is double ? 
+        medication['doseQuantity'] : 
+        double.tryParse(medication['doseQuantity']?.toString() ?? '0.0') ?? 0.0;
+    applicationSite = medication['applicationSite'] ?? '';
     
     // If prescription date exists in medication, default start date to that.
     if (medication.containsKey('prescriptionDate')) {
@@ -299,6 +317,12 @@ class ReminderFormController extends ChangeNotifier {
         durationLength: isIndefinite ? null : durationController.text,
         smartScheduling: smartScheduling,
         timings: smartScheduling ? null : timings,
+        // Pass the additional medication details
+        scheduleType: scheduleType,
+        frequency: frequency,
+        doseUnits: doseUnits,
+        doseQuantity: doseQuantity,
+        applicationSite: applicationSite,
       );
 
       // Checks if reminder already exists for this medication.
