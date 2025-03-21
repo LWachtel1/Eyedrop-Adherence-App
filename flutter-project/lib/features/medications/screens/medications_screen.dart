@@ -32,6 +32,8 @@ import 'package:sizer/sizer.dart';
 /// - Displays a `SearchableList` of `MedicationCard` widgets.
 /// - Integrates a `DeleteConfirmationDialog` for safe deletion.
 class MedicationsScreen extends StatefulWidget {
+  static const String id = '/medications';
+  
   @override
   _MedicationsScreenState createState() => _MedicationsScreenState();
 }

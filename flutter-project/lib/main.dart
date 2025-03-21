@@ -17,6 +17,10 @@ import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import 'core/firebase_options.dart';
+import 'package:eyedrop/features/reminders/controllers/reminder_form_controller.dart';
+import 'package:eyedrop/features/reminders/services/reminder_service.dart';
+import 'package:eyedrop/features/reminders/screens/reminders_screen.dart';
+import 'package:eyedrop/features/medications/screens/medications_screen.dart';
 
 /// Application Entry Point.
 /// 
@@ -49,6 +53,16 @@ Future<void> main() async {
             ),    
             // ProxyProvider is a provider that builds a value based on other providers.    
         ChangeNotifierProvider(create: (context) => MedicationFormController(medicationService: context.read<MedicationService>())),
+        Provider<ReminderService>(
+          create: (context) => ReminderService(
+            Provider.of<FirestoreService>(context, listen: false),
+          ),
+        ),
+        ChangeNotifierProvider<ReminderFormController>(
+          create: (context) => ReminderFormController(
+            reminderService: Provider.of<ReminderService>(context, listen: false),
+          ),
+        ),
       ],
       child: Sizer( // Wraps the app in Sizer.
           builder: (context, orientation, deviceType) {
@@ -84,11 +98,9 @@ class MyApp extends StatelessWidget {
 
       routes: <String, WidgetBuilder>{
         IntroScreen.id: (BuildContext context) => IntroScreen(),
-
-        //The home route, which triggers authentication via AuthGate widget.
-        //If the user is signed in, the base layout is displayed, otherwise a sign-in/registration screen is shown.
         '/home': (BuildContext context) => AuthGate(),
-        
+        RemindersScreen.id: (BuildContext context) => RemindersScreen(),
+        MedicationsScreen.id: (BuildContext context) => MedicationsScreen(),
       },
       builder: (context, child) {
         return Stack(

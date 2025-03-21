@@ -1,4 +1,5 @@
 import 'package:eyedrop/features/medications/screens/medication_form.dart';
+import 'package:eyedrop/features/reminders/screens/reminder_form.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -24,7 +25,7 @@ class AddFormMenu extends StatelessWidget {
             child: MenuItemRow(
               label: 'Add reminder',
               iconPath: 'assets/icons/addReminder_icon.svg',
-              destinationScreen: BaseLayoutScreen(child: null),
+              destinationScreen: ReminderForm(),
             ),
           ),
         ),
