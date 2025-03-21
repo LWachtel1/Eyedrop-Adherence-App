@@ -323,6 +323,7 @@ class ReminderFormController extends ChangeNotifier {
         doseUnits: doseUnits,
         doseQuantity: doseQuantity,
         applicationSite: applicationSite,
+        isEnabled: true, // New reminders are enabled by default
       );
 
       // Checks if reminder already exists for this medication.

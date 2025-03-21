@@ -13,6 +13,7 @@ import 'package:rxdart/rxdart.dart';
 /// - Adds a new reminder to Firestore.
 /// - Checks for duplicate reminders.
 /// - Manages reminder streams and deletions.
+/// - Toggles reminder enabled/disabled state.
 class ReminderService {
   final FirestoreService firestoreService;
 
@@ -51,6 +52,7 @@ class ReminderService {
     required String doseUnits,
     required double doseQuantity,
     String? applicationSite,
+    bool isEnabled = true, // Default to enabled
   }) {
     try {
       // Basic validation
@@ -98,10 +100,47 @@ class ReminderService {
         'doseUnits': doseUnits,
         'doseQuantity': doseQuantity,
         'applicationSite': applicationSite,
+        'isEnabled': isEnabled, // Add enabled flag
       };
     } catch (e) {
       log("Error creating reminder data: $e");
       throw Exception("Invalid reminder data: ${e.toString()}");
+    }
+  }
+
+  /// Toggles a reminder's enabled state in Firestore
+  /// 
+  /// Parameters:
+  /// - `userId`: The ID of the user who owns the reminder
+  /// - `reminderId`: The ID of the reminder to toggle
+  /// - `isEnabled`: The new state (enabled or disabled)
+  /// 
+  /// Returns a Future that completes when the operation is done
+  Future<void> toggleReminderState(String userId, String reminderId, bool isEnabled) async {
+    try {
+      // Validate inputs
+      if (userId.isEmpty) {
+        throw Exception('User ID cannot be empty');
+      }
+      
+      if (reminderId.isEmpty) {
+        throw Exception('Reminder ID cannot be empty');
+      }
+      
+      // Update the reminder in Firestore
+      await firestoreService.updateDoc(
+        collectionPath: "users/$userId/reminders",
+        docId: reminderId,
+        newData: {'isEnabled': isEnabled},
+      );
+      
+      log("Reminder ${isEnabled ? 'enabled' : 'disabled'} successfully");
+    } on FirebaseException catch (e) {
+      log("Firestore Error toggling reminder state: ${e.message}");
+      throw Exception("Failed to update reminder state: ${e.message}");
+    } catch (e) {
+      log("Unexpected error toggling reminder state: $e");
+      throw Exception("An unexpected error occurred. Please try again.");
     }
   }
 

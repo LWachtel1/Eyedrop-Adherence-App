@@ -3,7 +3,6 @@ import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:eyedrop/shared/widgets/delete_confirmation_dialog.dart';
-import 'package:eyedrop/shared/widgets/searchable_list.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -24,6 +23,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
   List<Map<String, dynamic>> _filteredReminders = [];
   TextEditingController _searchController = TextEditingController();
   String _sortOption = "Newest First";
+  
+  // Track any reminders being updated to show loading indicators
+  final Map<String, bool> _loadingReminders = {};
 
   @override
   void initState() {
@@ -83,7 +85,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
     User? user = FirebaseAuth.instance.currentUser;
 
     return BaseLayoutScreen(
@@ -240,6 +241,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
     String medicationName = reminder["medicationName"] ?? "Unnamed Medication";
     bool smartScheduling = reminder["smartScheduling"] == true;
     bool isIndefinite = reminder["isIndefinite"] == true;
+    bool isEnabled = reminder["isEnabled"] ?? true; // Default to true if not present
+    String reminderId = reminder["id"] ?? "";
+    
+    // Check if this reminder is currently being updated
+    bool isLoading = _loadingReminders[reminderId] == true;
     
     // Format start date
     String startDate = "N/A";
@@ -267,6 +273,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
+      // Add subtle visual indication of disabled status
+      color: isEnabled ? null : Colors.grey[100],
       child: InkWell(
         onTap: () => Navigator.push(
           context,
@@ -283,22 +291,67 @@ class _RemindersScreenState extends State<RemindersScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Medication name with enabled/disabled indicator
                   Expanded(
-                    child: Text(
-                      medicationName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.sp,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        // Status indicator dot
+                        Container(
+                          width: 10,
+                          height: 10,
+                          margin: EdgeInsets.only(right: 2.w),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isEnabled ? Colors.green : Colors.grey,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            medicationName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16.sp,
+                              color: isEnabled ? null : Colors.grey[600],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _confirmDelete(reminder),
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
+                  
+                  // Action buttons
+                  Row(
+                    children: [
+                      // Toggle switch for enabling/disabling
+                      if (isLoading)
+                        Container(
+                          width: 16,
+                          height: 16,
+                          margin: EdgeInsets.only(right: 2.w),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Switch(
+                          value: isEnabled,
+                          onChanged: (value) => _toggleReminderState(reminder, value),
+                          // Smaller switch for the card
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          // Removed visualDensity as it is not a valid parameter for Switch
+                        ),
+                      
+                      SizedBox(width: 1.w),
+                      
+                      // Delete button
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                        onPressed: () => _confirmDelete(reminder),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -311,7 +364,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     Icon(
                       Icons.calendar_today,
                       size: 14.sp,
-                      color: Colors.blue[700],
+                      color: isEnabled ? Colors.blue[700] : Colors.grey,
                     ),
                     SizedBox(width: 1.w),
                     Expanded(
@@ -320,7 +373,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         style: TextStyle(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w500,
-                          color: Colors.blue[700],
+                          color: isEnabled ? Colors.blue[700] : Colors.grey,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -403,6 +456,62 @@ class _RemindersScreenState extends State<RemindersScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+  
+  /// Toggles a reminder's enabled state
+  Future<void> _toggleReminderState(Map<String, dynamic> reminder, bool newValue) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar("You must be logged in to perform this action");
+      return;
+    }
+    
+    if (!reminder.containsKey("id") || reminder["id"] == null) {
+      _showErrorSnackBar("Cannot update reminder: missing ID");
+      return;
+    }
+    
+    final reminderId = reminder["id"];
+    
+    // Set loading state
+    setState(() {
+      _loadingReminders[reminderId] = true;
+    });
+    
+    try {
+      await reminderService.toggleReminderState(
+        user.uid,
+        reminderId,
+        newValue
+      );
+      
+      // Success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Reminder ${newValue ? 'enabled' : 'disabled'}"),
+          backgroundColor: newValue ? Colors.green : Colors.grey,
+        ),
+      );
+    } catch (e) {
+      _showErrorSnackBar("Failed to update reminder: $e");
+    } finally {
+      // Clear loading state if component is still mounted
+      if (mounted) {
+        setState(() {
+          _loadingReminders.remove(reminderId);
+        });
+      }
+    }
+  }
+  
+  /// Shows an error message to the user
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
     );
   }

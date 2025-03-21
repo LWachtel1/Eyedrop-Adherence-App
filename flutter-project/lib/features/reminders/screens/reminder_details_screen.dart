@@ -1,19 +1,35 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 /// Screen for viewing reminder details
-class ReminderDetailScreen extends StatelessWidget {
+class ReminderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> reminder;
 
   const ReminderDetailScreen({
     required this.reminder,
     Key? key,
   }) : super(key: key);
+
+  @override
+  State<ReminderDetailScreen> createState() => _ReminderDetailScreenState();
+}
+
+class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
+  // Store the reminder data in state so we can update the UI when toggled
+  late Map<String, dynamic> _reminder;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reminder = Map.from(widget.reminder);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +52,12 @@ class ReminderDetailScreen extends StatelessWidget {
               ),
             ),
             
-            SizedBox(height: 3.h),
+            SizedBox(height: 2.h),
+            
+            // Status toggle with loading indicator
+            _buildStatusToggle(reminderService),
+            
+            SizedBox(height: 2.h),
             
             // Main content in a scrollable area.
             Expanded(
@@ -48,8 +69,8 @@ class ReminderDetailScreen extends StatelessWidget {
                     _buildDetailSection(
                       title: "Medication",
                       children: [
-                        _buildDetailRow("Name", reminder["medicationName"] ?? "N/A"),
-                        _buildDetailRow("Type", reminder["medicationType"] ?? "N/A"),
+                        _buildDetailRow("Name", _reminder["medicationName"] ?? "N/A"),
+                        _buildDetailRow("Type", _reminder["medicationType"] ?? "N/A"),
                       ],
                     ),
                     
@@ -61,52 +82,52 @@ class ReminderDetailScreen extends StatelessWidget {
                       children: [
                         _buildDetailRow(
                           "Start Date", 
-                          _formatDate(reminder["startDate"]),
+                          _formatDate(_reminder["startDate"]),
                         ),
                         _buildDetailRow(
                           "Duration",
                           _formatDuration(
-                            reminder["isIndefinite"], 
-                            reminder["durationLength"], 
-                            reminder["durationUnits"],
+                            _reminder["isIndefinite"], 
+                            _reminder["durationLength"], 
+                            _reminder["durationUnits"],
                           ),
                         ),
                         _buildDetailRow(
                           "Smart Scheduling",
-                          reminder["smartScheduling"] == true ? "Enabled" : "Disabled",
+                          _reminder["smartScheduling"] == true ? "Enabled" : "Disabled",
                         ),
-                        // Add schedule type and frequency
+                        // Schedule type and frequency
                         _buildDetailRow(
                           "Schedule Type",
-                          _formatScheduleType(reminder["scheduleType"]),
+                          _formatScheduleType(_reminder["scheduleType"]),
                         ),
                         _buildDetailRow(
                           "Frequency",
-                          _formatFrequency(reminder["frequency"], reminder["scheduleType"]),
+                          _formatFrequency(_reminder["frequency"], _reminder["scheduleType"]),
                         ),
                       ],
                     ),
                     
                     SizedBox(height: 2.h),
                     
-                    // Dosage section (new)
+                    // Dosage section
                     _buildDetailSection(
                       title: "Dosage",
                       children: [
                         _buildDetailRow(
                           "Dose Quantity",
-                          _formatDoseQuantity(reminder["doseQuantity"]),
+                          _formatDoseQuantity(_reminder["doseQuantity"]),
                         ),
                         _buildDetailRow(
                           "Dose Units",
-                          reminder["doseUnits"] ?? "N/A",
+                          _reminder["doseUnits"] ?? "N/A",
                         ),
                         // Only show application site for eye medications
-                        if (reminder["medicationType"] == "Eye Medication" && 
-                            reminder["applicationSite"] != null)
+                        if (_reminder["medicationType"] == "Eye Medication" && 
+                            _reminder["applicationSite"] != null)
                           _buildDetailRow(
                             "Application Site",
-                            reminder["applicationSite"] ?? "N/A",
+                            _reminder["applicationSite"] ?? "N/A",
                           ),
                       ],
                     ),
@@ -114,12 +135,12 @@ class ReminderDetailScreen extends StatelessWidget {
                     SizedBox(height: 2.h),
                     
                     // Timings section (if not using smart scheduling).
-                    if (reminder["smartScheduling"] != true && 
-                        reminder["timings"] != null) ...[
+                    if (_reminder["smartScheduling"] != true && 
+                        _reminder["timings"] != null) ...[
                       _buildDetailSection(
                         title: "Reminder Times",
                         children: [
-                          ..._buildTimingsList(reminder["timings"]),
+                          ..._buildTimingsList(_reminder["timings"]),
                         ],
                       ),
                       
@@ -127,10 +148,10 @@ class ReminderDetailScreen extends StatelessWidget {
                     ],
                     
                     // Created date
-                    if (reminder["createdAt"] != null)
+                    if (_reminder["createdAt"] != null)
                       _buildDetailRow(
                         "Created On", 
-                        _formatDate(reminder["createdAt"]),
+                        _formatDate(_reminder["createdAt"]),
                       ),
                   ],
                 ),
@@ -165,6 +186,107 @@ class ReminderDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  /// Builds the toggle switch for enabling/disabling the reminder
+  Widget _buildStatusToggle(ReminderService reminderService) {
+    // Default to true if not present
+    bool isEnabled = _reminder["isEnabled"] ?? true;
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Reminder Status",
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Row(
+              children: [
+                if (_isLoading)
+                  Container(
+                    width: 20,
+                    height: 20,
+                    margin: EdgeInsets.only(right: 2.w),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                Switch(
+                  value: isEnabled,
+                  onChanged: _isLoading 
+                      ? null 
+                      : (value) => _toggleReminderState(reminderService, value),
+                  activeColor: Colors.blue,
+                ),
+                Text(
+                  isEnabled ? "Enabled" : "Disabled",
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: isEnabled ? Colors.blue : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Toggles the reminder's enabled state in Firestore
+  Future<void> _toggleReminderState(ReminderService reminderService, bool newValue) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar("You must be logged in to perform this action");
+      return;
+    }
+    
+    if (!_reminder.containsKey("id") || _reminder["id"] == null) {
+      _showErrorSnackBar("Cannot update reminder: missing ID");
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      await reminderService.toggleReminderState(
+        user.uid, 
+        _reminder["id"], 
+        newValue
+      );
+      
+      // Update local state after successful Firestore update
+      setState(() {
+        _reminder["isEnabled"] = newValue;
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Reminder ${newValue ? 'enabled' : 'disabled'}"),
+          backgroundColor: newValue ? Colors.green : Colors.grey,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar("Failed to update reminder: $e");
+    }
+  }
+  
+  /// Shows an error message to the user
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
     );
   }
@@ -209,7 +331,6 @@ class ReminderDetailScreen extends StatelessWidget {
     return quantity.toString();
   }
 
-  // Existing methods...
   /// Builds a section with a title and multiple detail rows.
   Widget _buildDetailSection({
     required String title,
@@ -353,7 +474,7 @@ class ReminderDetailScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text("Delete Reminder?"),
         content: Text(
-          "Are you sure you want to delete the reminder for ${reminder["medicationName"]}? This action cannot be undone."
+          "Are you sure you want to delete the reminder for ${_reminder["medicationName"]}? This action cannot be undone."
         ),
         actions: [
           TextButton(
@@ -370,7 +491,7 @@ class ReminderDetailScreen extends StatelessWidget {
     
     if (confirmed == true) {
       try {
-        await reminderService.deleteReminder(reminder);
+        await reminderService.deleteReminder(_reminder);
         
         if (context.mounted) {
           Navigator.pop(context); // Return to previous screen
