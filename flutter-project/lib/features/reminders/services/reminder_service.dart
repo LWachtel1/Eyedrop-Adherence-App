@@ -222,4 +222,88 @@ class ReminderService {
   Stream<List<Map<String, dynamic>>> buildRemindersStream(String userId) {
     return firestoreService.getCollectionStreamWithIds("users/$userId/reminders");
   }
+
+  /// Updates all reminders associated with a modified medication
+  /// 
+  /// When a medication is edited, this ensures all associated reminders are updated
+  /// with the new medication details (name, type, dosage, etc.)
+  /// Note: Duration-related fields are not automatically synced to preserve
+  /// reminders that may have different durations
+  ///
+  /// Parameters:
+  /// - `userId`: User ID whose reminders to update
+  /// - `medicationId`: ID of the medication that was modified
+  /// - `updatedMedDetails`: Map containing the updated medication details
+  ///
+  /// Returns: Number of reminders that were updated
+  Future<int> updateRemindersForMedication(
+    String userId, 
+    String medicationId, 
+    Map<String, dynamic> updatedMedDetails
+  ) async {
+    try {
+      if (userId.isEmpty) {
+        throw Exception("User ID cannot be empty");
+      }
+      
+      if (medicationId.isEmpty) {
+        throw Exception("Medication ID cannot be empty");
+      }
+      
+      // Find all reminders associated with this medication
+      final reminderDocs = await firestoreService.queryCollectionWithIds(
+        collectionPath: "users/$userId/reminders",
+        filters: [
+          {"field": "userMedicationId", "operator": "==", "value": medicationId}
+        ],
+      );
+      
+      if (reminderDocs.isEmpty) {
+        // No associated reminders found
+        return 0;
+      }
+      
+      log("Found ${reminderDocs.length} reminders to update for medication $medicationId");
+      
+      // Fields to sync from medication to reminders
+      // Note: We intentionally don't sync duration-related fields to maintain reminder-specific durations
+      final Map<String, dynamic> reminderUpdates = {
+        "medicationName": updatedMedDetails["medicationName"],
+        "medicationType": updatedMedDetails["medType"],
+        "scheduleType": updatedMedDetails["scheduleType"],
+        "frequency": updatedMedDetails["frequency"],
+        "doseUnits": updatedMedDetails["doseUnits"],
+        "doseQuantity": updatedMedDetails["doseQuantity"],
+      };
+      
+      // Only add applicationSite if it's an eye medication
+      if (updatedMedDetails["medType"] == "Eye Medication" && 
+          updatedMedDetails.containsKey("applicationSite")) {
+        reminderUpdates["applicationSite"] = updatedMedDetails["applicationSite"];
+      }
+      
+      // Update each reminder
+      int updatedCount = 0;
+      for (var reminder in reminderDocs) {
+        if (reminder.containsKey("id") && reminder["id"] != null) {
+          final bool success = await firestoreService.updateDoc(
+            collectionPath: "users/$userId/reminders",
+            docId: reminder["id"],
+            newData: reminderUpdates,
+          );
+          
+          if (success) updatedCount++;
+        }
+      }
+      
+      log("Updated $updatedCount reminders for medication $medicationId");
+      return updatedCount;
+    } on FirebaseException catch (e) {
+      log("Firestore error updating reminders: ${e.message}");
+      throw Exception("Failed to update associated reminders: ${e.message}");
+    } catch (e) {
+      log("Error updating reminders: $e");
+      throw Exception("Error updating associated reminders: $e");
+    }
+  }
 }

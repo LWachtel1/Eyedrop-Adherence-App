@@ -1,29 +1,33 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Controller class responsible for business logic related to medication details.
-///
-/// This class separates UI from data operations and provides methods
-/// for fetching, updating, and manipulating medication data.
+/// Controller for the medication details screen.
+/// 
+/// Manages the state and business logic for viewing and editing medication details.
 class MedicationDetailsController {
-  final FirestoreService _firestoreService;
+  final FirestoreService firestoreService;
   
-  // State variables
-  bool isEditing = false;
-  bool isLoading = true;
+  // Original medication data as fetched from Firestore
+  Map<String, dynamic> originalMedication;
+  
+  // Working copy that can be edited
   Map<String, dynamic> editableMedication = {};
-  final Map<String, dynamic> originalMedication;
+  
+  // Loading and editing state flags
+  bool isLoading = true;
+  bool isEditing = false;
   
   MedicationDetailsController({
-    required FirestoreService firestoreService,
+    required this.firestoreService,
     required this.originalMedication,
-  }) : _firestoreService = firestoreService {
-    // Initialize editable medication with a deep copy of original data
-    editableMedication = Map<String, dynamic>.from(originalMedication);
+  }) {
+    // Initialize editable copy with a deep copy of the original
+    editableMedication = Map.from(originalMedication);
   }
   
   /// Fetches the latest medication data from Firestore.
@@ -39,7 +43,7 @@ class MedicationDetailsController {
       String docId = originalMedication["id"];
       // print(originalMedication["id"]);
 
-      final fetchedData = await _firestoreService.readDoc(
+      final fetchedData = await firestoreService.readDoc(
         collectionPath: collectionPath, 
         docId: docId
       );
@@ -57,36 +61,52 @@ class MedicationDetailsController {
     }
   }
   
-  /// Saves edited medication data back to Firestore.
-  Future<void> saveEdits() async {
-    // Prepare data before saving
-    _prepareDataForSaving();
+  /// Saves medication edits to Firestore and updates any associated reminders
+  Future<void> saveEdits({required ReminderService reminderService}) async {
+    if (editableMedication.isEmpty || originalMedication.isEmpty || 
+        !editableMedication.containsKey("id") || editableMedication["id"] == null) {
+      throw Exception("Invalid medication data");
+    }
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        log("No authenticated user found. Cannot edit medication.");
-        throw Exception("No authenticated user found");
-      }
-
-      String uid = user.uid;
-      String collectionPath = editableMedication["medType"] == "Eye Medication"
-          ? "users/$uid/eye_medications"
-          : "users/$uid/noneye_medications";
-      String docId = editableMedication["id"];
-
-      Map<String, dynamic> updatedData = Map.from(editableMedication);
-      updatedData.remove("id"); // Remove the ID field before saving
+      // Prepare the data before saving
+      _prepareDataForSaving();
       
-      await _firestoreService.updateDoc(
+      // Determine the collection path based on medication type
+      String collectionPath = editableMedication["medType"] == "Eye Medication" 
+        ? "users/${FirebaseAuth.instance.currentUser?.uid}/eye_medications" 
+        : "users/${FirebaseAuth.instance.currentUser?.uid}/noneye_medications";
+      
+      // Save the edited medication
+      bool success = await firestoreService.updateDoc(
         collectionPath: collectionPath,
-        docId: docId,
-        newData: updatedData,
+        docId: editableMedication["id"],
+        newData: editableMedication,
       );
 
-      isEditing = false; // Exit edit mode after saving
+      if (!success) {
+        throw Exception("No changes were made to the medication");
+      }
+
+      // After successfully saving the medication, update any associated reminders
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final updatedCount = await reminderService.updateRemindersForMedication(
+          userId,
+          editableMedication["id"],
+          editableMedication,
+        );
+        
+        if (updatedCount > 0) {
+          log("Successfully updated $updatedCount associated reminders");
+        }
+      }
+      
+      // Update the original medication to reflect the new state
+      originalMedication = Map.from(editableMedication);
+      isEditing = false;
     } catch (e) {
-      log("Error saving medication: $e");
+      log("Error saving medication edits: $e");
       rethrow;
     }
   }

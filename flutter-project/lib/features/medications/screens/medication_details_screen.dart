@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/features/medications/services/medication_service.dart';
+import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/medications/controllers/medication_details_controller.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
@@ -297,7 +298,6 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
       );
 
       try {
-        
         // Ensures duration fields have string values.
         if (_controller.editableMedication["isIndefinite"] == true) {
           // For indefinite medications, explicitly set empty strings instead of null
@@ -313,21 +313,39 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
           }
         }
 
-      await _controller.saveEdits();
-      // Closes loading dialog.
-      if (mounted) Navigator.of(context).pop();
+        // Get ReminderService instance from provider
+        final reminderService = Provider.of<ReminderService>(context, listen: false);
         
+        // Pass the ReminderService to saveEdits to update associated reminders
+        await _controller.saveEdits(reminderService: reminderService);
         
-      if (mounted) {
-        setState(() {}); // Updates UI after save.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Medication updated successfully")),
-        );
-      }        
-
-  
+        // Closes loading dialog.
+        if (mounted) Navigator.of(context).pop();
+        
+        if (mounted) {
+          setState(() {}); // Updates UI after save.
+          
+          // Updated SnackBar to inform about duration updates
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Medication and associated reminders updated successfully"),
+                  SizedBox(height: 4),
+                  Text(
+                    "Note: Duration edits aren't automatically synced to reminders. Please update any reminders separately.",
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              duration: Duration(seconds: 5), // Longer duration to read the notice
+            ),
+          );
+        }        
       } catch (e) {
-          // Close loading dialog
+        // Close loading dialog
         if (mounted) Navigator.of(context).pop();
         
         print("Error saving medication: $e");
