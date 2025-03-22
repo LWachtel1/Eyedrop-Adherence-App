@@ -11,6 +11,10 @@ import 'package:eyedrop/shared/widgets/form_components.dart'; // Add this import
 /// A helper class that provides reusable UI components for displaying and editing medication details.
 class MedicationDetailsFields {
 
+  // Use a static map to store timers for different field keys
+  static final Map<String, Timer?> _debounceTimers = {};
+
+
   /// Builds an editable text field or a read-only detail row.
   ///
   /// If `isEditing` is true, it displays a text input field. Otherwise, it shows a non-editable text field.
@@ -28,6 +32,7 @@ class MedicationDetailsFields {
     TextEditingController controller = TextEditingController(
       text: medicationData[fieldKey]?.toString() ?? ''
     );
+    
 
     // Use FormComponents for text field
     return isEditing
@@ -46,9 +51,17 @@ class MedicationDetailsFields {
           inputFormatters: isNumeric 
                 ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
                 : null,
-          // Add this onChanged handler to update the value when text changes
+          // Use a debounced onChanged handler to avoid UI flickering
           onChanged: (value) {
-            onValueChanged(fieldKey, value);
+            // Cancel previous timer if exists
+            if (_debounceTimers[fieldKey] != null) {
+              _debounceTimers[fieldKey]!.cancel();
+            }
+            
+            // Start a new debounce timer
+            _debounceTimers[fieldKey] = Timer(Duration(milliseconds: 2000), () {
+              onValueChanged(fieldKey, value);
+            });
           },
         )
       : buildDetailRow(label, medicationData[fieldKey]?.toString());
