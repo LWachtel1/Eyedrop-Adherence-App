@@ -104,6 +104,72 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     super.dispose();
   }
 
+  /// Handles deletion of a medication and its associated reminders
+  void _handleMedicationDelete(Map<String, dynamic> medication) {
+    showDialog(
+      context: context,
+      builder: (context) => DeleteConfirmationDialog(
+        medicationName: medication["medicationName"] ?? "Unnamed Medication",
+        isReminder: false, // This is a medication deletion
+        onConfirm: () async {
+          // Close the confirmation dialog first
+          Navigator.of(context).pop();
+          
+          // Show loading indicator at the bottom of the screen with a reasonable duration
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text("Deleting medication..."),
+                ],
+              ),
+              duration: Duration(seconds: 10), // More reasonable duration
+              backgroundColor: Colors.blue[700],
+            ),
+          );
+          
+          try {
+            // Delete the medication (which may take time for network operations)
+            await medicationService.deleteMedication(medication);
+            
+            // Hide current SnackBar and show success message
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Medication and associated reminders deleted successfully"),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            // Hide current SnackBar and show error message
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Failed to delete medication: $e"),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
   /// Displays the list of medications with sorting and filtering options.
   @override
   Widget build(BuildContext context) {
@@ -160,13 +226,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                         getSearchString: (med) => med["medicationName"] ?? "Unnamed Medication",
                         itemBuilder: (med, index) => MedicationCard(
                           medication: med,
-                          onDelete: (medication) => showDialog(
-                              context: context,
-                              builder: (context) => DeleteConfirmationDialog(
-                                medicationName: medication["medicationName"] ?? "Unnamed Medication",
-                                onConfirm: () => medicationService.deleteMedication(medication),
-                              ),
-                            ),
+                          onDelete: _handleMedicationDelete, // Use our new method
                           onTap: (medication) => Navigator.push(
                             context,
                             MaterialPageRoute(

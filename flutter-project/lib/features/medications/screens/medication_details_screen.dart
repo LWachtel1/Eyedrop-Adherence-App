@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/medications/controllers/medication_details_controller.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
+import 'package:eyedrop/shared/widgets/delete_confirmation_dialog.dart';
 import 'package:eyedrop/shared/widgets/edit_action_buttons.dart';
 import 'package:eyedrop/features/medications/widgets/medication_details_fields.dart';
 import 'package:flutter/material.dart';
@@ -357,6 +359,55 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
         }
       }
     }
+  }
+
+  // Find the section where the delete confirmation dialog is shown
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => DeleteConfirmationDialog(
+        medicationName: _controller.editableMedication["medicationName"] ?? "Unnamed Medication",
+        isReminder: false,
+        onConfirm: () async {
+          // Show loading indicator
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => Center(child: CircularProgressIndicator()),
+          );
+          
+          try {
+            final medicationService = Provider.of<MedicationService>(context, listen: false);
+            await medicationService.deleteMedication(_controller.editableMedication);
+            
+            // Close loading dialog
+            if (context.mounted) Navigator.of(context).pop();
+            
+            // Navigate back to the medications list
+            if (context.mounted) {
+              Navigator.of(context).pop(); // Close the current screen
+              
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Medication and associated reminders deleted successfully")),
+              );
+            }
+          } catch (e) {
+            // Close loading dialog
+            if (context.mounted) Navigator.of(context).pop();
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Failed to delete medication: $e"),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 }
 

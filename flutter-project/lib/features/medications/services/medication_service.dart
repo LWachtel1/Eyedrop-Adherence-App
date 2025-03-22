@@ -225,7 +225,7 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
   }
 
 
-  /// Deletes a medication from Firestore.
+  /// Deletes a medication from Firestore along with any associated reminders.
   ///
   /// Parameters:
   /// - `medication`: A `Map<String, dynamic>` containing the details of the medication.
@@ -233,15 +233,17 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
   ///   - Must contain an `"id"` key representing the document ID in Firestore.
   ///
   /// Behavior:
-  /// - If the user is not authenticated (`FirebaseAuth.instance.currentUser` returns `null`), 
-  ///   the function exits early.
-  /// - If the medication does not contain a valid `"id"`, an error is logged, and the function exits.
-  /// - Deletes the document from Firestore using the `FirestoreService.deleteDoc` method.
+  /// - If the user is not authenticated, the function exits early.
+  /// - If the medication does not contain a valid `"id"`, an error is logged and the function exits.
+  /// - Deletes the medication document from Firestore.
+  /// - Finds and deletes any associated reminders for this medication.
   /// - Logs any errors encountered during deletion and throws an exception.
   Future<void> deleteMedication(Map<String, dynamic> medication) async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        throw Exception("No authenticated user found");
+      }
 
       String collectionPath = medication["medType"] == "Eye Medication"
           ? "users/${user.uid}/eye_medications"
@@ -249,13 +251,60 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
 
       if (!medication.containsKey("id") || medication["id"] == null) {
         log("Error: Medication does not have an ID.");
-        return;
+        throw Exception("Medication does not have an ID");
       }
 
+      // First, find any associated reminders
+      final remindersToDelete = await _findAssociatedReminders(user.uid, medication["id"]);
+      
+      // Delete the medication document
       await firestoreService.deleteDoc(collectionPath: collectionPath, docId: medication["id"]);
+      
+      // Delete associated reminders
+      if (remindersToDelete.isNotEmpty) {
+        for (var reminder in remindersToDelete) {
+          await firestoreService.deleteDoc(
+            collectionPath: "users/${user.uid}/reminders", 
+            docId: reminder["id"]
+          );
+        }
+        log("Deleted ${remindersToDelete.length} associated reminder(s)");
+      }
+      
+      log("Medication deleted successfully");
+    } on FirebaseException catch (e) {
+      log("Firestore error deleting medication: ${e.message}");
+      throw Exception("Failed to delete medication: ${e.message}");
     } catch (e) {
       log("Error deleting medication: $e");
-      throw Exception("Error deleting medication");
+      throw Exception("Error deleting medication: $e");
+    }
+  }
+
+  /// Finds reminders associated with a specific medication
+  ///
+  /// Parameters:
+  /// - `userId`: User ID to search within
+  /// - `medicationId`: ID of the medication to find reminders for
+  ///
+  /// Returns a list of reminder documents that are associated with the given medication
+  /// Each document will include its Firestore ID in the "id" field
+  Future<List<Map<String, dynamic>>> _findAssociatedReminders(String userId, String medicationId) async {
+    try {
+      // Use the queryCollectionWithIds method instead which adds document IDs
+      final results = await firestoreService.queryCollectionWithIds(
+        collectionPath: "users/$userId/reminders",
+        filters: [
+          {"field": "userMedicationId", "operator": "==", "value": medicationId}
+        ],
+      );
+      
+      log("Found ${results.length} reminders associated with medication $medicationId");
+      return results;
+    } catch (e) {
+      log("Error finding associated reminders: $e");
+      // Return empty list but don't fail the whole operation
+      return [];
     }
   }
 

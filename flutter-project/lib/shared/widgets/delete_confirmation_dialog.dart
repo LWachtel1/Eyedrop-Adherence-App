@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 /// Parameters:
 /// - `medicationName`: The name of the medication to be deleted (displayed in the dialog).
 /// - `onConfirm`: A callback function executed when the user confirms the deletion.
+/// - `isReminder`: Whether this is deleting a reminder (default: false).
 ///
 /// Behavior:
 /// - If the user presses **Cancel**, the dialog is dismissed without any action.
@@ -15,39 +16,42 @@ import 'package:flutter/material.dart';
 class DeleteConfirmationDialog extends StatelessWidget {
   final String medicationName;
   final VoidCallback onConfirm;
+  final bool isReminder;
 
   const DeleteConfirmationDialog({
     required this.medicationName,
     required this.onConfirm,
+    this.isReminder = false,
     Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final title = isReminder 
+        ? "Delete Reminder?" 
+        : "Delete Medication?";
+    
+    final content = isReminder
+        ? "Are you sure you want to delete the reminder for $medicationName?"
+        : "Are you sure you want to delete $medicationName? Any reminders associated with this medication will also be deleted.";
+    
     return AlertDialog(
-      title: const Text("Delete Medication?"),
-      content: Text("Are you sure you want to delete $medicationName?"),
+      title: Text(title),
+      content: Text(content),
       actions: [
-        // Cancel Button - Closes the dialog without any action
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
+          child: Text("Cancel"),
         ),
-
-        // Delete Button - Executes onConfirm callback safely
         TextButton(
           onPressed: () {
             Navigator.pop(context);
-            try {
-              onConfirm();
-            } catch (e) {
-              debugPrint("Error in onConfirm callback: $e");
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Failed to delete medication.")),
-              );
-            }
+            onConfirm();
           },
-          child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+          ),
+          child: Text("Delete"),
         ),
       ],
     );

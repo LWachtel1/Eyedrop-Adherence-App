@@ -196,19 +196,25 @@ class ReminderService {
   Future<void> deleteReminder(Map<String, dynamic> reminder) async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        throw Exception("No authenticated user found");
+      }
 
       String collectionPath = "users/${user.uid}/reminders";
 
       if (!reminder.containsKey("id") || reminder["id"] == null) {
         log("Error: Reminder does not have an ID.");
-        return;
+        throw Exception("Reminder does not have an ID");
       }
 
       await firestoreService.deleteDoc(collectionPath: collectionPath, docId: reminder["id"]);
+      log("Reminder deleted successfully");
+    } on FirebaseException catch (e) {
+      log("Firestore error deleting reminder: ${e.message}");
+      throw Exception("Failed to delete reminder: ${e.message}");
     } catch (e) {
       log("Error deleting reminder: $e");
-      throw Exception("Error deleting reminder");
+      throw Exception("Error deleting reminder: $e");
     }
   }
 

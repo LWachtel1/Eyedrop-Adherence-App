@@ -522,6 +522,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       context: context,
       builder: (context) => DeleteConfirmationDialog(
         medicationName: reminder["medicationName"] ?? "Unnamed Medication",
+        isReminder: true, // Specify this is a reminder deletion
         onConfirm: () async {
           try {
             await reminderService.deleteReminder(reminder);
