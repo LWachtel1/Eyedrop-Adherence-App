@@ -46,6 +46,10 @@ class MedicationDetailsFields {
           inputFormatters: isNumeric 
                 ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
                 : null,
+          // Add this onChanged handler to update the value when text changes
+          onChanged: (value) {
+            onValueChanged(fieldKey, value);
+          },
         )
       : buildDetailRow(label, medicationData[fieldKey]?.toString());
   }

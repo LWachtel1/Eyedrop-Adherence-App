@@ -23,36 +23,40 @@ class FormComponents {
   /// - `keyboardType`: Defines the keyboard type (default is text).
   /// - `inputFormatters`: Optional formatters to restrict input values.
   /// - `icon`: An optional icon to display in the field (e.g., a search icon).
+  /// - `onChanged`: Callback triggered when the text changes.
   static Widget buildTextField({
-  required String label,
-  required TextEditingController controller,
-  bool isReadOnly = false,
-  VoidCallback? onTapIcon, 
-  TextInputType keyboardType = TextInputType.text,
-  List<TextInputFormatter>? inputFormatters,
-  IconData? icon, // Optional icon (e.g., search icon)
-}) {
-  return Padding(
-    padding: EdgeInsets.only(bottom: 2.h),
-    child: TextFormField(
-      controller: controller,
-      readOnly: isReadOnly, // Allows manual entry unless explicitly read-only.
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
-        suffixIcon: icon != null
-            ? IconButton(
-                icon: Icon(icon),
-                onPressed: onTapIcon, 
-              )
-            : null, // No icon if none provided.
+    required String label,
+    required TextEditingController controller,
+    bool isReadOnly = false,
+    VoidCallback? onTapIcon, 
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    IconData? icon, // Optional icon (e.g., search icon)
+    Function(String)? onChanged, // Add onChanged parameter
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 2.h),
+      child: TextFormField(
+        controller: controller,
+        readOnly: isReadOnly, // Allows manual entry unless explicitly read-only.
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        // Pass the onChanged callback to TextFormField
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
+          suffixIcon: icon != null
+              ? IconButton(
+                  icon: Icon(icon),
+                  onPressed: onTapIcon, 
+                )
+              : null, // No icon if none provided.
+        ),
+        validator: (value) => (value == null || value.isEmpty) ? "This field cannot be empty" : null,
       ),
-      validator: (value) => (value == null || value.isEmpty) ? "This field cannot be empty" : null,
-    ),
-  );
-}
+    );
+  }
 
   
 
