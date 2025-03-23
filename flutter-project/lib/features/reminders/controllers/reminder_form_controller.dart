@@ -273,8 +273,11 @@ class ReminderFormController extends ChangeNotifier {
       return frequency is int ? frequency : int.tryParse(frequency.toString()) ?? 1;
     } else if (scheduleType == 'weekly') {
       return frequency is int ? frequency : int.tryParse(frequency.toString()) ?? 1;
+    } else if (scheduleType == 'monthly') {
+      return frequency is int ? frequency : int.tryParse(frequency.toString()) ?? 1;
     } else {
-      return 1; // Default for other schedule types
+      return 1; 
+  
     }
   }
 
