@@ -52,7 +52,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     super.initState();
 
     medicationService = Provider.of<MedicationService>(context, listen: false);
-    // Instead of attaching listener that calls setState, we'll rely on the stream
+    
     _searchController.addListener(() {
       setState(() {
         // Just trigger a rebuild, filtering happens in build

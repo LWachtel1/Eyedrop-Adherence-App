@@ -176,6 +176,11 @@ class ReminderService {
         data: reminderData,
       );
 
+      // Update the medication's reminderSet field if it's an eye medication
+      if (reminderData.containsKey("userMedicationId")) {
+        await updateMedicationReminderStatus(userId, reminderData["userMedicationId"], true);
+      }
+
       log("Reminder successfully added.");
     } on FirebaseException catch (e) {
       log("Firestore Error adding reminder: ${e.message}");
@@ -205,6 +210,22 @@ class ReminderService {
       if (!reminder.containsKey("id") || reminder["id"] == null) {
         log("Error: Reminder does not have an ID.");
         throw Exception("Reminder does not have an ID");
+      }
+
+      // Check if this was the last reminder for this medication
+      final medicationId = reminder["userMedicationId"];
+      if (medicationId != null) {
+        final remainingReminders = await firestoreService.queryCollection(
+          collectionPath: collectionPath,
+          filters: [
+            {"field": "userMedicationId", "operator": "==", "value": medicationId}
+          ],
+        );
+        
+        // If this is the only reminder, update the medication's reminderSet field
+        if (remainingReminders.length <= 1) {
+          await updateMedicationReminderStatus(user.uid, medicationId, false);
+        }
       }
 
       await firestoreService.deleteDoc(collectionPath: collectionPath, docId: reminder["id"]);
@@ -327,5 +348,29 @@ class ReminderService {
       collectionPath: "users/$userId/reminders", 
       docId: reminderId
     );
+  }
+
+  /// Updates the reminderSet field on the associated medication when creating a reminder
+  Future<void> updateMedicationReminderStatus(String userId, String medicationId, bool hasReminder) async {
+    try {
+      // Get the medication to check if it's an eye medication
+      final medicationDoc = await firestoreService.readDoc(
+        collectionPath: "users/$userId/eye_medications", 
+        docId: medicationId
+      );
+      
+      // Only update eye medications
+      if (medicationDoc != null) {
+        await firestoreService.updateDoc(
+          collectionPath: "users/$userId/eye_medications",
+          docId: medicationId,
+          newData: {"reminderSet": hasReminder},
+        );
+        log("Updated reminderSet status to $hasReminder for eye medication $medicationId");
+      }
+    } catch (e) {
+      log("Error updating medication reminder status: $e");
+      // Don't throw - this is a secondary operation that shouldn't fail the main process
+    }
   }
 }

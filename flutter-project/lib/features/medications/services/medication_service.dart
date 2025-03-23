@@ -109,7 +109,8 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
           "frequency": int.tryParse(frequency) ?? 1,
           "doseUnits": doseUnits,
           "doseQuantity": double.tryParse(doseQuantity) ?? 0.0,
-          "applicationSite": applicationSite
+          "applicationSite": applicationSite,
+          "reminderSet": false // Initialize to false
         };
       } else {
         return {

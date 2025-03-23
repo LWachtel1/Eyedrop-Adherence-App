@@ -253,6 +253,16 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           allowDecimals: true,
                         ),
                         
+                        // Add the reminder status indicator
+                        if (!_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication")...[
+                          MedicationDetailsFields.buildDetailRow(
+                            "Reminder Status",
+                            _controller.editableMedication["reminderSet"] == true 
+                                ? "Active reminder set" 
+                                : "No active reminder",
+                          ),
+                        ],
+                        
                         SizedBox(height: 2.h),
                       ],
                     ),

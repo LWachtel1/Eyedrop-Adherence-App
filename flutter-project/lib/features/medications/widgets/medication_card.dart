@@ -36,6 +36,9 @@ class MedicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isEyeMedication = medication["medType"]?.toString() == "Eye Medication";
+    bool hasReminder = medication["reminderSet"] == true;
+    
     return Card(
       elevation: 3,
       margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
@@ -45,13 +48,28 @@ class MedicationCard extends StatelessWidget {
       child: ListTile(
         // Displays the medication name.
         title: Text(
-          medication["medicationName"].toString() ?? "Unnamed Medication",
+          medication["medicationName"]?.toString() ?? "Unnamed Medication",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
         ),
-        // Displays whether the medication is for the eyes or not.
-        subtitle: Text(
-          medication["medType"].toString() == "Eye Medication" ? "Eye" : "Non-Eye",
-          style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
+        // Displays whether the medication is for the eyes or not and reminder status
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEyeMedication ? "Eye" : "Non-Eye",
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
+            ),
+            // Only show reminder status for eye medications
+            if (isEyeMedication)
+              Text(
+                hasReminder ? "Reminder set" : "No reminder",
+                style: TextStyle(
+                  fontSize: 12.sp, 
+                  color: hasReminder ? Colors.green[700] : Colors.grey[600],
+                  fontWeight: hasReminder ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+          ],
         ),
 
         // Delete button to remove the medication.
