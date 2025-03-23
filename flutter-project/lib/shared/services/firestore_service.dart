@@ -796,4 +796,41 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
   }
 }
 
+/// Gets a real-time stream for a specific document
+/// 
+/// Parameters:
+/// - `collectionPath`: The path to the collection containing the document
+/// - `docId`: The ID of the document to stream
+/// 
+/// Returns:
+/// A stream of the document data as a Map<String, dynamic> with the document ID included,
+/// or null if the document doesn't exist
+Stream<Map<String, dynamic>?> getDocumentStream({
+  required String collectionPath, 
+  required String docId
+}) {
+  if (collectionPath.isEmpty || docId.isEmpty) {
+    log("Error: Collection path or document ID cannot be empty.");
+    return Stream.value(null);
+  }
+
+  try {
+    return _firestore
+        .collection(collectionPath)
+        .doc(docId)
+        .snapshots()
+        .map((snapshot) {
+          if (!snapshot.exists) return null;
+          
+          Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+          // Include the document ID in the data
+          data['id'] = snapshot.id;
+          return data;
+        });
+  } catch (e) {
+    log("Error creating document stream for $collectionPath/$docId: $e");
+    return Stream.value(null);
+  }
+}
+
 }

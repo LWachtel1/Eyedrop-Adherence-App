@@ -306,4 +306,26 @@ class ReminderService {
       throw Exception("Error updating associated reminders: $e");
     }
   }
+
+  /// Gets a stream for a specific reminder document.
+  /// 
+  /// This allows real-time updates for a single reminder.
+  /// 
+  /// Parameters:
+  /// - `userId`: The user ID for the reminder
+  /// - `reminderId`: The ID of the reminder to stream
+  /// 
+  /// Returns:
+  /// A stream of the reminder document as a Map, including the document ID
+  Stream<Map<String, dynamic>?> getReminderDocumentStream(String userId, String reminderId) {
+    if (userId.isEmpty || reminderId.isEmpty) {
+      log("Error: User ID or reminder ID is empty");
+      return Stream.value(null);
+    }
+
+    return firestoreService.getDocumentStream(
+      collectionPath: "users/$userId/reminders", 
+      docId: reminderId
+    );
+  }
 }

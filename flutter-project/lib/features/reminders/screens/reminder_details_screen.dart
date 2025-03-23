@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
+import 'dart:async';
 
 /// Screen for viewing reminder details
 class ReminderDetailScreen extends StatefulWidget {
@@ -24,11 +25,47 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   // Store the reminder data in state so we can update the UI when toggled
   late Map<String, dynamic> _reminder;
   bool _isLoading = false;
+  // Stream subscription for real-time updates
+  StreamSubscription<Map<String, dynamic>?>? _reminderSubscription;
 
   @override
   void initState() {
     super.initState();
+    // Initialize with the passed reminder data
     _reminder = Map.from(widget.reminder);
+    
+    // Set up real-time updates using a stream
+    _setupReminderStream();
+  }
+
+  /// Sets up a real-time stream to listen for changes to this reminder
+  void _setupReminderStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !_reminder.containsKey("id")) return;
+    
+    final reminderId = _reminder["id"];
+    final reminderService = Provider.of<ReminderService>(context, listen: false);
+    
+    _reminderSubscription = reminderService
+        .getReminderDocumentStream(user.uid, reminderId)
+        .listen((updatedReminder) {
+      if (updatedReminder != null && mounted) {
+        setState(() {
+          // Merge updated data with existing reminder
+          // Keep the ID since it might not be included in the stream
+          final id = _reminder["id"];
+          _reminder = updatedReminder;
+          _reminder["id"] = id;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancel the stream subscription when the screen is disposed
+    _reminderSubscription?.cancel();
+    super.dispose();
   }
 
   @override

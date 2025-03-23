@@ -59,7 +59,7 @@ class MedicationDetailsFields {
             }
             
             // Start a new debounce timer
-            _debounceTimers[fieldKey] = Timer(Duration(milliseconds: 2000), () {
+            _debounceTimers[fieldKey] = Timer(Duration(milliseconds: 1250), () {
               onValueChanged(fieldKey, value);
             });
           },
