@@ -1,4 +1,5 @@
 import 'package:eyedrop/features/notifications/services/notification_service.dart';
+import 'package:eyedrop/features/notifications/services/notification_verification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
@@ -129,6 +130,25 @@ class NotificationSettingsTile extends StatelessWidget {
                             ? "$count expired reminder(s) automatically disabled" 
                             : "No expired reminders found"
                       ))
+                    );
+                  },
+                ),
+              ),
+
+              // Add a new button after the "Check Expired Reminders" button
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                child: TextButton.icon(
+                  icon: Icon(Icons.check_circle_outline),
+                  label: Text("Verify Notifications"),
+                  onPressed: () {
+                    final verificationService = Provider.of<NotificationVerificationService>(
+                      context, 
+                      listen: false
+                    );
+                    verificationService.manuallyVerifyNotifications();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Notification verification started"))
                     );
                   },
                 ),

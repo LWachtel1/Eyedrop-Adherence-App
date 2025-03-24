@@ -25,6 +25,7 @@ import 'package:eyedrop/features/medications/screens/medications_screen.dart';
 import 'package:eyedrop/features/notifications/services/notification_service.dart';
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
 import 'package:eyedrop/features/settings/screens/settings_screen.dart';
+import 'package:eyedrop/features/notifications/services/notification_verification_service.dart';
 
 // Global navigator key for notification navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -99,6 +100,15 @@ Future<void> main() async {
         ),
         // NotificationController initializes when the app starts, ensuring notifications are scheduled right away
         // as it calls the notification service to initialize and schedule all reminders.
+
+        // Add to your providers list in the MultiProvider widget
+        Provider<NotificationVerificationService>(
+          create: (context) => NotificationVerificationService(
+            notificationController: Provider.of<NotificationController>(context, listen: false),
+            notificationService: Provider.of<NotificationService>(context, listen: false),
+            reminderService: Provider.of<ReminderService>(context, listen: false),
+          ),
+        ),
       ],
       child: Sizer( // Wraps the app in Sizer.
           builder: (context, orientation, deviceType) {

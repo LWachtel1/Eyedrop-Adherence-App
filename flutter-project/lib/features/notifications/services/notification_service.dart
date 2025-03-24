@@ -598,4 +598,17 @@ class NotificationService {
       log('Error showing test notification: $e');
     }
   }
+
+  /// Gets the count of pending notifications
+  Future<int> getPendingNotificationCount() async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      final pendingNotifications = await _localNotifications.pendingNotificationRequests();
+      return pendingNotifications.length;
+    } catch (e) {
+      log('Error getting pending notification count: $e');
+      return 0;
+    }
+  }
 }
