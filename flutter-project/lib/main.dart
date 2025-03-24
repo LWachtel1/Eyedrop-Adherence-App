@@ -6,6 +6,7 @@
 import 'dart:developer';
 
 import 'package:eyedrop/features/auth/controllers/auth_checker.dart';
+import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/auth/screens/auth_gate.dart';
 import 'package:eyedrop/features/medications/controllers/medication_form_controller.dart';
@@ -81,11 +82,19 @@ Future<void> main() async {
           create: (_) => NotificationService(),
         ),
 
-        // Notification controller provider.
+        // Add this to your providers list in the MultiProvider widget
+        Provider<ReminderExpirationService>(
+          create: (context) => ReminderExpirationService(
+            Provider.of<ReminderService>(context, listen: false),
+          ),
+        ),
+
+        // And update the NotificationController provider:
         ChangeNotifierProvider<NotificationController>(
           create: (context) => NotificationController(
             notificationService: Provider.of<NotificationService>(context, listen: false),
             reminderService: Provider.of<ReminderService>(context, listen: false),
+            expirationService: Provider.of<ReminderExpirationService>(context, listen: false),
           ),
         ),
         // NotificationController initializes when the app starts, ensuring notifications are scheduled right away

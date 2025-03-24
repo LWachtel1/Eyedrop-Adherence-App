@@ -114,6 +114,25 @@ class NotificationSettingsTile extends StatelessWidget {
                   },
                 ),
               ),
+
+              // Add a button to check for expired reminders
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                child: TextButton.icon(
+                  icon: Icon(Icons.update),
+                  label: Text("Check Expired Reminders"),
+                  onPressed: () async {
+                    final count = await controller.checkForExpiredReminders();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(
+                        count > 0 
+                            ? "$count expired reminder(s) automatically disabled" 
+                            : "No expired reminders found"
+                      ))
+                    );
+                  },
+                ),
+              ),
             ],
           ],
         ),

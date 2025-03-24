@@ -1,3 +1,4 @@
+import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
 import 'package:eyedrop/features/reminders/screens/reminder_details_screen.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
@@ -241,7 +242,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
     String medicationName = reminder["medicationName"] ?? "Unnamed Medication";
     bool smartScheduling = reminder["smartScheduling"] == true;
     bool isIndefinite = reminder["isIndefinite"] == true;
-    bool isEnabled = reminder["isEnabled"] ?? true; // Default to true if not present
+    bool isEnabled = reminder["isEnabled"] ?? true;
+    bool isExpired = reminder["isExpired"] == true;
     String reminderId = reminder["id"] ?? "";
     
     // Check if this reminder is currently being updated
@@ -273,8 +275,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      // Add subtle visual indication of disabled status
-      color: isEnabled ? null : Colors.grey[100],
+      // Add visual indication based on status
+      color: isExpired ? Colors.red[50] : (isEnabled ? null : Colors.grey[100]),
       child: InkWell(
         onTap: () => Navigator.push(
           context,
@@ -302,57 +304,94 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           margin: EdgeInsets.only(right: 2.w),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isEnabled ? Colors.green : Colors.grey,
+                            color: isExpired 
+                                ? Colors.red 
+                                : (isEnabled ? Colors.green : Colors.grey),
                           ),
                         ),
                         Expanded(
                           child: Text(
                             medicationName,
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
                               fontSize: 16.sp,
-                              color: isEnabled ? null : Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                              color: isExpired 
+                                  ? Colors.red 
+                                  : (isEnabled ? null : Colors.grey),
                             ),
-                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        
+                        // Show expired tag if needed
+                        if (isExpired)
+                          Container(
+                            margin: EdgeInsets.only(left: 1.w),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 1.w, 
+                              vertical: 0.2.h
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red[100],
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: Text(
+                              "EXPIRED",
+                              style: TextStyle(
+                                fontSize: 8.sp,
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  
-                  // Action buttons
-                  Row(
-                    children: [
-                      // Toggle switch for enabling/disabling
-                      if (isLoading)
-                        Container(
-                          width: 16,
-                          height: 16,
-                          margin: EdgeInsets.only(right: 2.w),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        Switch(
-                          value: isEnabled,
-                          onChanged: (value) => _toggleReminderState(reminder, value),
-                          // Smaller switch for the card
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          // Removed visualDensity as it is not a valid parameter for Switch
+
+                  // Only show toggle switch if not expired
+                  if (!isExpired)
+                    Row(
+                      children: [
+                        // Toggle switch for enabling/disabling
+                        if (isLoading)
+                          Container(
+                            width: 20,
+                            height: 20,
+                            margin: EdgeInsets.only(right: 2.w),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Transform.scale(
+                            scale: 0.8,
+                            child: Switch(
+                              value: isEnabled,
+                              onChanged: (value) => _toggleReminderState(reminder, value),
+                            ),
+                          ),
+                        
+                        SizedBox(width: 1.w),
+                        
+                        // Delete button
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _confirmDelete(reminder),
                         ),
-                      
-                      SizedBox(width: 1.w),
-                      
-                      // Delete button
-                      IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                        onPressed: () => _confirmDelete(reminder),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
+                      ],
+                    ),
+                  
+                  // Show renew button for expired reminders
+                  if (isExpired)
+                    ElevatedButton.icon(
+                      icon: Icon(Icons.refresh, size: 14.sp),
+                      label: Text("Renew", style: TextStyle(fontSize: 10.sp)),
+                      onPressed: () => _renewReminder(reminder),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
                       ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
               
@@ -541,5 +580,52 @@ class _RemindersScreenState extends State<RemindersScreen> {
         },
       ),
     );
+  }
+
+  // Add this method to renew a reminder from the list
+  Future<void> _renewReminder(Map<String, dynamic> reminder) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar("You must be logged in to perform this action");
+      return;
+    }
+    
+    final reminderId = reminder["id"];
+    
+    // Set loading state
+    setState(() {
+      _loadingReminders[reminderId] = true;
+    });
+    
+    try {
+      final newReminderId = await reminderService.renewReminder(user.uid, reminderId);
+      
+      if (newReminderId != null) {
+        // Get the new reminder data
+        final newReminder = await reminderService.getReminderById(user.uid, newReminderId);
+        
+        if (newReminder != null) {
+          // Schedule notifications for the new reminder
+          final notificationController = Provider.of<NotificationController>(context, listen: false);
+          notificationController.scheduleReminderNotifications(newReminder);
+        }
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Reminder renewed successfully")),
+        );
+      } else {
+        _showErrorSnackBar("Failed to renew reminder");
+      }
+    } catch (e) {
+      _showErrorSnackBar("Error renewing reminder: $e");
+    } finally {
+      // Clear loading state
+      if (mounted) {
+        setState(() {
+          _loadingReminders.remove(reminderId);
+        });
+      }
+    }
   }
 }

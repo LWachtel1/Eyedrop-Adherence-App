@@ -232,47 +232,93 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   Widget _buildStatusToggle(ReminderService reminderService) {
     // Default to true if not present
     bool isEnabled = _reminder["isEnabled"] ?? true;
+    bool isExpired = _reminder["isExpired"] == true;
     
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Reminder Status",
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (_isLoading)
-                  Container(
-                    width: 20,
-                    height: 20,
-                    margin: EdgeInsets.only(right: 2.w),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                Switch(
-                  value: isEnabled,
-                  onChanged: _isLoading 
-                      ? null 
-                      : (value) => _toggleReminderState(reminderService, value),
-                  activeColor: Colors.blue,
-                ),
                 Text(
-                  isEnabled ? "Enabled" : "Disabled",
+                  "Reminder Status",
                   style: TextStyle(
-                    fontSize: 14.sp,
-                    color: isEnabled ? Colors.blue : Colors.grey,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
+                Row(
+                  children: [
+                    if (_isLoading)
+                      Container(
+                        width: 20,
+                        height: 20,
+                        margin: EdgeInsets.only(right: 2.w),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    Switch(
+                      value: isEnabled,
+                      onChanged: isExpired || _isLoading 
+                          ? null  // Disable the switch if the reminder is expired
+                          : (value) => _toggleReminderState(reminderService, value),
+                      activeColor: Colors.blue,
+                    ),
+                    Text(
+                      isExpired 
+                          ? "Expired" 
+                          : (isEnabled ? "Enabled" : "Disabled"),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: isExpired 
+                            ? Colors.red 
+                            : (isEnabled ? Colors.blue : Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            
+            // Show expiration message if reminder is expired
+            if (isExpired)
+              Padding(
+                padding: EdgeInsets.only(top: 1.h),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.red, size: 16.sp),
+                    SizedBox(width: 1.w),
+                    Expanded(
+                      child: Text(
+                        "This reminder has expired because it reached the end of its duration.",
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.red,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+            // Add a renew button if the reminder is expired
+            if (isExpired)
+              Padding(
+                padding: EdgeInsets.only(top: 1.h),
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.refresh),
+                  label: Text("Renew Reminder"),
+                  onPressed: () => _renewReminder(reminderService),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -549,6 +595,50 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           );
         }
       }
+    }
+  }
+
+  // Add this method to handle renewing an expired reminder
+  Future<void> _renewReminder(ReminderService reminderService) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar("You must be logged in to perform this action");
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final newReminderId = await reminderService.renewReminder(user.uid, _reminder["id"]);
+      
+      if (newReminderId != null) {
+        // Get the new reminder data
+        final newReminder = await reminderService.getReminderById(user.uid, newReminderId);
+        
+        if (newReminder != null) {
+          // Schedule notifications for the new reminder
+          final notificationController = Provider.of<NotificationController>(context, listen: false);
+          notificationController.scheduleReminderNotifications(newReminder);
+        }
+        
+        setState(() => _isLoading = false);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Reminder renewed successfully")),
+        );
+        
+        // Navigate back to the reminders list
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+      } else {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar("Failed to renew reminder");
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar("Error renewing reminder: $e");
     }
   }
 }

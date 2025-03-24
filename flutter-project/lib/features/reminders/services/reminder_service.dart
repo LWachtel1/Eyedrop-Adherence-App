@@ -296,41 +296,68 @@ class ReminderService {
       // Note: We intentionally don't sync duration-related fields to maintain reminder-specific durations
       final Map<String, dynamic> reminderUpdates = {
         "medicationName": updatedMedDetails["medicationName"],
-        "medicationType": updatedMedDetails["medType"],
-        "scheduleType": updatedMedDetails["scheduleType"],
-        "frequency": updatedMedDetails["frequency"],
-        "doseUnits": updatedMedDetails["doseUnits"],
-        "doseQuantity": updatedMedDetails["doseQuantity"],
       };
       
-      // Only add applicationSite if it's an eye medication
+      // Copy medication type if present
+      if (updatedMedDetails.containsKey("medType")) {
+        reminderUpdates["medicationType"] = updatedMedDetails["medType"];
+      }
+      
+      // Copy scheduling-related fields
+      if (updatedMedDetails.containsKey("scheduleType")) {
+        reminderUpdates["scheduleType"] = updatedMedDetails["scheduleType"];
+      }
+      
+      if (updatedMedDetails.containsKey("frequency")) {
+        reminderUpdates["frequency"] = updatedMedDetails["frequency"];
+      }
+      
+      // Copy dosage information
+      if (updatedMedDetails.containsKey("doseUnits")) {
+        reminderUpdates["doseUnits"] = updatedMedDetails["doseUnits"];
+      }
+      
+      if (updatedMedDetails.containsKey("doseQuantity")) {
+        reminderUpdates["doseQuantity"] = updatedMedDetails["doseQuantity"];
+      }
+      
+      // Handle eye-medication specific fields
       if (updatedMedDetails["medType"] == "Eye Medication" && 
           updatedMedDetails.containsKey("applicationSite")) {
         reminderUpdates["applicationSite"] = updatedMedDetails["applicationSite"];
+      } else if (updatedMedDetails["medType"] != "Eye Medication") {
+        // Remove applicationSite if medication is not for eyes
+        reminderUpdates["applicationSite"] = null;
       }
       
-      // Update each reminder
+      // Update all associated reminders
       int updatedCount = 0;
-      for (var reminder in reminderDocs) {
-        if (reminder.containsKey("id") && reminder["id"] != null) {
-          final bool success = await firestoreService.updateDoc(
+      for (final reminder in reminderDocs) {
+        try {
+          // Make sure we're passing a proper Map<String, dynamic>
+          Map<String, dynamic> safeUpdates = Map<String, dynamic>.from(reminderUpdates);
+          
+          bool success = await firestoreService.updateDoc(
             collectionPath: "users/$userId/reminders",
             docId: reminder["id"],
-            newData: reminderUpdates,
+            newData: safeUpdates,
           );
           
           if (success) updatedCount++;
+        } catch (e) {
+          log("Error updating reminder ${reminder["id"]}: $e");
+          // Continue with other reminders even if one fails
         }
       }
       
       log("Updated $updatedCount reminders for medication $medicationId");
       return updatedCount;
     } on FirebaseException catch (e) {
-      log("Firestore error updating reminders: ${e.message}");
+      log("Firestore Error updating reminders: ${e.message}");
       throw Exception("Failed to update associated reminders: ${e.message}");
     } catch (e) {
-      log("Error updating reminders: $e");
-      throw Exception("Error updating associated reminders: $e");
+      log("Unexpected error updating reminders: $e");
+      throw Exception("An unexpected error occurred while updating reminders: $e");
     }
   }
 
@@ -449,6 +476,107 @@ class ReminderService {
       return null;
     } catch (e) {
       log("Error getting created reminder: $e");
+      return null;
+    }
+  }
+
+  /// Get all reminders for a user (both enabled and disabled)
+  Future<List<Map<String, dynamic>>> getAllReminders(String userId) async {
+    try {
+      final reminders = await firestoreService.queryCollection(
+        collectionPath: 'users/$userId/reminders',
+      );
+      
+      for (final reminder in reminders) {
+        // Add ID to the map if not present
+        reminder['id'] ??= reminder['id'];
+      }
+      
+      return reminders;
+    } catch (e) {
+      log('Error getting all reminders: $e');
+      return [];
+    }
+  }
+
+  /// Marks a reminder as expired in Firestore
+  Future<void> markReminderAsExpired(String userId, String reminderId, {Function(Map<String, dynamic>)? onExpired}) async {
+    try {
+      // Validate inputs
+      if (userId.isEmpty) {
+        throw Exception('User ID cannot be empty');
+      }
+      
+      if (reminderId.isEmpty) {
+        throw Exception('Reminder ID cannot be empty');
+      }
+      
+      // Update the reminder in Firestore
+      await firestoreService.updateDoc(
+        collectionPath: "users/$userId/reminders",
+        docId: reminderId,
+        newData: {
+          'isEnabled': false,
+          'isExpired': true,
+          'expiredAt': Timestamp.fromDate(DateTime.now()),
+        },
+      );
+      
+      // Get the updated reminder to pass to the notification controller
+      final updatedReminder = await getReminderById(userId, reminderId);
+      if (updatedReminder != null && onExpired != null) {
+        onExpired(updatedReminder);
+      }
+      
+      log("Reminder marked as expired successfully");
+    } on FirebaseException catch (e) {
+      log("Firestore Error marking reminder as expired: ${e.message}");
+      throw Exception("Failed to mark reminder as expired: ${e.message}");
+    } catch (e) {
+      log("Unexpected error marking reminder as expired: $e");
+      throw Exception("An unexpected error occurred. Please try again.");
+    }
+  }
+
+  /// Renews an expired reminder with a fresh duration
+  Future<String?> renewReminder(String userId, String oldReminderId) async {
+    try {
+      // Get the old reminder data
+      final oldReminder = await getReminderById(userId, oldReminderId);
+      if (oldReminder == null) return null;
+      
+      // Create new reminder data with reset duration
+      final now = DateTime.now();
+      
+      // Copy most settings from the old reminder
+      final newReminderData = Map<String, dynamic>.from(oldReminder);
+      
+      // Update key fields
+      newReminderData.remove('id'); // Let Firestore generate a new ID
+      newReminderData['isEnabled'] = true;
+      newReminderData['isExpired'] = false;
+      newReminderData['startDate'] = Timestamp.fromDate(now);
+      newReminderData['createdAt'] = FieldValue.serverTimestamp();
+      newReminderData['renewedFrom'] = oldReminderId; // Track origin
+      
+      // Add the new reminder
+      final documentRef = await FirebaseFirestore.instance
+          .collection('users/$userId/reminders')
+          .add(newReminderData);
+      
+      final newReminderId = documentRef.id;
+      
+      // Optionally, mark the old one as renewed
+      await firestoreService.updateDoc(
+        collectionPath: "users/$userId/reminders",
+        docId: oldReminderId,
+        newData: {'renewedTo': newReminderId},
+      );
+      
+      log("Renewed reminder $oldReminderId → $newReminderId");
+      return newReminderId;
+    } catch (e) {
+      log("Error renewing reminder: $e");
       return null;
     }
   }

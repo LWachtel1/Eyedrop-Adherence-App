@@ -583,13 +583,11 @@ class FirestoreService {
       data.remove("id");
 
       // ✅ Normalize Firestore timestamps and numbers for comparison
-      existingData = _normalizeData(existingData);
-      data = _normalizeData(data);
-      log(existingData.toString());
-      log(data.toString());
+      Map<String, dynamic> normalizedExisting = _normalizeData(existingData);
+      Map<String, dynamic> normalizedData = _normalizeData(data);
 
       // ✅ Perform deep equality check
-      if (DeepCollectionEquality().equals(existingData, data)) {
+      if (DeepCollectionEquality().equals(normalizedExisting, normalizedData)) {
         log("Exact duplicate document found in $collectionPath with ID: ${doc.id}");
         return true; // Duplicate found
       }
@@ -597,7 +595,6 @@ class FirestoreService {
 
     log("No exact duplicate document found in $collectionPath.");
     return false; // No duplicates found
-
   } on FirebaseException catch (e) {
     log("Firestore error checking duplicates in $collectionPath: ${e.message}");
     return false;
@@ -619,8 +616,17 @@ Map<String, dynamic> _normalizeData(Map<String, dynamic> data) {
     } else if (value is num) {
       normalizedData[key] = value.toDouble(); // ✅ Converts int → double for consistency
     } else if (value is List) {
-      normalizedData[key] = value.map((e) => _normalizeData({"listItem": e})["listItem"]).toList();
-      normalizedData[key].sort(); // ✅ Sorts lists to prevent order mismatches
+      // Don't try to sort lists that might contain maps
+      if (value.isEmpty || value.first is! Map) {
+        // Only create a sorted copy for non-Map lists (like strings, numbers)
+        normalizedData[key] = value.map((e) => _normalizeValue(e)).toList();
+        if (value.isNotEmpty && value.first is Comparable) {
+          normalizedData[key].sort(); // Only sort if elements are comparable
+        }
+      } else {
+        // For lists of maps, normalize each map but don't sort
+        normalizedData[key] = value.map((e) => _normalizeValue(e)).toList();
+      }
     } else if (value is Map) {
       normalizedData[key] = _normalizeData(Map<String, dynamic>.from(value)); // ✅ Ensures Map<String, dynamic>
     } else {
@@ -629,6 +635,23 @@ Map<String, dynamic> _normalizeData(Map<String, dynamic> data) {
   });
 
   return normalizedData;
+}
+
+/// Normalizes a single value - helper for normalizing list items
+dynamic _normalizeValue(dynamic value) {
+  if (value is Timestamp) {
+    return value.toDate().toIso8601String();
+  } else if (value is DateTime) {
+    return value.toIso8601String();
+  } else if (value is num) {
+    return value.toDouble();
+  } else if (value is Map) {
+    return _normalizeData(Map<String, dynamic>.from(value));
+  } else if (value is List) {
+    return value.map((e) => _normalizeValue(e)).toList();
+  } else {
+    return value;
+  }
 }
 
 /// Fetches a Firestore collection as a real-time stream.

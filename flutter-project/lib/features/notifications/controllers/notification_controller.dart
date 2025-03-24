@@ -1,11 +1,12 @@
 import 'dart:developer';
+import 'dart:async';
 import 'package:eyedrop/main.dart' show navigatorKey;
 import 'package:eyedrop/features/reminders/screens/reminder_details_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:eyedrop/features/notifications/services/notification_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
-
+import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
 
 /// NotificationController manages the notification preferences and logic related to scheduling, rescheduling, and handling reminder notification taps.
 /// 
@@ -15,6 +16,8 @@ class NotificationController extends ChangeNotifier {
   // Services used to handle notification logic and fetch reminder data.
   final NotificationService _notificationService;
   final ReminderService _reminderService;
+  final ReminderExpirationService _expirationService;
+  Timer? _expirationCheckTimer;
   
   // Expose current user preferences to the UI.
   bool get notificationsEnabled => _notificationService.notificationsEnabled;
@@ -25,8 +28,10 @@ class NotificationController extends ChangeNotifier {
   NotificationController({
     required NotificationService notificationService,
     required ReminderService reminderService,
+    required ReminderExpirationService expirationService,
   }) : _notificationService = notificationService,
-       _reminderService = reminderService {
+       _reminderService = reminderService,
+       _expirationService = expirationService {
     // Initialises notification plugin when controller is created.
     _notificationService.initialize().then((_) {
 
@@ -34,6 +39,12 @@ class NotificationController extends ChangeNotifier {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         _notificationService.scheduleAllReminders(user.uid, _reminderService);
+        
+        // Check for expired reminders immediately upon initialization
+        _checkForExpiredReminders();
+        
+        // Then set up a periodic check (every 6 hours)
+        _startExpirationCheckTimer();
       }
     });
     
@@ -182,6 +193,42 @@ class NotificationController extends ChangeNotifier {
     } catch (e) {
       log('Error rescheduling reminders: $e');
     }
+  }
+
+  /// Add methods for handling reminder expiration
+  void _startExpirationCheckTimer() {
+    // Cancel any existing timer
+    _expirationCheckTimer?.cancel();
+    
+    // Check every 6 hours (21600000 milliseconds)
+    _expirationCheckTimer = Timer.periodic(
+      const Duration(hours: 6), 
+      (_) => _checkForExpiredReminders()
+    );
+  }
+
+  Future<void> _checkForExpiredReminders() async {
+    final count = await _expirationService.checkAndDisableExpiredReminders(
+      notificationController: this
+    );
+    
+    if (count > 0) {
+      log('$count reminders were automatically disabled due to expiration');
+    }
+  }
+
+  /// Override dispose to clean up the timer
+  @override
+  void dispose() {
+    _expirationCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Add a public method to manually check for expired reminders
+  Future<int> checkForExpiredReminders() async {
+    return await _expirationService.checkAndDisableExpiredReminders(
+      notificationController: this
+    );
   }
 }
 
