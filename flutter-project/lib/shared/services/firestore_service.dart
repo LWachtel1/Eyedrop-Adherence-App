@@ -803,7 +803,7 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
 /// - `docId`: The ID of the document to stream
 /// 
 /// Returns:
-/// A stream of the document data as a Map<String, dynamic> with the document ID included,
+/// A stream of the document data as a `Map<String, dynamic>` with the document ID included,
 /// or null if the document doesn't exist
 Stream<Map<String, dynamic>?> getDocumentStream({
   required String collectionPath, 

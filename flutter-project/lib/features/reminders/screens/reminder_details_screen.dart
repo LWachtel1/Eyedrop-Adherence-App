@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -297,7 +298,12 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       await reminderService.toggleReminderState(
         user.uid, 
         _reminder["id"], 
-        newValue
+        newValue,
+        onToggled: (updatedReminder) {
+          // Reschedule notifications when the reminder state changes
+          final notificationController = Provider.of<NotificationController>(context, listen: false);
+          notificationController.scheduleReminderNotifications(updatedReminder);
+        }
       );
       
       // Update local state after successful Firestore update

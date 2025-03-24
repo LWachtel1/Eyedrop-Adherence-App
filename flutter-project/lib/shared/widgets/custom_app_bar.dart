@@ -1,3 +1,4 @@
+import 'package:eyedrop/features/settings/screens/settings_screen.dart';
 import 'package:eyedrop/shared/widgets/add_form_menu.dart';
 import 'package:eyedrop/shared/widgets/link_external_menu.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             textDirection: TextDirection.rtl,
-            children: const [AddFormMenu(), LinkExternalMenu()]))
+            children:  [
+              IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).pushNamed(SettingsScreen.id),
+          ),
+              AddFormMenu(), LinkExternalMenu()]))
   ]);
     }
 

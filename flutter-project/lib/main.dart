@@ -21,6 +21,12 @@ import 'package:eyedrop/features/reminders/controllers/reminder_form_controller.
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/features/reminders/screens/reminders_screen.dart';
 import 'package:eyedrop/features/medications/screens/medications_screen.dart';
+import 'package:eyedrop/features/notifications/services/notification_service.dart';
+import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
+import 'package:eyedrop/features/settings/screens/settings_screen.dart';
+
+// Global navigator key for notification navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 /// Application Entry Point.
 /// 
@@ -37,14 +43,20 @@ Future<void> main() async {
     // Initialises Firebase before running app to ensure its services are available.
     // Uses Firebase config settings for app's specific platform as defined in firebase_options.dart.    
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    log("About to initialize Firebase");
   } catch (e, stackTrace) {
     log("Firebase failed to initialize: $e", stackTrace: stackTrace);
     return; // Prevents app from running if Firebase fails.
   }
 
+  log("Firebase initialized successfully");
+  log("Starting app with providers");
+
   //Registers providers globally, so all widgets can check use their functionalities.
   runApp(ChangeNotifierProvider(
+
     create: (context) => AuthChecker(),
+
     child: MultiProvider( // Groups Providers together to be used by the app.
       providers: [
         Provider<FirestoreService>(create: (_) => FirestoreService()),
@@ -63,6 +75,21 @@ Future<void> main() async {
             reminderService: Provider.of<ReminderService>(context, listen: false),
           ),
         ),
+        
+        // Notification service provider.
+        Provider<NotificationService>(
+          create: (_) => NotificationService(),
+        ),
+
+        // Notification controller provider.
+        ChangeNotifierProvider<NotificationController>(
+          create: (context) => NotificationController(
+            notificationService: Provider.of<NotificationService>(context, listen: false),
+            reminderService: Provider.of<ReminderService>(context, listen: false),
+          ),
+        ),
+        // NotificationController initializes when the app starts, ensuring notifications are scheduled right away
+        // as it calls the notification service to initialize and schedule all reminders.
       ],
       child: Sizer( // Wraps the app in Sizer.
           builder: (context, orientation, deviceType) {
@@ -92,7 +119,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
+      navigatorKey: navigatorKey, // Add navigator key for notification navigation
+      
       //The initial route is the first-time user welcome screen.
       initialRoute: IntroScreen.id,
 
@@ -101,6 +129,7 @@ class MyApp extends StatelessWidget {
         '/home': (BuildContext context) => AuthGate(),
         RemindersScreen.id: (BuildContext context) => RemindersScreen(),
         MedicationsScreen.id: (BuildContext context) => MedicationsScreen(),
+        SettingsScreen.id: (BuildContext context) => SettingsScreen(),
       },
       builder: (context, child) {
         return Stack(

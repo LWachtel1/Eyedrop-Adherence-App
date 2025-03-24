@@ -115,8 +115,8 @@ class ReminderService {
   /// - `reminderId`: The ID of the reminder to toggle
   /// - `isEnabled`: The new state (enabled or disabled)
   /// 
-  /// Returns a Future that completes when the operation is done
-  Future<void> toggleReminderState(String userId, String reminderId, bool isEnabled) async {
+  /// Returns a Future that completes when the operation is done.
+  Future<void> toggleReminderState(String userId, String reminderId, bool isEnabled, {Function(Map<String, dynamic>)? onToggled}) async {
     try {
       // Validate inputs
       if (userId.isEmpty) {
@@ -133,6 +133,12 @@ class ReminderService {
         docId: reminderId,
         newData: {'isEnabled': isEnabled},
       );
+      
+      // Get the updated reminder to pass to the notification controller.
+      final updatedReminder = await getReminderById(userId, reminderId);
+      if (updatedReminder != null && onToggled != null) {
+        onToggled(updatedReminder);
+      }
       
       log("Reminder ${isEnabled ? 'enabled' : 'disabled'} successfully");
     } on FirebaseException catch (e) {
@@ -371,6 +377,79 @@ class ReminderService {
     } catch (e) {
       log("Error updating medication reminder status: $e");
       // Don't throw - this is a secondary operation that shouldn't fail the main process
+    }
+  }
+
+  /// Get all enabled reminders for a user.
+  /// 
+  /// Provides all active reminders to NotificationService.scheduleAllReminders(), 
+  /// which creates actual notifications.
+  Future<List<Map<String, dynamic>>> getAllEnabledReminders(String userId) async {
+    try {
+      final reminders = await firestoreService.queryCollection(
+        collectionPath: 'users/$userId/reminders',
+        filters: [
+          {"field": "isEnabled", "operator": "==", "value": true}
+        ],
+      );
+      
+      for (final reminder in reminders) {
+        // Add additional fields if not present
+        reminder['id'] ??= reminder['id'];
+      }
+      
+      return reminders;
+    } catch (e) {
+      log('Error getting enabled reminders: $e');
+      return [];
+    }
+  }
+  
+  /// Gets a specific reminder by ID.
+  /// 
+  /// E.g., enables notification tap to take user to reminder details screen.
+  Future<Map<String, dynamic>?> getReminderById(String userId, String reminderId) async {
+    try {
+      final reminder = await firestoreService.readDoc(
+        collectionPath: 'users/$userId/reminders',
+        docId: reminderId,
+      );
+      
+      if (reminder != null) {
+        // Add ID to the map if not present
+        reminder['id'] ??= reminderId;
+      }
+      
+      return reminder;
+    } catch (e) {
+      log('Error getting reminder by ID: $e');
+      return null;
+    }
+  }
+
+  /// Get the most recently created reminder for a medication.
+  /// 
+  /// E.g., enables scheduling of a newly created reminder.
+  Future<Map<String, dynamic>?> getCreatedReminder(String userId, String medicationId) async {
+    try {
+      // Check your FirestoreService.queryCollection implementation
+      // Option 1: If it accepts a list of filters (based on your FirestoreService implementation)
+      final reminders = await firestoreService.queryCollection(
+        collectionPath: "users/$userId/reminders",
+        filters: [
+          {"field": "userMedicationId", "operator": "==", "value": medicationId}
+        ],
+        orderBy: {"field": "createdAt", "descending": true},
+        limit: 1
+      );
+      
+      if (reminders.isNotEmpty) {
+        return reminders.first;
+      }
+      return null;
+    } catch (e) {
+      log("Error getting created reminder: $e");
+      return null;
     }
   }
 }

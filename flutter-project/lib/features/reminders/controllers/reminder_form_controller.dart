@@ -2,6 +2,8 @@ import 'dart:developer';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
 
 /// Controller for the reminder form
 /// 
@@ -338,6 +340,14 @@ class ReminderFormController extends ChangeNotifier {
         }
       } else {
         await reminderService.addReminder(user.uid, reminderData);
+        
+        // Get the created reminder with the generated ID
+        final createdReminder = await reminderService.getCreatedReminder(user.uid, userMedicationId);
+        if (createdReminder != null && context.mounted) {
+          final notificationController = Provider.of<NotificationController>(context, listen: false);
+          notificationController.scheduleReminderNotifications(createdReminder);
+        }
+
         resetForm();
         
         if (context.mounted) {
@@ -360,5 +370,11 @@ class ReminderFormController extends ChangeNotifier {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  /// Schedule notifications for this reminder
+  void scheduleNotifications(BuildContext context, Map<String, dynamic> reminder) {
+    final notificationController = Provider.of<NotificationController>(context, listen: false);
+    notificationController.scheduleReminderNotifications(reminder);
   }
 }
