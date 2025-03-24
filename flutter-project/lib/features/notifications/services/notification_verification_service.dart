@@ -118,7 +118,8 @@ class NotificationVerificationService {
       final reminders = await _reminderService.getAllEnabledReminders(userId);
       
       // Get all pending notifications
-      final pendingNotifications = await _notificationService.getPendingNotificationCount();
+      final pendingNotificationRequests = await _notificationService.getPendingNotificationRequests();
+      final pendingNotifications = pendingNotificationRequests.length;
       
       // Calculate expected notification count (approximate)
       // This is a rough estimate as some reminders might have 

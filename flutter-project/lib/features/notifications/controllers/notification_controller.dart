@@ -151,6 +151,7 @@ class NotificationController extends ChangeNotifier {
     } else {
       // Smart scheduling based on frequency and time range
       final frequency = reminder['frequency'] ?? 1;
+      final scheduleType = reminder['scheduleType'] ?? 'daily'; // Get scheduleType
       final startTime = reminder['startTime'];
       final endTime = reminder['endTime'];
       
@@ -161,6 +162,7 @@ class NotificationController extends ChangeNotifier {
         applicationSite: applicationSite,
         doseInfo: doseInfo,
         frequency: frequency,
+        scheduleType: scheduleType, // Pass scheduleType
         startTime: startTime,
         endTime: endTime,
       );
@@ -177,7 +179,7 @@ class NotificationController extends ChangeNotifier {
     await _notificationService.scheduleAllReminders(user.uid, _reminderService);
   }
 
-  /// Reschedules all reminders: cancels existing, then schedules fresh.
+  /// Reschedules all reminders: preserves future notifications when possible.
   Future<void> rescheduleAllReminders() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -186,10 +188,52 @@ class NotificationController extends ChangeNotifier {
         return;
       }
       
-      await _notificationService.cancelAllNotifications();
-      await _notificationService.scheduleAllReminders(user.uid, _reminderService);
+      // Get all enabled reminders
+      final reminders = await _reminderService.getAllEnabledReminders(user.uid);
+      if (reminders.isEmpty) {
+        await _notificationService.cancelAllNotifications();
+        log('No active reminders found, cancelled all notifications');
+        return;
+      }
       
-      log('All reminders rescheduled successfully');
+      // Get pending notifications
+      final pendingNotifications = await _notificationService.getPendingNotificationRequests();
+      
+      // Determine which reminders are missing notifications
+      final Set<String> reminderIdsWithNotifications = {};
+      for (final notification in pendingNotifications) {
+        if (notification.payload != null) {
+          final payloadParts = notification.payload!.split('|');
+          if (payloadParts.isNotEmpty) {
+            reminderIdsWithNotifications.add(payloadParts[0]);
+          }
+        }
+      }
+      
+      // Check which reminders need rescheduling
+      final remindersToReschedule = <Map<String, dynamic>>[];
+      for (final reminder in reminders) {
+        final reminderId = reminder['id'];
+        if (reminderId != null && !reminderIdsWithNotifications.contains(reminderId)) {
+          // This reminder has no active notifications, needs rescheduling
+          remindersToReschedule.add(reminder);
+        }
+      }
+      
+      // If all reminders need rescheduling, it's more efficient to just reset everything
+      if (remindersToReschedule.length == reminders.length) {
+        await _notificationService.cancelAllNotifications();
+        await _notificationService.scheduleAllReminders(user.uid, _reminderService);
+        log('All reminders rescheduled from scratch');
+      } else if (remindersToReschedule.isNotEmpty) {
+        // Schedule just the missing reminders
+        for (final reminder in remindersToReschedule) {
+          await scheduleReminderNotifications(reminder);
+        }
+        log('Selectively rescheduled ${remindersToReschedule.length} reminders with missing notifications');
+      } else {
+        log('All reminders already have active notifications, nothing to reschedule');
+      }
     } catch (e) {
       log('Error rescheduling reminders: $e');
     }

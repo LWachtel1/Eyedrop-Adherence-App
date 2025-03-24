@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -298,6 +299,7 @@ class NotificationService {
             applicationSite: applicationSite,
             doseInfo: doseInfo,
             frequency: reminder['frequency'] ?? 1,
+            scheduleType: reminder['scheduleType'] ?? 'daily', // Add scheduleType parameter
             startTime: reminder['startTime'],
             endTime: reminder['endTime'],
           );
@@ -377,7 +379,7 @@ class NotificationService {
     }
   }
   
-  /// Schedule a smart reminder with calculated times based on frequency.
+  /// Schedule a smart reminder with calculated times based on frequency and schedule type.
   Future<void> scheduleSmartReminder({
     required String reminderId,
     required String medicationId,
@@ -385,18 +387,22 @@ class NotificationService {
     String? applicationSite,
     String? doseInfo,
     required int frequency,
+    required String scheduleType, // Add scheduleType parameter
     String? startTime,
     String? endTime,
   }) async {
     try {
-      // Calculates reminder times based on frequency.
-      final times = _calculateSmartScheduleTimes(
+      // Calculates reminder times based on schedule type and frequency
+      final times = _calculateScheduleTimes(
         frequency: frequency,
+        scheduleType: scheduleType, // Pass scheduleType
         startTime: startTime,
         endTime: endTime,
       );
       
-      // Schedules a notification for each calculated time.
+      log('Smart scheduling for $medicationName: ${times.length} times calculated');
+      
+      // Schedules a notification for each calculated time
       for (final time in times) {
         await scheduleReminderNotification(
           reminderId: reminderId,
@@ -411,17 +417,37 @@ class NotificationService {
       log('Error scheduling smart reminder: $e');
     }
   }
-  
-  /// Calculates optimal times for a smart reminder schedule.
-  List<DateTime> _calculateSmartScheduleTimes({
+
+  /// Calculates schedule times based on frequency and schedule type
+  List<DateTime> _calculateScheduleTimes({
     required int frequency,
+    required String scheduleType,
     String? startTime,
     String? endTime,
   }) {
+    scheduleType = scheduleType.toLowerCase();
+    
+    // Use different scheduling strategies based on schedule type
+    if (scheduleType == 'weekly') {
+      return _calculateWeeklyScheduleTimes(frequency, startTime, endTime);
+    } else if (scheduleType == 'monthly') {
+      return _calculateMonthlyScheduleTimes(frequency, startTime, endTime);
+    } else {
+      // Default to daily scheduling for daily or any other schedule types
+      return _calculateDailyScheduleTimes(frequency, startTime, endTime);
+    }
+  }
+
+  /// Calculates evenly distributed times for daily schedules
+  List<DateTime> _calculateDailyScheduleTimes(
+    int frequency, 
+    String? startTime, 
+    String? endTime
+  ) {
     final now = DateTime.now();
     final List<DateTime> times = [];
     
-    // Default start time (8:00 AM) and end time (10:00 PM) if not specified.
+    // Default time window (8:00 AM to 10:00 PM)
     final defaultStartHour = 8;
     final defaultEndHour = 22;
     
@@ -430,42 +456,42 @@ class NotificationService {
     int endHour = defaultEndHour;
     int endMinute = 0;
     
-    // Parses start time if provided.
+    // Parse start time if provided
     if (startTime != null && startTime.isNotEmpty) {
       final parts = startTime.split(':');
-      if (parts.length == 2) {
+      if (parts.length >= 2) {
         startHour = int.tryParse(parts[0]) ?? defaultStartHour;
         startMinute = int.tryParse(parts[1]) ?? 0;
       }
     }
     
-    // Parses end time if provided.
+    // Parse end time if provided
     if (endTime != null && endTime.isNotEmpty) {
       final parts = endTime.split(':');
-      if (parts.length == 2) {
+      if (parts.length >= 2) {
         endHour = int.tryParse(parts[0]) ?? defaultEndHour;
         endMinute = int.tryParse(parts[1]) ?? 0;
       }
     }
     
-    // Calculates the total minutes in the active period.
+    // Calculate total minutes in the active period
     final startMinutes = startHour * 60 + startMinute;
     final endMinutes = endHour * 60 + endMinute;
     final totalMinutes = endMinutes - startMinutes;
     
-    // Calculates interval between doses.
+    // Calculate interval between doses
     final interval = frequency > 1 ? totalMinutes ~/ (frequency - 1) : totalMinutes;
     
-    // Calculate times.
+    // Calculate times
     for (int i = 0; i < frequency; i++) {
       final minutes = startMinutes + (i * interval);
       final hour = minutes ~/ 60;
       final minute = minutes % 60;
       
-      // Create DateTime for the calculated time.
+      // Create DateTime for the calculated time
       DateTime time = DateTime(now.year, now.month, now.day, hour, minute);
       
-      // If the time is in the past, schedule for tomorrow.
+      // If the time is in the past, schedule for tomorrow
       if (time.isBefore(now)) {
         time = time.add(const Duration(days: 1));
       }
@@ -474,6 +500,172 @@ class NotificationService {
     }
     
     return times;
+  }
+
+  /// Calculates evenly distributed times for weekly schedules
+  List<DateTime> _calculateWeeklyScheduleTimes(
+    int frequency, 
+    String? startTime, 
+    String? endTime
+  ) {
+    final now = DateTime.now();
+    final List<DateTime> times = [];
+    
+    // Parse default time from start/end time params
+    var defaultTime = _parseTimeOfDay(startTime) ?? TimeOfDay(hour: 9, minute: 0);
+    
+    // Calculate how many days to distribute the doses over
+    int daysToUse = math.min(7, frequency);
+    
+    // Calculate days between doses
+    int interval = frequency <= 7 ? (7 / frequency).floor() : 1;
+    
+    // Starting from today, calculate the next 'frequency' days
+    int currentDay = 0;
+    while (times.length < frequency) {
+      final dayToSchedule = now.add(Duration(days: currentDay));
+      final hour = defaultTime.hour;
+      final minute = defaultTime.minute;
+      
+      // Create DateTime for this day
+      DateTime time = DateTime(
+        dayToSchedule.year, 
+        dayToSchedule.month, 
+        dayToSchedule.day, 
+        hour, 
+        minute
+      );
+      
+      // If it's today and the time has passed, move to tomorrow
+      if (currentDay == 0 && time.isBefore(now)) {
+        currentDay++;
+        continue;
+      }
+      
+      times.add(time);
+      
+      // Move to next day based on interval
+      currentDay += interval;
+      
+      // For frequencies greater than 7, we need to add multiple per day
+      if (frequency > 7 && times.length % daysToUse == 0) {
+        // Reset to start of week and use a different time
+        currentDay = 0;
+        
+        // Add 2 hours to the time for the next round
+        defaultTime = TimeOfDay(
+          hour: (defaultTime.hour + 2) % 24,
+          minute: defaultTime.minute
+        );
+      }
+    }
+    
+    return times;
+  }
+
+  /// Calculates evenly distributed times for monthly schedules
+  List<DateTime> _calculateMonthlyScheduleTimes(
+    int frequency, 
+    String? startTime, 
+    String? endTime
+  ) {
+    final now = DateTime.now();
+    final List<DateTime> times = [];
+    
+    // Parse default time from start/end time params
+    var defaultTime = _parseTimeOfDay(startTime) ?? TimeOfDay(hour: 9, minute: 0);
+    
+    // Get days in current month
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    
+    // Calculate how many days to distribute the doses over
+    int daysToUse = math.min(daysInMonth, frequency);
+    
+    // Calculate days between doses
+    int interval = frequency <= daysInMonth 
+        ? (daysInMonth / frequency).floor() 
+        : 1;
+    
+    // Start from today or day 1 if today is past day 28
+    int startDay = now.day;
+    if (startDay > 28) startDay = 1;
+    
+    // Track the current day of month
+    int currentDay = startDay;
+    
+    while (times.length < frequency) {
+      // If we've gone past the end of the month, wrap to next month
+      if (currentDay > daysInMonth) {
+        currentDay = 1;
+      }
+      
+      // Calculate date for this day
+      DateTime dateToUse;
+      if (currentDay >= now.day) {
+        // This month
+        dateToUse = DateTime(now.year, now.month, currentDay);
+      } else {
+        // Next month
+        dateToUse = DateTime(now.year, now.month + 1, currentDay);
+      }
+      
+      final hour = defaultTime.hour;
+      final minute = defaultTime.minute;
+      
+      // Create DateTime for this day
+      DateTime time = DateTime(
+        dateToUse.year, 
+        dateToUse.month, 
+        dateToUse.day, 
+        hour, 
+        minute
+      );
+      
+      // If it's today and the time has passed, skip
+      if (dateToUse.day == now.day && 
+          dateToUse.month == now.month && 
+          dateToUse.year == now.year && 
+          time.isBefore(now)) {
+        currentDay += interval;
+        continue;
+      }
+      
+      times.add(time);
+      
+      // Move to next day based on interval
+      currentDay += interval;
+      
+      // For frequencies greater than days in month
+      if (frequency > daysInMonth && times.length % daysToUse == 0) {
+        // Reset to start day and use a different time
+        currentDay = startDay;
+        
+        // Add 2 hours to the time for the next round
+        defaultTime = TimeOfDay(
+          hour: (defaultTime.hour + 2) % 24,
+          minute: defaultTime.minute
+        );
+      }
+    }
+    
+    return times;
+  }
+
+  /// Helper method to parse a time string into TimeOfDay
+  TimeOfDay? _parseTimeOfDay(String? timeString) {
+    if (timeString == null || timeString.isEmpty) return null;
+    
+    final parts = timeString.split(':');
+    if (parts.length >= 2) {
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      
+      if (hour != null && minute != null) {
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+    }
+    
+    return null;
   }
   
   /// Creates notification channel details depending on platform and user settings.
@@ -609,6 +801,18 @@ class NotificationService {
     } catch (e) {
       log('Error getting pending notification count: $e');
       return 0;
+    }
+  }
+
+  /// Gets all pending notification requests with their payloads
+  Future<List<PendingNotificationRequest>> getPendingNotificationRequests() async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      return await _localNotifications.pendingNotificationRequests();
+    } catch (e) {
+      log('Error getting pending notification requests: $e');
+      return [];
     }
   }
 }
