@@ -6,6 +6,7 @@
 import 'dart:developer';
 
 import 'package:eyedrop/features/auth/controllers/auth_checker.dart';
+import 'package:eyedrop/features/progress/screens/progress_overview_screen.dart';
 import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/auth/screens/auth_gate.dart';
@@ -26,6 +27,7 @@ import 'package:eyedrop/features/notifications/services/notification_service.dar
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
 import 'package:eyedrop/features/settings/screens/settings_screen.dart';
 import 'package:eyedrop/features/notifications/services/notification_verification_service.dart';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 
 // Global navigator key for notification navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -109,6 +111,11 @@ Future<void> main() async {
             reminderService: Provider.of<ReminderService>(context, listen: false),
           ),
         ),
+        
+        // Add this provider
+        ChangeNotifierProvider<ProgressController>(
+          create: (context) => ProgressController(),
+        ),
       ],
       child: Sizer( // Wraps the app in Sizer.
           builder: (context, orientation, deviceType) {
@@ -149,6 +156,7 @@ class MyApp extends StatelessWidget {
         RemindersScreen.id: (BuildContext context) => RemindersScreen(),
         MedicationsScreen.id: (BuildContext context) => MedicationsScreen(),
         SettingsScreen.id: (BuildContext context) => SettingsScreen(),
+        ProgressOverviewScreen.id: (BuildContext context) => ProgressOverviewScreen(),
       },
       builder: (context, child) {
         return Stack(

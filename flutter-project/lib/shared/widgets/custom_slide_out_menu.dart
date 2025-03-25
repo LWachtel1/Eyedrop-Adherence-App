@@ -1,3 +1,4 @@
+import 'package:eyedrop/features/progress/screens/progress_overview_screen.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:eyedrop/features/medications/screens/medications_screen.dart';
 import 'package:eyedrop/features/reminders/screens/reminders_screen.dart';
@@ -22,7 +23,7 @@ class CustomSlideOutMenu extends StatelessWidget {
                   Expanded(child: DrawerItem(label: 'Reminders', iconPath: 'assets/icons/reminders_icon.svg', destinationScreen: RemindersScreen())),
                   Expanded(child: DrawerItem(label: 'Education', iconPath: 'assets/icons/education_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
                   Expanded(child: DrawerItem(label: 'Aim', iconPath: 'assets/icons/aim_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
-                  Expanded(child: DrawerItem(label: 'Progress & Tracking', iconPath: 'assets/icons/progress+tracking_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
+                  Expanded(child: DrawerItem(label: 'Progress & Tracking', iconPath: 'assets/icons/progress+tracking_icon.svg', destinationScreen: ProgressOverviewScreen())),
                 ],
               ),
             ),

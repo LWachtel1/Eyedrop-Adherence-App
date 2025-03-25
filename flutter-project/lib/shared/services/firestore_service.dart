@@ -74,7 +74,7 @@ class FirestoreService {
       {required String collectionPath}) {
     // FireStore-generated ID
     String uniqueId =
-        FirebaseFirestore.instance.collection(collectionPath).doc().id;
+        _firestore.collection(collectionPath).doc().id;
     return uniqueId;
   }
  
@@ -106,7 +106,7 @@ class FirestoreService {
     }
 
     List<String> segments = path.split('/').where((s) => s.isNotEmpty).toList(); // Remove empty parts
-    FirebaseFirestore firestore = FirebaseFirestore.instance;
+  
 
     if (segments.isEmpty) {
       throw ArgumentError("Invalid Firestore path: Path must have at least one segment.");
@@ -117,12 +117,12 @@ class FirestoreService {
       if (docId == null || docId.isEmpty) {
         throw ArgumentError("A document ID must be provided when adding to a root collection.");
       }
-      return firestore.collection(segments[0]).doc(docId);
+      return _firestore.collection(segments[0]).doc(docId);
     }
 
     if (segments.length.isOdd) {
       // If the number of segments is ODD, last segment is a COLLECTION.
-      DocumentReference parentDocRef = firestore.collection(segments[0]).doc(segments[1]);
+      DocumentReference parentDocRef = _firestore.collection(segments[0]).doc(segments[1]);
 
       for (int i = 2; i < segments.length - 1; i += 2) {
         parentDocRef = parentDocRef.collection(segments[i]).doc(segments[i + 1]);
@@ -131,7 +131,7 @@ class FirestoreService {
       return parentDocRef.collection(segments.last).doc(docId);
     } else {
       // If the number of segments is EVEN, last segment is a DOCUMENT.
-      CollectionReference collectionRef = firestore.collection(segments[0]);
+      CollectionReference collectionRef = _firestore.collection(segments[0]);
 
       for (int i = 1; i < segments.length - 1; i += 2) {
         collectionRef = collectionRef.doc(segments[i]).collection(segments[i + 1]);
@@ -671,7 +671,7 @@ Stream<List<Map<String, dynamic>>> getCollectionStream(String collectionPath) {
 /// as an "id" field in each document's data map.
 Stream<List<Map<String, dynamic>>> getCollectionStreamWithIds(String collectionPath) {
   try {
-    return FirebaseFirestore.instance
+    return _firestore
         .collection(collectionPath)
         .snapshots()
         .map((snapshot) {
@@ -695,7 +695,7 @@ Future<List<Map<String, dynamic>>> getAllDocsWithIds(
     {required String collectionPath}) async {
   try {
     final snapshot =
-        await FirebaseFirestore.instance.collection(collectionPath).get();
+        await _firestore.collection(collectionPath).get();
     
     return snapshot.docs.map((doc) {
       Map<String, dynamic> data = doc.data();
@@ -735,62 +735,87 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
   List<Map<String, dynamic>>? filters,
   Map<String, dynamic>? orderBy,
   int? limit,
+  String? startAfterDocument,
 }) async {
-  if (collectionPath.isEmpty) {
-    log("Error: Collection path cannot be empty.");
-    return [];
-  }
-
   try {
+    if (collectionPath.isEmpty) {
+      throw Exception("Collection path cannot be empty");
+    }
+
     Query query = _firestore.collection(collectionPath);
 
-    // Apply filters (WHERE conditions)
+    // Apply filters
     if (filters != null && filters.isNotEmpty) {
       for (var filter in filters) {
-        String field = filter["field"];
-        String operator = filter["operator"];
-        dynamic value = filter["value"];
+        if (filter.containsKey('field') && 
+            filter.containsKey('operator') && 
+            filter.containsKey('value')) {
+          String field = filter['field'] as String;
+          String operator = filter['operator'] as String;
+          dynamic value = filter['value'];
 
-        switch (operator) {
-          case "==":
-            query = query.where(field, isEqualTo: value);
-            break;
-          case "<":
-            query = query.where(field, isLessThan: value);
-            break;
-          case ">":
-            query = query.where(field, isGreaterThan: value);
-            break;
-          case "<=":
-            query = query.where(field, isLessThanOrEqualTo: value);
-            break;
-          case ">=":
-            query = query.where(field, isGreaterThanOrEqualTo: value);
-            break;
-          case "array-contains":
-            query = query.where(field, arrayContains: value);
-            break;
-          case "array-contains-any":
-            query = query.where(field, arrayContainsAny: value);
-            break;
-          case "in":
-            query = query.where(field, whereIn: value);
-            break;
-          case "not-in":
-            query = query.where(field, whereNotIn: value);
-            break;
-          default:
-            log("Error: Unsupported query operator $operator");
-            return [];
+          switch (operator) {
+            case '==':
+              query = query.where(field, isEqualTo: value);
+              break;
+            case '!=':
+              query = query.where(field, isNotEqualTo: value);
+              break;
+            case '>':
+              query = query.where(field, isGreaterThan: value);
+              break;
+            case '>=':
+              query = query.where(field, isGreaterThanOrEqualTo: value);
+              break;
+            case '<':
+              query = query.where(field, isLessThan: value);
+              break;
+            case '<=':
+              query = query.where(field, isLessThanOrEqualTo: value);
+              break;
+            case 'in':
+              if (value is List) {
+                query = query.where(field, whereIn: value);
+              }
+              break;
+            case 'array-contains':
+              query = query.where(field, arrayContains: value);
+              break;
+            default:
+              log('Unsupported operator: $operator');
+          }
         }
       }
     }
 
-    // Apply ordering (ORDER BY)
-    if (orderBy != null && orderBy.containsKey("field")) {
-      String orderField = orderBy["field"];
-      bool descending = orderBy["descending"] ?? false;
-      query = query.orderBy(orderField, descending: descending);
+    // Apply ordering
+    if (orderBy != null && 
+        orderBy.containsKey('field') && 
+        orderBy['field'] is String) {
+      bool descending = orderBy.containsKey('descending') && 
+                        orderBy['descending'] == true;
+      query = query.orderBy(
+        orderBy['field'] as String, 
+        descending: descending
+      );
+    }
+    
+    // Apply pagination using startAfter
+    if (startAfterDocument != null) {
+      try {
+        // Get the document to start after
+        DocumentSnapshot startDoc = await _firestore
+          .collection(collectionPath)
+          .doc(startAfterDocument)
+          .get();
+          
+        if (startDoc.exists) {
+          query = query.startAfterDocument(startDoc);
+        }
+      } catch (e) {
+        log('Error getting start document: $e');
+        // Continue without pagination if there's an error
+      }
     }
 
     // Apply limit
@@ -798,24 +823,17 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
       query = query.limit(limit);
     }
 
-    // Execute query and process results
-    QuerySnapshot querySnapshot = await query.get();
-    
-    // Convert documents to maps and add IDs
-    List<Map<String, dynamic>> results = querySnapshot.docs.map((doc) {
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      // Add document ID to each document's data
+    final querySnapshot = await query.get();
+    final docs = querySnapshot.docs;
+
+    return docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
       data['id'] = doc.id;
       return data;
     }).toList();
-
-    return results;
-  } on FirebaseException catch (e) {
-    log("Firestore query error in $collectionPath: ${e.message}");
-    return [];
   } catch (e) {
-    log("Unexpected error querying $collectionPath: $e");
-    return [];
+    log('Error querying collection: $e');
+    throw Exception('Failed to query collection: $e');
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:eyedrop/features/reminders/screens/reminder_details_screen.dart'
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:eyedrop/features/notifications/services/notification_service.dart';
+import 'package:eyedrop/features/progress/services/progress_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
 
@@ -17,6 +18,8 @@ class NotificationController extends ChangeNotifier {
   final NotificationService _notificationService;
   final ReminderService _reminderService;
   final ReminderExpirationService _expirationService;
+  final ProgressService _progressService = ProgressService();
+
   Timer? _expirationCheckTimer;
   
   // Expose current user preferences to the UI.
@@ -58,24 +61,59 @@ class NotificationController extends ChangeNotifier {
     
     log('User tapped on notification: ${notificationData.medicationName}');
     
-    // Gets the navigator state using global key from main.dart.
-    final NavigatorState? navigator = navigatorKey.currentState;
-    if (navigator == null) return;
-    
-    // Navigates to reminder details screen if we have a reminder ID.
-    if (notificationData.reminderId.isNotEmpty) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+    // Record medication taken
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null && notificationData.reminderId.isNotEmpty) {
+    _recordMedicationTaken(user.uid, notificationData);
+
+      // Gets the navigator state using global key from main.dart.
+      final NavigatorState? navigator = navigatorKey.currentState;
+      if (navigator == null) return;
       
-      // Fetch the full reminder data and navigate to the details screen.
-      _reminderService.getReminderById(user.uid, notificationData.reminderId)
-        .then((reminder) {
-          if (reminder != null) {
-            navigator.push(MaterialPageRoute(
-              builder: (context) => ReminderDetailScreen(reminder: reminder)
-            ));
-          }
-        });
+      // Navigates to reminder details screen if we have a reminder ID.
+      if (notificationData.reminderId.isNotEmpty) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+        
+        // Fetch the full reminder data and navigate to the details screen.
+        _reminderService.getReminderById(user.uid, notificationData.reminderId)
+          .then((reminder) {
+            if (reminder != null) {
+              navigator.push(MaterialPageRoute(
+                builder: (context) => ReminderDetailScreen(reminder: reminder)
+              ));
+            }
+          });
+      }
+    }
+  }
+  // Add new method to record medication taken
+  Future<void> _recordMedicationTaken(String userId, notificationData) async {
+    try {
+      // Extract scheduled time from notification ID or payload
+      // For this implementation, we'll use the current time, but in practice
+      // you would want to extract the exact scheduled time from the notification
+      DateTime now = DateTime.now();
+      
+      // Get the reminder details to obtain the schedule type
+      final reminder = await _reminderService.getReminderById(
+        userId, 
+        notificationData.reminderId
+      );
+      
+      if (reminder != null) {
+        // Record the medication as taken
+        await _progressService.recordMedicationTaken(
+          userId: userId,
+          reminderId: notificationData.reminderId,
+          medicationId: notificationData.medicationId,
+          scheduledAt: now.subtract(Duration(minutes: 1)), // Approximate scheduled time
+          respondedAt: now,
+          scheduleType: reminder['scheduleType'] ?? 'daily',
+        );
+      }
+    } catch (e) {
+      log('Error recording medication taken: $e');
     }
   }
   
@@ -107,6 +145,9 @@ class NotificationController extends ChangeNotifier {
   Future<void> scheduleReminderNotifications(Map<String, dynamic> reminder) async {
     if (!_notificationService.notificationsEnabled) return;
     
+    // Add grace period tracking (60 minutes after notification)
+  _scheduleMissedMedicationCheck(reminder, Duration(minutes: 60));
+
     final reminderId = reminder['id'];
     if (reminderId == null) {
       log('Cannot schedule notifications: reminder has no ID');
@@ -170,6 +211,41 @@ class NotificationController extends ChangeNotifier {
       log('Scheduled smart reminders for: $medicationName');
     }
   }
+
+  // Add new method to check for missed medications
+Future<void> _scheduleMissedMedicationCheck(Map<String, dynamic> reminder, Duration gracePeriod) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+  
+  final reminderId = reminder['id'];
+  final medicationId = reminder['userMedicationId'];
+  
+  if (reminderId == null || medicationId == null) return;
+  
+  // Get the current time as an approximation of when the notification was scheduled
+  final scheduledTime = DateTime.now();
+  
+  // Schedule a delayed check for the reminder response
+  Future.delayed(gracePeriod, () async {
+    // Check if this notification has already been handled
+    bool hasEntry = await _progressService.hasProgressEntryForScheduledTime(
+      userId: user.uid,
+      reminderId: reminderId,
+      scheduledTime: scheduledTime,
+    );
+    
+    if (!hasEntry) {
+      // No progress entry means no response - record as missed
+      await _progressService.recordMedicationMissed(
+        userId: user.uid,
+        reminderId: reminderId,
+        medicationId: medicationId,
+        scheduledAt: scheduledTime,
+        scheduleType: reminder['scheduleType'] ?? 'daily',
+      );
+    }
+  });
+}
   
   /// Helper to reschedule all reminders for the current user.
   Future<void> _rescheduleAllReminders() async {
@@ -274,6 +350,7 @@ class NotificationController extends ChangeNotifier {
       notificationController: this
     );
   }
+  
 }
 
 
