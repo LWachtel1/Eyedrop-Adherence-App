@@ -54,27 +54,9 @@ class ReminderService {
     required double doseQuantity,
     String? applicationSite,
     bool isEnabled = true, // Default to enabled
+    bool isExpired = false, // Default to not expired
   }) {
     try {
-      // Basic validation
-      if (userMedicationId.isEmpty) {
-        throw FormatException('Medication ID cannot be empty');
-      }
-      
-      if (medicationName.isEmpty) {
-        throw FormatException('Medication name cannot be empty');
-      }
-      
-      if (!isIndefinite) {
-        if (durationLength == null || durationLength.isEmpty) {
-          throw FormatException('Duration length is required for definite reminders');
-        }
-        if (durationUnits == null || durationUnits.isEmpty) {
-          throw FormatException('Duration units are required for definite reminders');
-        }
-      }
-      
-      // Convert timings to a storable format if not using smart scheduling
       List<Map<String, int>>? timingsData;
       if (!smartScheduling && timings != null && timings.isNotEmpty) {
         timingsData = timings.map((time) => {
@@ -83,7 +65,6 @@ class ReminderService {
         }).toList();
       }
       
-      // Create and return the data map
       return {
         'userMedicationId': userMedicationId,
         'medicationType': medicationType,
@@ -101,9 +82,8 @@ class ReminderService {
         'doseUnits': doseUnits,
         'doseQuantity': doseQuantity,
         'applicationSite': applicationSite,
-        'isEnabled': isEnabled, // Add enabled flag
-        "isDeleted": false, // Add deleted flag
-        "isExpired": false, // Add expired flag
+        'isEnabled': isEnabled, 
+        "isExpired": isExpired, 
       };
     } catch (e) {
       log("Error creating reminder data: $e");
@@ -221,59 +201,8 @@ class ReminderService {
         throw Exception("Reminder does not have an ID");
       }
 
-      // Check if this was the last reminder for this medication
-      final medicationId = reminder["userMedicationId"];
-      if (medicationId != null) {
-        final remainingReminders = await firestoreService.queryCollection(
-          collectionPath: collectionPath,
-          filters: [
-            {"field": "userMedicationId", "operator": "==", "value": medicationId},
-            {"field": "isDeleted", "operator": "!=", "value": true} // Don't count already deleted reminders
-          ],
-        );
-        
-        // If this is the only non-deleted reminder, update the medication's reminderSet field
-        if (remainingReminders.length <= 1) {
-          await updateMedicationReminderStatus(user.uid, medicationId, false);
-        }
-      }
-
-      // Instead of deleting, mark as deleted
-      await firestoreService.updateDoc(
-        collectionPath: collectionPath,
-        docId: reminder["id"],
-        newData: {
-          'isDeleted': true,
-          'deletedAt': Timestamp.fromDate(DateTime.now())
-        },
-      );
+      final reminderId = reminder["id"];
       
-      log("Reminder soft-deleted successfully");
-    } on FirebaseException catch (e) {
-      log("Firestore error soft-deleting reminder: ${e.message}");
-      throw Exception("Failed to delete reminder: ${e.message}");
-    } catch (e) {
-      log("Error soft-deleting reminder: $e");
-      throw Exception("Error deleting reminder: $e");
-    }
-  }
-
-  /// Deletes a reminder from FireStore.
-  /*
-  Future<void> deleteReminder(Map<String, dynamic> reminder) async {
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception("No authenticated user found");
-      }
-
-      String collectionPath = "users/${user.uid}/reminders";
-
-      if (!reminder.containsKey("id") || reminder["id"] == null) {
-        log("Error: Reminder does not have an ID.");
-        throw Exception("Reminder does not have an ID");
-      }
-
       // Check if this was the last reminder for this medication
       final medicationId = reminder["userMedicationId"];
       if (medicationId != null) {
@@ -290,8 +219,26 @@ class ReminderService {
         }
       }
 
-      await firestoreService.deleteDoc(collectionPath: collectionPath, docId: reminder["id"]);
-      log("Reminder deleted successfully");
+      // First, delete all associated progress entries
+      try {
+        final progressService = ProgressService();
+        await progressService.deleteProgressEntriesForReminder(
+          userId: user.uid,
+          reminderId: reminderId,
+        );
+        log("Progress entries for reminder deleted successfully");
+      } catch (e) {
+        log("Warning: Error deleting progress entries: $e");
+        // Continue with deletion even if progress deletion fails
+      }
+
+      // Then delete the reminder document
+      await firestoreService.deleteDoc(
+        collectionPath: collectionPath, 
+        docId: reminderId
+      );
+      
+      log("Reminder and associated progress entries deleted successfully");
     } on FirebaseException catch (e) {
       log("Firestore error deleting reminder: ${e.message}");
       throw Exception("Failed to delete reminder: ${e.message}");
@@ -299,7 +246,7 @@ class ReminderService {
       log("Error deleting reminder: $e");
       throw Exception("Error deleting reminder: $e");
     }
-  } */
+  }
 
   /// Creates a stream for all reminders.
   Stream<List<Map<String, dynamic>>> buildRemindersStream(String userId) {
@@ -636,63 +583,4 @@ class ReminderService {
       return null;
     }
   }
-
-
-  /// Marks a reminder as deleted (soft delete)
-  Future<void> softDeleteReminder(String userId, String reminderId) async {
-    try {
-      await firestoreService.updateDoc(
-        collectionPath: "users/$userId/reminders",
-        docId: reminderId,
-        newData: {
-          'isDeleted': true,
-        },
-      );
-      log("Reminder soft-deleted successfully");
-    } on FirebaseException catch (e) {
-      log("Firestore Error soft-deleting reminder: ${e.message}");
-      throw Exception("Failed to delete reminder: ${e.message}");
-    } catch (e) {
-      log("Unexpected error soft-deleting reminder: $e");
-      throw Exception("An unexpected error occurred. Please try again.");
-    }
-  }
-
-
-
-  /// Permanently deletes a reminder from the database (use with caution)
-  Future<void> hardDeleteReminder(String userId, String reminderId) async {
-    try {
-      if (userId.isEmpty || reminderId.isEmpty) {
-        throw Exception("User ID and reminder ID cannot be empty");
-      }
-      
-      // Delete the reminder document
-      await firestoreService.deleteDoc(
-        collectionPath: "users/$userId/reminders",
-        docId: reminderId,
-      );
-      
-      log("Reminder hard-deleted successfully");
-    } on FirebaseException catch (e) {
-      log("Firestore Error hard-deleting reminder: ${e.message}");
-      throw Exception("Failed to delete reminder: ${e.message}");
-    } catch (e) {
-      log("Unexpected error hard-deleting reminder: $e");
-      throw Exception("An unexpected error occurred. Please try again.");
-    }
-  }
-
-  /// Creates a stream for all active (non-deleted) reminders
-  Stream<List<Map<String, dynamic>>> buildActiveRemindersStream(String userId) {
-    return firestoreService.getCollectionStreamWithIds("users/$userId/reminders")
-      .map((reminders) => reminders.where((r) => r['isDeleted'] != true).toList());
-  }
-
-  /// Creates a stream for all deleted reminders
-  Stream<List<Map<String, dynamic>>> buildDeletedRemindersStream(String userId) {
-    return firestoreService.getCollectionStreamWithIds("users/$userId/reminders")
-      .map((reminders) => reminders.where((r) => r['isDeleted'] == true).toList());
-  }
-
 }

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
+import 'package:eyedrop/shared/widgets/confirmation_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -195,6 +197,58 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                 ),
               ),
             ),
+            
+            // Progress management buttons
+            SizedBox(height: 2.h),
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.red.shade100),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Progress History",
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
+                    Text(
+                      "Manage the progress history for this reminder",
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    OutlinedButton.icon(
+                      onPressed: _isLoading ? null : () => _confirmDeleteProgress(context),
+                      icon: _isLoading 
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.delete_forever, color: Colors.red),
+                      label: Text(
+                        "Delete All Progress History",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 2.h),
             
             // Back and delete buttons.
             Padding(
@@ -640,5 +694,57 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       setState(() => _isLoading = false);
       _showErrorSnackBar("Error renewing reminder: $e");
     }
+  }
+
+  // Add this method to the _ReminderDetailScreenState class
+  void _confirmDeleteProgress(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: "Delete Progress History",
+        message: "Are you sure you want to delete all progress history for this reminder? This action cannot be undone.",
+        onConfirm: () async {
+          setState(() => _isLoading = true);
+          
+          try {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user == null) {
+              _showSnackBar("You must be logged in to delete progress data", isError: true);
+              setState(() => _isLoading = false);
+              return;
+            }
+            
+            final progressController = Provider.of<ProgressController>(context, listen: false);
+            await progressController.deleteProgressForReminder(_reminder['id']);
+            
+            setState(() => _isLoading = false);
+            _showSnackBar("Progress history deleted successfully");
+          } catch (e) {
+            setState(() => _isLoading = false);
+            _showSnackBar("Failed to delete progress history: ${e.toString()}", isError: true);
+          }
+        },
+      ),
+    );
+  }
+
+  // Add this helper method to the _ReminderDetailScreenState class
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: Duration(seconds: isError ? 4 : 2),
+        action: isError 
+            ? SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              )
+            : null,
+      ),
+    );
   }
 }

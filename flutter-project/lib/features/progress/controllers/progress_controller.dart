@@ -15,7 +15,6 @@ class ProgressController extends ChangeNotifier {
   Map<String, dynamic> _stats = {};
   Map<String, dynamic> _scheduleTypeStats = {};
   bool _isLoading = false;
-  bool _includeDeletedReminders = false;
   String? _selectedMedicationId;
   String? _selectedReminderId;
   DateTime? _startDate;
@@ -33,7 +32,6 @@ class ProgressController extends ChangeNotifier {
   Map<String, dynamic> get stats => _stats;
   Map<String, dynamic> get scheduleTypeStats => _scheduleTypeStats;
   bool get isLoading => _isLoading;
-  bool get includeDeletedReminders => _includeDeletedReminders;
   String? get selectedMedicationId => _selectedMedicationId;
   String? get selectedReminderId => _selectedReminderId;
   DateTime? get startDate => _startDate;
@@ -76,14 +74,12 @@ class ProgressController extends ChangeNotifier {
         return;
       }
 
-      
+
       // Get the next page of entries
       final lastEntry = _entries.isNotEmpty ? _entries.last : null;
-      log("last entry: ${lastEntry.toString()}");
-
+      
       final newEntries = await _progressService.getProgressEntries(
         userId: user.uid,
-        includeDeletedReminders: _includeDeletedReminders,
         medicationId: _selectedMedicationId,
         reminderId: _selectedReminderId,
         startDate: _startDate,
@@ -110,9 +106,9 @@ class ProgressController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
-      if (_isActive) {
-        notifyListeners();
-      }
+    if (_isActive) {
+          notifyListeners();
+    }
     }
   }
   
@@ -127,12 +123,6 @@ class ProgressController extends ChangeNotifier {
   Future<void> loadReminderProgress(String reminderId) async {
     _selectedReminderId = reminderId;
     _selectedMedicationId = null;
-    await loadProgressData();
-  }
-  
-  /// Toggle inclusion of deleted reminders
-  Future<void> toggleDeletedReminders(bool include) async {
-    _includeDeletedReminders = include;
     await loadProgressData();
   }
   
@@ -166,7 +156,6 @@ class ProgressController extends ChangeNotifier {
   
   /// Reset all filters
   Future<void> resetFilters() async {
-    _includeDeletedReminders = false;
     _selectedMedicationId = null;
     _selectedReminderId = null;
     _startDate = null;
@@ -295,5 +284,37 @@ Map<String, List<ProgressEntry>> getEntriesByDay() {
     _errorMessage = null;
     _isLoadingMore = false;
     _hasMoreData = true;
+  }
+
+  /// Deletes all progress entries for a specific reminder
+  Future<void> deleteProgressForReminder(String reminderId) async {
+    if (!_isActive) return;
+    
+    _isLoading = true;
+    _hasError = false;
+    _errorMessage = null;
+    notifyListeners();
+    
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception("User must be logged in to delete progress data");
+      }
+      
+      // Delete all entries for this reminder
+      await _progressService.deleteProgressEntriesForReminder(
+        userId: user.uid,
+        reminderId: reminderId,
+      );
+      
+      // Refresh data
+      await loadProgressData();
+    } catch (e) {
+      log('Error deleting progress data: $e');
+      _errorMessage = "Failed to delete progress data: ${e.toString().split(':').last}";
+      _hasError = true;
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

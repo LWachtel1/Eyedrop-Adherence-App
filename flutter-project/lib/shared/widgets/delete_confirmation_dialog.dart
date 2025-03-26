@@ -32,8 +32,8 @@ class DeleteConfirmationDialog extends StatelessWidget {
         : "Delete Medication?";
     
     final content = isReminder
-        ? "Are you sure you want to delete the reminder for $medicationName?"
-        : "Are you sure you want to delete $medicationName? Any reminders associated with this medication will also be deleted.";
+        ? "Are you sure you want to delete the reminder for $medicationName? All progress history for this reminder will also be permanently deleted. This action cannot be undone."
+        : "Are you sure you want to delete $medicationName? Any reminders associated with this medication and their progress history will also be deleted. This action cannot be undone.";
     
     return AlertDialog(
       title: Text(title),

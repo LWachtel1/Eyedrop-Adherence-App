@@ -22,7 +22,6 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
   List<Map<String, dynamic>> _eyeMedications = [];
   bool _isLoading = true;
   StreamSubscription<bool>? _refreshSubscription;
-  bool _viewDeletedReminders = false;
 
   @override
   void initState() {
@@ -35,10 +34,9 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _setupStreamSubscription();
+        _loadMedications();
       }
     });
-
-    _loadMedications();
   }
 
   void _setupStreamSubscription() {
@@ -76,14 +74,15 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
 
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       final medicationService = Provider.of<MedicationService>(context, listen: false);
+      final progressController = Provider.of<ProgressController>(context, listen: false);
       
       // Get all medications
       final medications = await medicationService.buildMedicationsStream(firestoreService, user.uid).first;
       
-      // Filter for eye medications with reminders set
-      final eyeMeds = medications
-          .where((med) => med["medType"] == "Eye Medication" && med["reminderSet"] == true)
-          .toList();
+      // Only show medications with active reminders
+      final eyeMeds = medications.where((med) => 
+        med["medType"] == "Eye Medication" && med["reminderSet"] == true
+      ).toList();
       
       setState(() {
         _eyeMedications = eyeMeds;
@@ -181,24 +180,6 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
                 OutlinedButton(
                   child: Text("Change", style: TextStyle(fontSize: 12.sp)),
                   onPressed: () => _selectDateRange(context, controller),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Include Deleted",
-                  style: TextStyle(fontSize: 11.sp),
-                ),
-                Switch(
-                  value: _viewDeletedReminders,
-                  onChanged: (value) {
-                    setState(() {
-                      _viewDeletedReminders = value;
-                    });
-                    controller.toggleDeletedReminders(value);
-                  },
                 ),
               ],
             ),

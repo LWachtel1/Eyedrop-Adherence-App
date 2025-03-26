@@ -1,8 +1,10 @@
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'package:eyedrop/features/reminders/screens/reminder_details_screen.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
+import 'package:eyedrop/shared/widgets/confirmation_dialog.dart';
 import 'package:eyedrop/shared/widgets/delete_confirmation_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -492,6 +494,39 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   ),
                 ],
               ),
+              IconButton(
+                icon: Icon(Icons.more_vert),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    builder: (context) => Container(
+                      padding: EdgeInsets.symmetric(vertical: 2.h),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: Icon(Icons.delete_sweep, color: Colors.red),
+                            title: Text("Delete Progress History"),
+                            onTap: () {
+                              Navigator.pop(context); // Close the bottom sheet
+                              _confirmDeleteProgress(reminder);
+                            },
+                          ),
+                          Divider(),
+                          ListTile(
+                            leading: Icon(Icons.close),
+                            title: Text("Cancel"),
+                            onTap: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -627,5 +662,44 @@ class _RemindersScreenState extends State<RemindersScreen> {
         });
       }
     }
+  }
+
+  void _confirmDeleteProgress(Map<String, dynamic> reminder) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: "Delete Progress History",
+        message: "Are you sure you want to delete all progress history for ${reminder["medicationName"] ?? "Unnamed Medication"}? This action cannot be undone.",
+        onConfirm: () async {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) {
+            _showErrorSnackBar("You must be logged in to delete progress data");
+            return;
+          }
+          
+          try {
+            setState(() {
+              _loadingReminders[reminder["id"]] = true;
+            });
+            
+            final progressController = Provider.of<ProgressController>(context, listen: false);
+            await progressController.deleteProgressForReminder(reminder["id"]);
+            
+            setState(() {
+              _loadingReminders.remove(reminder["id"]);
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Progress history deleted successfully")),
+            );
+          } catch (e) {
+            setState(() {
+              _loadingReminders.remove(reminder["id"]);
+            });
+            _showErrorSnackBar("Failed to delete progress history: $e");
+          }
+        },
+      ),
+    );
   }
 }

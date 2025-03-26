@@ -153,10 +153,9 @@ class ProgressService {
     }
   }
   
-  /// Gets all progress entries for a user, filtered by active or deleted reminders
+  /// Gets all progress entries for a user
   Future<List<ProgressEntry>> getProgressEntries({
     required String userId, 
-    bool includeDeletedReminders = false,
     String? medicationId,
     String? reminderId,
     DateTime? startDate,
@@ -168,56 +167,23 @@ class ProgressService {
       if (userId.isEmpty) {
         throw Exception("User ID cannot be empty");
       }
-
+      
       log("user ID: $userId");
       
-      // First, get all relevant reminders to filter by their state
+      // First, get all relevant reminders
       final reminderPath = "users/$userId/reminders";
       
-      // Replace the reminder filtering section with this more robust approach:
-
-      List<Map<String, dynamic>> reminders;
-      if (includeDeletedReminders) {
-        // When includeDeletedReminders is true, get ALL reminders
-        reminders = await _firestoreService.queryCollectionWithIds(
-          collectionPath: reminderPath
-        );
-        log("Including both active and deleted reminders: ${reminders.length}");
-      } else {
-        // Try multiple approaches to get only active reminders
-        try {
-          // First attempt: explicit filter for non-deleted reminders
-          reminders = await _firestoreService.queryCollectionWithIds(
-            collectionPath: reminderPath,
-            filters: [{'field': 'isDeleted', 'operator': '!=', 'value': true}]
-          );
-          
-          // If first attempt returns nothing, try a more inclusive approach
-          if (reminders.isEmpty) {
-            reminders = await _firestoreService.queryCollectionWithIds(
-              collectionPath: reminderPath
-            );
-            
-            // Manually filter to keep only non-deleted reminders
-            reminders = reminders.where((r) => r['isDeleted'] != true).toList();
-            log("Found ${reminders.length} reminders after manual filtering");
-          }
-        } catch (e) {
-          // Fallback: get all reminders and filter them in memory
-          log("Error with filtered query: $e");
-          reminders = await _firestoreService.queryCollectionWithIds(
-            collectionPath: reminderPath
-          );
-          reminders = reminders.where((r) => r['isDeleted'] != true).toList();
-          log("Fallback: found ${reminders.length} reminders after manual filtering");
-        }
-      }
+      // Get all reminders (without filtering by deletion status since we don't have that field anymore)
+      final reminders = await _firestoreService.queryCollectionWithIds(
+        collectionPath: reminderPath
+      );
+      log("Found ${reminders.length} reminders");
       
       // Extract reminder IDs
       final reminderIds = reminders.map((r) => r['id'] as String).toList();
       
       if (reminderIds.isEmpty) {
-        log('No reminders found for filtering progress entries');
+        log("No reminders found");
         return [];
       }
       
@@ -253,13 +219,10 @@ class ProgressService {
         }
         
         if (endDate != null) {
-          // Create end of day timestamp for inclusive range
-          final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-          final endTimestamp = Timestamp.fromDate(endOfDay);
+          final endTimestamp = Timestamp.fromDate(endDate);
           batchFilters.add({'field': 'scheduledAt', 'operator': '<=', 'value': endTimestamp});
         }
         
-        // Query progress entries with pagination
         final entries = await _firestoreService.queryCollectionWithIds(
           collectionPath: "users/$userId/progress",
           filters: batchFilters,
@@ -268,25 +231,25 @@ class ProgressService {
           startAfterDocument: lastDocument,
         );
         
-        // Convert to ProgressEntry objects and add to results
-        allEntries.addAll(entries.map((entry) => 
-          ProgressEntry.fromFirestore(entry, entry['id'] as String)).toList());
-          
-        // Stop if we've reached the page size
-        if (allEntries.length >= pageSize) {
-          break;
-        }
+        // Convert to ProgressEntry objects
+        final progressEntries = entries.map((e) => 
+          ProgressEntry.fromFirestore(e, e['id'] as String)
+        ).toList();
+        
+        allEntries.addAll(progressEntries);
       }
       
-      // Limit the final result to the page size
+      // If we need to sort or limit the combined results
       if (allEntries.length > pageSize) {
-        allEntries = allEntries.sublist(0, pageSize);
+        allEntries.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+        allEntries = allEntries.take(pageSize).toList();
       }
       
+      log("Returning ${allEntries.length} progress entries");
       return allEntries;
     } catch (e) {
       log('Error getting progress entries: $e');
-      throw Exception('Failed to load progress data: $e');
+      throw Exception("Failed to retrieve progress data: $e");
     }
   }
   
@@ -683,14 +646,12 @@ class ProgressService {
     required String medicationId,
     DateTime? startDate,
     DateTime? endDate,
-    bool includeDeletedReminders = false, // Add this parameter with a default value
   }) async {
     return getProgressEntries(
       userId: userId,
       medicationId: medicationId,
       startDate: startDate,
       endDate: endDate,
-      includeDeletedReminders: includeDeletedReminders,
     );
   }
   
@@ -700,11 +661,19 @@ class ProgressService {
     required String reminderId,
   }) async {
     try {
+      if (userId.isEmpty || reminderId.isEmpty) {
+        throw ArgumentError('User ID and reminder ID cannot be empty');
+      }
+      
+      log("Attempting to delete progress entries for reminder: $reminderId");
+      
       // Query all progress entries for this reminder
       final entries = await _firestoreService.queryCollectionWithIds(
         collectionPath: "users/$userId/progress",
         filters: [{'field': 'reminderId', 'operator': '==', 'value': reminderId}]
       );
+      
+      log("Found ${entries.length} progress entries to delete");
       
       // Delete each entry
       for (var entry in entries) {
@@ -715,8 +684,10 @@ class ProgressService {
       }
       
       log('Deleted all progress entries for reminder: $reminderId');
+      return;
     } catch (e) {
       log('Error deleting progress entries: $e');
+      throw Exception('Failed to delete progress entries: $e');
     }
   }
 

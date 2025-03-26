@@ -23,7 +23,6 @@ class ProgressOverviewScreen extends StatefulWidget {
 }
 
 class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with WidgetsBindingObserver {
-  bool _viewDeletedReminders = false;
   bool _isLoading = false;
   late ProgressController _progressController;
   StreamSubscription? _refreshSubscription;
@@ -143,33 +142,13 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
       children: [
         Flexible(
           child: Text(
-            "Progress Tracking",
+            "Progress Overview",
             style: TextStyle(
               fontSize: 20.sp,
               fontWeight: FontWeight.bold,
             ),
             overflow: TextOverflow.ellipsis,
           ),
-        ),
-        
-        // Toggle between active and deleted reminders
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Include Deleted",
-              style: TextStyle(fontSize: 11.sp),
-            ),
-            Switch(
-              value: _viewDeletedReminders,
-              onChanged: (value) {
-                setState(() {
-                  _viewDeletedReminders = value;
-                });
-                controller.toggleDeletedReminders(value);
-              },
-            ),
-          ],
         ),
       ],
     );
@@ -431,6 +410,25 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
         ),
       );
     }
+
+    if (controller.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 2.h),
+            Text(
+              "Loading progress data...",
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     
     if (controller.entries.isEmpty) {
       return Center(
@@ -458,9 +456,7 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
                 ),
                 SizedBox(height: 1.h),
                 Text(
-                  _viewDeletedReminders
-                      ? "There is no progress data for deleted reminders in the selected time period."
-                      : "Start taking your medications to track your progress.",
+                  "Start taking your medications to track your progress.",
                   style: TextStyle(
                     fontSize: 14.sp,
                     color: Colors.grey[600],

@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eyedrop/features/progress/services/progress_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -263,13 +264,27 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
       
       // Delete associated reminders
       if (remindersToDelete.isNotEmpty) {
+        final progressService = ProgressService();
+        
         for (var reminder in remindersToDelete) {
+          // First delete the progress entries
+          try {
+            await progressService.deleteProgressEntriesForReminder(
+              userId: user.uid,
+              reminderId: reminder["id"],
+            );
+          } catch (e) {
+            log("Warning: Error deleting progress entries for reminder ${reminder["id"]}: $e");
+            // Continue with reminder deletion even if progress deletion fails
+          }
+          
+          // Then delete the reminder document
           await firestoreService.deleteDoc(
             collectionPath: "users/${user.uid}/reminders", 
             docId: reminder["id"]
           );
         }
-        log("Deleted ${remindersToDelete.length} associated reminder(s)");
+        log("Deleted ${remindersToDelete.length} associated reminder(s) and their progress history");
       }
       
       log("Medication deleted successfully");
