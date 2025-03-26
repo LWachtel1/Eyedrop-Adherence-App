@@ -23,7 +23,7 @@ class CustomSlideOutMenu extends StatelessWidget {
                   Expanded(child: DrawerItem(label: 'Medications', iconPath: 'assets/icons/medications_icon.svg', destinationScreen: MedicationsScreen())),
                   Expanded(child: DrawerItem(label: 'Reminders', iconPath: 'assets/icons/reminders_icon.svg', destinationScreen: RemindersScreen())),
                   Expanded(child: DrawerItem(label: 'Education', iconPath: 'assets/icons/education_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
-                  Expanded(child: DrawerItem(label: 'Aim', iconPath: 'assets/icons/aim_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
+                  Expanded(child: DrawerItem(label: 'Reviews', iconPath: 'assets/icons/reviews_icon.svg', destinationScreen: BaseLayoutScreen(child: null))),
                   Expanded(child: DrawerItem(label: 'Progress & Tracking', iconPath: 'assets/icons/progress+tracking_icon.svg', destinationScreen: ProgressOverviewScreen())),
                 ],
               ),
