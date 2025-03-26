@@ -453,8 +453,8 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                 ? (takenCount / totalCount * 100).roundToDouble() 
                 : 0.0;
             
-            // Total of takenFlex + missedFlex must equal 100 for proper proportion
-            final takenFlex = adherencePercentage.round();
+            // Calculate bar proportions based on percentages, not raw counts
+            final takenFlex = (adherencePercentage / 100 * 100).round();
             final missedFlex = 100 - takenFlex;
             
             // Ensure minimum visibility of each section if it has entries
@@ -562,8 +562,9 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
   final entriesByHour = <int, Map<String, int>>{};
   
   // Use the complete stats entries if available, otherwise use the displayed entries
-  final entriesToUse = controller.entries;
-  
+  final entriesToUse = controller.statsEntries.isNotEmpty ? 
+    controller.statsEntries : controller.entries;  
+
   for (final entry in entriesToUse) {
     final hour = entry.hour;
     
