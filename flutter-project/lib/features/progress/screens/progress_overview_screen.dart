@@ -233,7 +233,6 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
     final adherencePercentage = stats['adherencePercentage'] ?? 0.0;
     final takenCount = stats['takenCount'] ?? 0;
     final missedCount = stats['missedCount'] ?? 0;
-    final adherenceStreak = stats['adherenceStreak'] ?? 0;
     
     return Card(
       elevation: 2,
@@ -272,12 +271,7 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
                   Icons.thumb_down,
                   Colors.red,
                 ),
-                _buildStatItem(
-                  "$adherenceStreak",
-                  "Day Streak",
-                  Icons.local_fire_department,
-                  Colors.orange,
-                ),
+                
               ],
             ),
           ],

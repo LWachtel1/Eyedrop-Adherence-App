@@ -736,116 +736,72 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
   Map<String, dynamic>? orderBy,
   int? limit,
   String? startAfterDocument,
-  bool noCache = false, // Add this parameter
+  bool noCache = false,
 }) async {
   try {
     // Start building the query
     Query query = _firestore.collection(collectionPath);
     
-    // Apply no-cache option if requested
-    if (noCache) {
-      query = query.withConverter(
-        fromFirestore: (snapshot, _) {
-          final data = snapshot.data() ?? {};
-          data['id'] = snapshot.id;
-          return data;
-        },
-        toFirestore: (data, _) => Map<String, dynamic>.from(data),
-      ).get(GetOptions(source: Source.server)).then((snapshot) => 
-        snapshot.docs.map((doc) => doc.data()).toList()
-      ) as Query;
-    }
-    
     // Apply filters
     if (filters != null && filters.isNotEmpty) {
       for (var filter in filters) {
-        if (filter.containsKey('field') && 
-            filter.containsKey('operator') && 
-            filter.containsKey('value')) {
-          String field = filter['field'] as String;
-          String operator = filter['operator'] as String;
-          dynamic value = filter['value'];
-
-          switch (operator) {
-            case '==':
-              query = query.where(field, isEqualTo: value);
-              break;
-            case '!=':
-              query = query.where(field, isNotEqualTo: value);
-              break;
-            case '>':
-              query = query.where(field, isGreaterThan: value);
-              break;
-            case '>=':
-              query = query.where(field, isGreaterThanOrEqualTo: value);
-              break;
-            case '<':
-              query = query.where(field, isLessThan: value);
-              break;
-            case '<=':
-              query = query.where(field, isLessThanOrEqualTo: value);
-              break;
-            case 'in':
-              if (value is List) {
-                query = query.where(field, whereIn: value);
-              }
-              break;
-            case 'array-contains':
-              query = query.where(field, arrayContains: value);
-              break;
-            default:
-              log('Unsupported operator: $operator');
-          }
+        final field = filter['field'] as String;
+        final operator = filter['operator'] as String;
+        final value = filter['value'];
+        
+        if (operator == "==") {
+          query = query.where(field, isEqualTo: value);
+        } else if (operator == ">") {
+          query = query.where(field, isGreaterThan: value);
+        } else if (operator == ">=") {
+          query = query.where(field, isGreaterThanOrEqualTo: value);
+        } else if (operator == "<") {
+          query = query.where(field, isLessThan: value);
+        } else if (operator == "<=") {
+          query = query.where(field, isLessThanOrEqualTo: value);
+        } else if (operator == "array-contains") {
+          query = query.where(field, arrayContains: value);
         }
       }
-    }
-
-    // Apply ordering
-    if (orderBy != null && 
-        orderBy.containsKey('field') && 
-        orderBy['field'] is String) {
-      bool descending = orderBy.containsKey('descending') && 
-                        orderBy['descending'] == true;
-      query = query.orderBy(
-        orderBy['field'] as String, 
-        descending: descending
-      );
     }
     
-    // Apply pagination using startAfter
-    if (startAfterDocument != null) {
-      try {
-        // Get the document to start after
-        DocumentSnapshot startDoc = await _firestore
-          .collection(collectionPath)
-          .doc(startAfterDocument)
-          .get();
-          
-        if (startDoc.exists) {
-          query = query.startAfterDocument(startDoc);
-        }
-      } catch (e) {
-        log('Error getting start document: $e');
-        // Continue without pagination if there's an error
+    // Apply sorting
+    if (orderBy != null && orderBy.containsKey('field')) {
+      final field = orderBy['field'] as String;
+      final isDescending = orderBy.containsKey('descending') ? orderBy['descending'] as bool : false;
+      query = query.orderBy(field, descending: isDescending);
+    }
+    
+    // Apply pagination starting point
+    if (startAfterDocument != null && startAfterDocument.isNotEmpty) {
+      final docSnapshot = await _firestore.collection(collectionPath).doc(startAfterDocument).get();
+      if (docSnapshot.exists) {
+        query = query.startAfterDocument(docSnapshot);
       }
     }
-
+    
     // Apply limit
     if (limit != null && limit > 0) {
       query = query.limit(limit);
     }
-
-    final querySnapshot = await query.get();
-    final docs = querySnapshot.docs;
-
-    return docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
+    
+    // Execute query with cache option
+    QuerySnapshot querySnapshot;
+    if (noCache) {
+      querySnapshot = await query.get(GetOptions(source: Source.server));
+    } else {
+      querySnapshot = await query.get();
+    }
+    
+    // Convert results to list of maps
+    return querySnapshot.docs.map((doc) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       data['id'] = doc.id;
       return data;
     }).toList();
   } catch (e) {
-    log('Error querying collection: $e');
-    throw Exception('Failed to query collection: $e');
+    log("Error querying collection with IDs: $e");
+    return [];
   }
 }
 

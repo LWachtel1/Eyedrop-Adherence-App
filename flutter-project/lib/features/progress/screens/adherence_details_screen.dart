@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:math' as Math;
 
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
@@ -227,10 +228,9 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
   final missedCount = stats['missedCount'] ?? 0;
   final totalCount = stats['totalCount'] ?? 0;
   final adherenceStreak = stats['adherenceStreak'] ?? 0;
-  final dailyStreak = stats['dailyStreak'] ?? 0;
-  final weeklyStreak = stats['weeklyStreak'] ?? 0;
-  final monthlyStreak = stats['monthlyStreak'] ?? 0;
   final averageResponseDelay = stats['averageResponseDelayMs'] ?? 0;
+  
+ 
   
   // Determine adherence color based on percentage
   Color adherenceColor = Colors.red;
@@ -253,7 +253,7 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
           Text(
             "Overall Adherence",
             style: TextStyle(
-              fontSize: 16.sp,
+              fontSize: 18.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -263,18 +263,18 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
           Center(
             child: Column(
               children: [
-                Container(
-                  width: 30.w,
-                  height: 30.w,
+                SizedBox(
+                  height: 20.h,
+                  width: 20.h,
                   child: Stack(
                     children: [
                       Center(
                         child: SizedBox(
-                          width: 30.w,
-                          height: 30.w,
+                          height: 18.h,
+                          width: 18.h,
                           child: CircularProgressIndicator(
                             value: adherencePercentage / 100,
-                            strokeWidth: 12,
+                            strokeWidth: 10,
                             backgroundColor: Colors.grey[300],
                             valueColor: AlwaysStoppedAnimation<Color>(adherenceColor),
                           ),
@@ -323,46 +323,7 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
             ],
           ),
           
-          // Add streak details by schedule type
-          if (dailyStreak > 0 || weeklyStreak > 0 || monthlyStreak > 0) ...[
-            SizedBox(height: 2.h),
-            Divider(),
-            SizedBox(height: 1.h),
-            
-            Text(
-              "Streak Details",
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            
-            Wrap(
-              spacing: 2.w,
-              children: [
-                if (dailyStreak > 0)
-                  Chip(
-                    avatar: Icon(Icons.calendar_today, size: 16.sp, color: Colors.orange),
-                    label: Text("Daily: $dailyStreak day(s)"),
-                    backgroundColor: Colors.orange[50],
-                  ),
-                if (weeklyStreak > 0)
-                  Chip(
-                    avatar: Icon(Icons.date_range, size: 16.sp, color: Colors.blue),
-                    label: Text("Weekly: $weeklyStreak week(s)"),
-                    backgroundColor: Colors.blue[50],
-                  ),
-                if (monthlyStreak > 0)
-                  Chip(
-                    avatar: Icon(Icons.event_note, size: 16.sp, color: Colors.green),
-                    label: Text("Monthly: $monthlyStreak month(s)"),
-                    backgroundColor: Colors.green[50],
-                  ),
-              ],
-            ),
-          ],
-          
+       
           SizedBox(height: 2.h),
           Divider(),
           SizedBox(height: 1.h),
@@ -390,6 +351,51 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
           ),
         ],
       ),
+    ),
+  );
+}
+
+// Add a new widget to display medication streaks
+Widget _buildMedicationStreakRow({
+  required String medicationName,
+  required int streak,
+  required String streakType,
+  required IconData icon,
+  required Color color,
+}) {
+  String unit = streakType == 'daily' ? 'day(s)' : 
+               (streakType == 'weekly' ? 'week(s)' : 'month(s)');
+  log("streaktype $streakType streak $streak");
+  
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: 0.5.h),
+    child: Row(
+      children: [
+        Icon(icon, size: 16.sp, color: color),
+        SizedBox(width: 2.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                medicationName,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                "$streak $unit streak",
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     ),
   );
 }

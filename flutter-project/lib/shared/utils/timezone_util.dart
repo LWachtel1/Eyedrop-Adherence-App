@@ -83,4 +83,18 @@ class TimezoneUtil {
     final localTime = toLocalTime(dateTime);
     return localTime.hour;
   }
+  
+  /// Get the current timezone name
+  static String getCurrentTimezoneName() {
+    initialize();
+    final location = tz.local;
+    return location.name;
+  }
+  
+  /// Get the current timezone offset in minutes
+  static int getCurrentTimezoneOffset() {
+    initialize();
+    final now = DateTime.now();
+    return now.timeZoneOffset.inMinutes;
+  }
 }

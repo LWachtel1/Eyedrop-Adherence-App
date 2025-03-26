@@ -22,26 +22,19 @@ class ProgressService {
     required DateTime scheduledAt,
     required DateTime respondedAt,
     required String scheduleType,
+    String? medicationName, // Add this parameter
   }) async {
     // Validate inputs
-    if (userId.isEmpty) {
-      throw ArgumentError('User ID cannot be empty');
-    }
-    if (reminderId.isEmpty) {
-      throw ArgumentError('Reminder ID cannot be empty');
-    }
-    if (medicationId.isEmpty) {
-      throw ArgumentError('Medication ID cannot be empty');
-    }
-    if (respondedAt.isBefore(scheduledAt)) {
-      throw ArgumentError('Response time cannot be before scheduled time');
-    }
+    if (userId.isEmpty) throw ArgumentError("User ID cannot be empty");
+    if (reminderId.isEmpty) throw ArgumentError("Reminder ID cannot be empty");
+    if (medicationId.isEmpty) throw ArgumentError("Medication ID cannot be empty");
+    if (respondedAt.isBefore(scheduledAt)) throw ArgumentError("Response time cannot be before scheduled time");
     
     final responseDelayMs = respondedAt.difference(scheduledAt).inMilliseconds;
     
     // Validate reasonable response delay (max 24 hours)
     if (responseDelayMs < 0 || responseDelayMs > 86400000) { // 24 hours in milliseconds
-      throw ArgumentError('Response delay must be between 0 and 24 hours');
+      throw ArgumentError("Response delay must be between 0 and 24 hours");
     }
     
     // Use timezone utilities for consistent date handling
@@ -52,15 +45,17 @@ class ProgressService {
     final progressData = {
       'reminderId': reminderId,
       'medicationId': medicationId,
+      'medicationName': medicationName, // Add this field
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'respondedAt': Timestamp.fromDate(respondedAt),
       'responseDelayMs': responseDelayMs,
       'taken': true,
       'dayString': dayString,
-      'scheduleType': scheduleType.toLowerCase(), // Normalize schedule type
+      'scheduleType': scheduleType.toLowerCase(),
       'hour': hour,
-      'timezone': DateTime.now().timeZoneName, // Store timezone info
-      'timezoneOffset': DateTime.now().timeZoneOffset.inMinutes, // Store offset in minutes
+      'timezone': TimezoneUtil.getCurrentTimezoneName(),
+      'timezoneOffset': TimezoneUtil.getCurrentTimezoneOffset(),
+      'createdAt': FieldValue.serverTimestamp(),
     };
     
     try {
@@ -68,6 +63,7 @@ class ProgressService {
         path: "users/$userId/progress",
         data: progressData,
       );
+      
       log('Recorded medication taken: $reminderId at ${scheduledAt.toString()}');
     } catch (e) {
       log('Error recording medication taken: $e');
@@ -82,17 +78,12 @@ class ProgressService {
     required String medicationId,
     required DateTime scheduledAt,
     required String scheduleType,
+    String? medicationName, // Add this parameter
   }) async {
     // Validate inputs
-    if (userId.isEmpty) {
-      throw ArgumentError('User ID cannot be empty');
-    }
-    if (reminderId.isEmpty) {
-      throw ArgumentError('Reminder ID cannot be empty');
-    }
-    if (medicationId.isEmpty) {
-      throw ArgumentError('Medication ID cannot be empty');
-    }
+    if (userId.isEmpty) throw ArgumentError("User ID cannot be empty");
+    if (reminderId.isEmpty) throw ArgumentError("Reminder ID cannot be empty");
+    if (medicationId.isEmpty) throw ArgumentError("Medication ID cannot be empty");
     
     // Use timezone utilities for consistent date handling
     final localScheduledAt = TimezoneUtil.toLocalTime(scheduledAt);
@@ -102,15 +93,17 @@ class ProgressService {
     final progressData = {
       'reminderId': reminderId,
       'medicationId': medicationId,
+      'medicationName': medicationName, // Add this field
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'respondedAt': null,
       'responseDelayMs': null,
       'taken': false,
       'dayString': dayString,
-      'scheduleType': scheduleType.toLowerCase(), // Normalize schedule type
+      'scheduleType': scheduleType.toLowerCase(),
       'hour': hour,
-      'timezone': DateTime.now().timeZoneName, // Store timezone info
-      'timezoneOffset': DateTime.now().timeZoneOffset.inMinutes, // Store offset in minutes
+      'timezone': TimezoneUtil.getCurrentTimezoneName(),
+      'timezoneOffset': TimezoneUtil.getCurrentTimezoneOffset(),
+      'createdAt': FieldValue.serverTimestamp(),
     };
     
     try {
@@ -118,6 +111,7 @@ class ProgressService {
         path: "users/$userId/progress",
         data: progressData,
       );
+      
       log('Recorded medication missed: $reminderId at ${scheduledAt.toString()}');
     } catch (e) {
       log('Error recording medication missed: $e');
@@ -258,16 +252,7 @@ class ProgressService {
   /// Calculates adherence statistics for a set of progress entries
   Map<String, dynamic> calculateAdherenceStats(List<ProgressEntry> entries) {
     if (entries.isEmpty) {
-      return {
-        'adherencePercentage': 0.0,
-        'takenCount': 0,
-        'missedCount': 0,
-        'totalCount': 0,
-        'averageResponseDelayMs': 0,
-        'adherenceStreak': 0,
-        'weeklyStreak': 0,
-        'monthlyStreak': 0,
-      };
+      return _getEmptyStatsMap();
     }
     
     // Group entries by schedule type
@@ -295,140 +280,17 @@ class ProgressService {
         ? 0
         : responseDelays.reduce((a, b) => a + b) ~/ responseDelays.length;
     
-    // Calculate streaks with type-specific logic
-    int dailyStreak = _calculateDailyStreak(entries);
-    int weeklyStreak = _calculateWeeklyStreak(byScheduleType['weekly'] ?? []);
-    int monthlyStreak = _calculateMonthlyStreak(byScheduleType['monthly'] ?? []);
     
-    // Use the appropriate streak based on which schedule type is most frequent
-    int adherenceStreak = dailyStreak;
-    if ((byScheduleType['weekly']?.length ?? 0) > (byScheduleType['daily']?.length ?? 0)) {
-      adherenceStreak = weeklyStreak;
-    } else if (((byScheduleType['monthly']?.length ?? 0) > (byScheduleType['daily']?.length ?? 0)) && 
-               ((byScheduleType['monthly']?.length ?? 0) > (byScheduleType['weekly']?.length ?? 0))) {
-      adherenceStreak = monthlyStreak;
-    }
-    
+  
     return {
       'adherencePercentage': adherencePercentage,
       'takenCount': takenCount,
       'missedCount': totalCount - takenCount,
       'totalCount': totalCount,
       'averageResponseDelayMs': averageResponseDelayMs,
-      'adherenceStreak': adherenceStreak,
-      'dailyStreak': dailyStreak,
-      'weeklyStreak': weeklyStreak, 
-      'monthlyStreak': monthlyStreak,
     };
   }
   
-  /// Calculates the streak for daily medications
-  int _calculateDailyStreak(List<ProgressEntry> entries) {
-    if (entries.isEmpty) return 0;
-    
-    // Group entries by day
-    Map<String, List<ProgressEntry>> entriesByDay = {};
-    for (var entry in entries) {
-      if (!entriesByDay.containsKey(entry.dayString)) {
-        entriesByDay[entry.dayString] = [];
-      }
-      entriesByDay[entry.dayString]!.add(entry);
-    }
-    
-    // Sort days in descending order
-    List<String> sortedDays = entriesByDay.keys.toList()..sort((a, b) => b.compareTo(a));
-    
-    // Calculate streak
-    int streak = 0;
-    for (var day in sortedDays) {
-      var dayEntries = entriesByDay[day]!;
-      bool allTaken = dayEntries.every((e) => e.taken);
-      
-      if (allTaken) {
-        streak++;
-      } else {
-        break; // End streak on first day with missed medications
-      }
-    }
-    
-    return streak;
-  }
-  
-  /// Calculates the streak for weekly medications
-  int _calculateWeeklyStreak(List<ProgressEntry> entries) {
-    if (entries.isEmpty) return 0;
-    
-    // Group entries by week (using ISO week date)
-    Map<String, List<ProgressEntry>> entriesByWeek = {};
-    for (var entry in entries) {
-      // Parse the dayString to create a DateTime object
-      final date = DateFormat('yyyy-MM-dd').parse(entry.dayString);
-      // Create a week identifier (year + week number)
-      final weekYear = date.year;
-      final weekNumber = _getIsoWeekNumber(date);
-      final weekKey = '$weekYear-W$weekNumber';
-      
-      if (!entriesByWeek.containsKey(weekKey)) {
-        entriesByWeek[weekKey] = [];
-      }
-      entriesByWeek[weekKey]!.add(entry);
-    }
-    
-    // Sort weeks in descending order
-    List<String> sortedWeeks = entriesByWeek.keys.toList()..sort((a, b) => b.compareTo(a));
-    
-    // Calculate streak
-    int streak = 0;
-    for (var week in sortedWeeks) {
-      var weekEntries = entriesByWeek[week]!;
-      bool allTaken = weekEntries.every((e) => e.taken);
-      
-      if (allTaken) {
-        streak++;
-      } else {
-        break; // End streak on first week with missed medications
-      }
-    }
-    
-    return streak;
-  }
-  
-  /// Calculates the streak for monthly medications
-  int _calculateMonthlyStreak(List<ProgressEntry> entries) {
-    if (entries.isEmpty) return 0;
-    
-    // Group entries by month
-    Map<String, List<ProgressEntry>> entriesByMonth = {};
-    for (var entry in entries) {
-      // Parse the dayString to create a DateTime object
-      final date = DateFormat('yyyy-MM-dd').parse(entry.dayString);
-      // Create a month identifier (year + month)
-      final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-      
-      if (!entriesByMonth.containsKey(monthKey)) {
-        entriesByMonth[monthKey] = [];
-      }
-      entriesByMonth[monthKey]!.add(entry);
-    }
-    
-    // Sort months in descending order
-    List<String> sortedMonths = entriesByMonth.keys.toList()..sort((a, b) => b.compareTo(a));
-    
-    // Calculate streak
-    int streak = 0;
-    for (var month in sortedMonths) {
-      var monthEntries = entriesByMonth[month]!;
-      bool allTaken = monthEntries.every((e) => e.taken);
-      
-      if (allTaken) {
-        streak++;
-      } else {
-        break; // End streak on first month with missed medications
-      }
-    }
-    
-    return streak;
-  }
   
   /// Helper: Get ISO week number (1-53) from a date
   int _getIsoWeekNumber(DateTime date) {
@@ -490,17 +352,13 @@ class ProgressService {
     int averageResponseDelayMs = responseDelays.isEmpty 
         ? 0
         : responseDelays.reduce((a, b) => a + b) ~/ responseDelays.length;
-    
-    // Calculate streak
-    int adherenceStreak = _calculateDailyStreak(entries);
-    
+   
     return {
       'adherencePercentage': adherencePercentage,
       'takenCount': takenCount,
       'missedCount': totalCount - takenCount,
       'totalCount': totalCount,
       'averageResponseDelayMs': averageResponseDelayMs,
-      'adherenceStreak': adherenceStreak,
     };
   }
   
@@ -552,8 +410,7 @@ class ProgressService {
         ? 0
         : responseDelays.reduce((a, b) => a + b) ~/ responseDelays.length;
     
-    // Calculate streak
-    int adherenceStreak = _calculateWeeklyStreak(entries);
+    
     
     return {
       'adherencePercentage': weekAdherencePercentage, // Use week-based percentage
@@ -564,7 +421,6 @@ class ProgressService {
       'takenWeeks': takenWeeks,
       'totalWeeks': totalWeeks,
       'averageResponseDelayMs': averageResponseDelayMs,
-      'adherenceStreak': adherenceStreak,
     };
   }
   
@@ -614,8 +470,6 @@ class ProgressService {
         ? 0
         : responseDelays.reduce((a, b) => a + b) ~/ responseDelays.length;
     
-    // Calculate streak
-    int adherenceStreak = _calculateMonthlyStreak(entries);
     
     return {
       'adherencePercentage': monthAdherencePercentage, // Use month-based percentage
@@ -626,7 +480,6 @@ class ProgressService {
       'takenMonths': takenMonths,
       'totalMonths': totalMonths,
       'averageResponseDelayMs': averageResponseDelayMs,
-      'adherenceStreak': adherenceStreak,
     };
   }
   
@@ -638,7 +491,6 @@ class ProgressService {
       'missedCount': 0,
       'totalCount': 0,
       'averageResponseDelayMs': 0,
-      'adherenceStreak': 0,
     };
   }
   
@@ -796,4 +648,6 @@ class ProgressService {
       throw Exception('Failed to retrieve progress data for statistics: $e');
     }
   }
+
+  
 }

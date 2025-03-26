@@ -368,4 +368,25 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
     );
   }
 
+  /// Gets all medications for a user
+  Future<List<Map<String, dynamic>>> getMedications(String userId) async {
+    try {
+      // Get all eye medications
+      final eyeMeds = await firestoreService.getAllDocsWithIds(
+        collectionPath: "users/$userId/eye_medications"
+      );
+      
+      // Get all non-eye medications
+      final nonEyeMeds = await firestoreService.getAllDocsWithIds(
+        collectionPath: "users/$userId/noneye_medications"
+      );
+      
+      // Combine the two lists
+      return [...eyeMeds, ...nonEyeMeds];
+    } catch (e) {
+      log("Error getting medications: $e");
+      return [];
+    }
+  }
+
 }

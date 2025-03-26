@@ -6,6 +6,7 @@ class ProgressEntry {
   final String id;
   final String reminderId;
   final String medicationId;
+  final String? medicationName; // Add this field
   final DateTime scheduledAt;
   final DateTime? respondedAt;
   final int? responseDelayMs;
@@ -20,6 +21,7 @@ class ProgressEntry {
     required this.id,
     required this.reminderId,
     required this.medicationId,
+    this.medicationName, // Add this field
     required this.scheduledAt,
     this.respondedAt,
     this.responseDelayMs,
@@ -105,6 +107,7 @@ class ProgressEntry {
       id: id,
       reminderId: reminderId,
       medicationId: medicationId,
+      medicationName: data['medicationName'] as String?, // Add this field
       scheduledAt: scheduledAt,
       respondedAt: respondedAt,
       responseDelayMs: responseDelayMs,
@@ -122,6 +125,7 @@ class ProgressEntry {
     return {
       'reminderId': reminderId,
       'medicationId': medicationId,
+      'medicationName': medicationName, // Add this field
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
       'responseDelayMs': responseDelayMs,

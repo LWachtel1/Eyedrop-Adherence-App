@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:async';
+import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:flutter/foundation.dart';
@@ -103,7 +104,7 @@ class ProgressController extends ChangeNotifier {
           noCache: forceRefresh,
         );
         
-        // Calculate statistics from complete data
+     
         _stats = _progressService.calculateAdherenceStats(_statsEntries);
         _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
       }
@@ -459,4 +460,20 @@ Future<void> _refreshStatsOnly() async {
         triggerRefresh();
       });
   }
+
+  /// Updates progress statistics using the provided entries
+  /// This method allows for safely updating all stats from an external source
+  void updateStatsFromEntries(List<ProgressEntry> allEntries) {
+    if (!_isActive) return;
+    
+ 
+    
+    _statsEntries = allEntries;
+    _stats = _progressService.calculateAdherenceStats(allEntries);
+    _scheduleTypeStats = _progressService.calculateScheduleTypeStats(allEntries);
+    
+    notifyListeners();
+  }
+
+
 }
