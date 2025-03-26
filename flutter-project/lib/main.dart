@@ -30,6 +30,11 @@ import 'package:eyedrop/features/settings/screens/settings_screen.dart';
 import 'package:eyedrop/features/notifications/services/notification_verification_service.dart';
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 
+// Add these imports at the top of your file
+import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
+import 'package:eyedrop/features/schedule/screens/weekly_schedule_screen.dart';
+import 'package:eyedrop/features/schedule/screens/monthly_schedule_screen.dart';
+
 // Global navigator key for notification navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -158,8 +163,11 @@ class MyApp extends StatelessWidget {
         MedicationsScreen.id: (BuildContext context) => MedicationsScreen(),
         SettingsScreen.id: (BuildContext context) => SettingsScreen(),
         ProgressOverviewScreen.id: (BuildContext context) => ProgressOverviewScreen(),
-        ScheduleScreen.id: (BuildContext context) => ScheduleScreen(), // Add this line
-
+        ScheduleScreen.id: (BuildContext context) => ScheduleScreen(),
+        // Add the new routes:
+        DailyScheduleScreen.id: (BuildContext context) => DailyScheduleScreen(),
+        WeeklyScheduleScreen.id: (BuildContext context) => WeeklyScheduleScreen(),
+        MonthlyScheduleScreen.id: (BuildContext context) => MonthlyScheduleScreen(),
       },
       builder: (context, child) {
         return Stack(
