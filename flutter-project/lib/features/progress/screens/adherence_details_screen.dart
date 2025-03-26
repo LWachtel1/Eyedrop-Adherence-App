@@ -616,16 +616,9 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
             final timeFormat = DateFormat('h a');
             final timeString = timeFormat.format(DateTime(2022, 1, 1, hour));
             
-            // Calculate opacity safely (ensure it's between 0.1 and 1.0)
-            double opacity = 0.1;
-            if (totalCount > 0) {
-              // Ensure opacity is within valid range
-              opacity = (adherencePercentage / 100.0).clamp(0.1, 1.0);
-            }
-            
-            // Determine bar colors safely
-            Color takenColor = Colors.green.withOpacity(opacity);
-            Color missedColor = Colors.red.withOpacity(opacity);
+            // Calculate percentage-based flex values to ensure proper proportions
+            final takenPercentage = adherencePercentage.round();
+            final missedPercentage = 100 - takenPercentage;
             
             return Padding(
               padding: EdgeInsets.only(bottom: 1.5.h),
@@ -644,22 +637,26 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                         ),
                       ),
                       Expanded(
-                        child: Row(
+                        child: takenCount > 0 || missedCount > 0 ? Row(
                           children: [
-                            // Taken count bar
-                            Expanded(
-                              flex: takenCount > 0 ? takenCount : 1,
-                              child: Container(
-                                height: 2.5.h,
-                                decoration: BoxDecoration(
-                                  color: takenColor,
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(4),
-                                    bottomLeft: Radius.circular(4),
+                            // Key fix: Only show the taken bar if adherence > 0
+                            if (takenCount > 0)
+                              Expanded(
+                                flex: takenPercentage,
+                                child: Container(
+                                  height: 2.5.h,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      bottomLeft: Radius.circular(4),
+                                      // Add right-side radius if there are no missed meds
+                                      topRight: missedCount == 0 ? Radius.circular(4) : Radius.zero,
+                                      bottomRight: missedCount == 0 ? Radius.circular(4) : Radius.zero,
+                                    ),
                                   ),
-                                ),
-                                alignment: Alignment.center,
-                                child: takenCount > 0 
+                                  alignment: Alignment.center,
+                                  child: takenPercentage > 25
                                     ? Text(
                                         takenCount.toString(),
                                         style: TextStyle(
@@ -669,22 +666,26 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                                         ),
                                       )
                                     : SizedBox.shrink(),
-                              ),
-                            ),
-                            // Missed count bar
-                            Expanded(
-                              flex: missedCount > 0 ? missedCount : 1,
-                              child: Container(
-                                height: 2.5.h,
-                                decoration: BoxDecoration(
-                                  color: missedColor,
-                                  borderRadius: BorderRadius.only(
-                                    topRight: Radius.circular(4),
-                                    bottomRight: Radius.circular(4),
-                                  ),
                                 ),
-                                alignment: Alignment.center,
-                                child: missedCount > 0 
+                              ),
+                            // Key fix: Only show the missed bar if there are actually missed entries
+                            if (missedCount > 0)
+                              Expanded(
+                                flex: missedPercentage,
+                                child: Container(
+                                  height: 2.5.h,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.only(
+                                      topRight: Radius.circular(4),
+                                      bottomRight: Radius.circular(4),
+                                      // Add left-side radius if there are no taken meds
+                                      topLeft: takenCount == 0 ? Radius.circular(4) : Radius.zero,
+                                      bottomLeft: takenCount == 0 ? Radius.circular(4) : Radius.zero,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: missedPercentage > 25
                                     ? Text(
                                         missedCount.toString(),
                                         style: TextStyle(
@@ -694,9 +695,23 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                                         ),
                                       )
                                     : SizedBox.shrink(),
+                                ),
                               ),
-                            ),
                           ],
+                        ) : Container(
+                          height: 2.5.h,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            "No data",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 10.sp,
+                            ),
+                          ),
                         ),
                       ),
                     ],
