@@ -67,6 +67,7 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
     // Set up the listener
     _refreshSubscription = _progressController.refreshStream.listen((shouldRefresh) {
       if (shouldRefresh && mounted) {
+        // Actually reload the data, not just update UI
         _progressController.loadProgressData();
       }
     });

@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:eyedrop/features/progress/models/progress_entry.dart';
 import 'package:eyedrop/features/progress/services/progress_service.dart';
@@ -218,29 +219,57 @@ Map<String, List<ProgressEntry>> getEntriesByDay() {
     notifyListeners();
   }
 
-  // Add to constructor or create an initialization method
-  void initializeRealTimeUpdates() {
-    if (!_isActive) return;
-    
-    // Cancel any existing subscription
-    _progressStreamSubscription?.cancel();
-    
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    
-    // Check if the stream is already closed
-    if (_refreshTrigger.isClosed) return;
-    
-    // Listen for changes to progress entries
-    _progressStreamSubscription = _progressService.getProgressEntriesStream(user.uid)
-      .listen((_) {
-        if (!_isActive || _refreshTrigger.isClosed) return;
-        
-        log('Progress entries changed, refreshing data');
+  // Update the initializeRealTimeUpdates method:
+
+void initializeRealTimeUpdates() {
+  if (!_isActive) return;
+  
+  // Cancel any existing subscription
+  _progressStreamSubscription?.cancel();
+  
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+  
+  // Check if the stream is already closed
+  if (_refreshTrigger.isClosed) return;
+  
+  // Listen for changes to progress entries
+  _progressStreamSubscription = _progressService.getProgressEntriesStream(user.uid)
+    .listen((entries) {
+      if (!_isActive || _refreshTrigger.isClosed) return;
+      
+      log('Progress entries changed, refreshing data');
+      
+      // Special handling for the "entries deleted" case - check if our data differs
+      if (_entries.isNotEmpty && _areProgressEntriesChanged(entries)) {
+        log('Significant change detected - immediate refresh needed');
         // Trigger a refresh when data changes externally
         _refreshTrigger.add(true);
-      });
+      } else if (entries.isEmpty && _entries.isNotEmpty) {
+        // All entries were deleted
+        log('All entries deleted - immediate refresh needed');
+        _refreshTrigger.add(true);
+      } else {
+        // Standard refresh for small changes
+        _refreshTrigger.add(true);
+      }
+    });
+}
+
+// Add this helper method to check if progress entries have significantly changed
+bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
+  // Quick length check
+  if (_entries.length != firestoreEntries.length) {
+    return true;
   }
+  
+  // Count entries by ID in both collections
+  final currentIds = _entries.map((e) => e.id).toSet();
+  final firestoreIds = firestoreEntries.map((e) => e['id'] as String).toSet();
+  
+  // If the sets of IDs differ, data has changed
+  return !setEquals(currentIds, firestoreIds);
+}
 
   // Add a clean-up method
   @override
@@ -315,6 +344,13 @@ Map<String, List<ProgressEntry>> getEntriesByDay() {
       _hasError = true;
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Trigger a manual refresh of the progress data
+  void triggerRefresh() {
+    if (_isActive && !_refreshTrigger.isClosed) {
+      _refreshTrigger.add(true);
     }
   }
 }

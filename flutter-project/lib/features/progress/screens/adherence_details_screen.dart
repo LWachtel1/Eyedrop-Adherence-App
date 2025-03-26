@@ -36,9 +36,9 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
     final controller = Provider.of<ProgressController>(context, listen: false);
     _refreshSubscription = controller.refreshStream.listen((shouldRefresh) {
       if (shouldRefresh && mounted) {
-        setState(() {
-          // Trigger a rebuild with fresh data
-        });
+        // Actually reload the data, not just update UI
+        controller.loadProgressData();
+        setState(() {}); // Also trigger a UI update
       }
     });
   }

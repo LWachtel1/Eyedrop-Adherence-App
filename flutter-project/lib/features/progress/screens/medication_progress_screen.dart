@@ -43,9 +43,13 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
     final controller = Provider.of<ProgressController>(context, listen: false);
     _refreshSubscription = controller.refreshStream.listen((shouldRefresh) {
       if (shouldRefresh && mounted) {
-        setState(() {
-          // Trigger a rebuild with fresh data
-        });
+        // Actually reload the medications list and progress data
+        _loadMedications();
+        
+        // If a medication is selected, also reload its specific progress
+        if (controller.selectedMedicationId != null) {
+          controller.loadMedicationProgress(controller.selectedMedicationId!);
+        }
       }
     });
   }

@@ -1,10 +1,13 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'package:eyedrop/features/progress/services/progress_service.dart';
+import 'package:eyedrop/main.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Service class for handling reminder-related operations with FireStore.
@@ -237,6 +240,12 @@ class ReminderService {
         collectionPath: collectionPath, 
         docId: reminderId
       );
+      
+      // Add this line at the end, after successful deletion
+      // This will help to ensure fast UI updates on delete
+      // Change this line
+      Provider.of<ProgressController>(navigatorKey.currentContext!, listen: false)
+        .triggerRefresh();
       
       log("Reminder and associated progress entries deleted successfully");
     } on FirebaseException catch (e) {
