@@ -214,7 +214,21 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
       );
       
       if (pickedDateRange != null) {
-        controller.setDateRange(pickedDateRange.start, pickedDateRange.end);
+        // Fix: When end date is today, ensure we get the whole day
+        final endDate = pickedDateRange.end;
+        final now = DateTime.now();
+        
+        // Check if the selected end date is today
+        final isToday = endDate.year == now.year && 
+                      endDate.month == now.month && 
+                      endDate.day == now.day;
+                      
+        // If today is selected, use current time instead of midnight
+        final adjustedEndDate = isToday ? 
+            DateTime(now.year, now.month, now.day, now.hour, now.minute, now.second) : 
+            endDate;
+        
+        controller.setDateRange(pickedDateRange.start, adjustedEndDate);
         if (controller.hasError) {
           _showSnackBar(controller.errorMessage ?? "Error setting date range", isError: true);
         } else {

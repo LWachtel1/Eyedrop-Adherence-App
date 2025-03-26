@@ -609,12 +609,15 @@ class ProgressService {
       
       if (endDate != null) {
         // Include the full day of the end date
+
         final adjustedEndDate = DateTime(
           endDate.year, 
           endDate.month, 
           endDate.day, 
           23, 59, 59
         );
+        
+         
         
         filters.add({
           'field': 'scheduledAt',
