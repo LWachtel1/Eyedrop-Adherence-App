@@ -580,15 +580,30 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
           ),
           SizedBox(height: 2.h),
           
+          // Map over hours and create list items
           ...sortedHours.map((hour) {
             final takenCount = entriesByHour[hour]!['taken'] ?? 0;
             final missedCount = entriesByHour[hour]!['missed'] ?? 0;
             final totalCount = takenCount + missedCount;
+            
+            // Calculate adherence percentage safely
             final adherencePercentage = totalCount > 0 ? (takenCount / totalCount * 100) : 0;
             
             // Format hour for display (12-hour format with AM/PM)
             final timeFormat = DateFormat('h a');
             final timeString = timeFormat.format(DateTime(2022, 1, 1, hour));
+            
+            // Calculate opacity safely (ensure it's between 0.1 and 1.0)
+            // This is where the error was occurring
+            double opacity = 0.1;
+            if (totalCount > 0) {
+              // Ensure opacity is within valid range
+              opacity = (adherencePercentage / 100.0).clamp(0.1, 1.0);
+            }
+            
+            // Determine bar colors safely
+            Color takenColor = Colors.green.withOpacity(opacity);
+            Color missedColor = Colors.red.withOpacity(opacity);
             
             return Padding(
               padding: EdgeInsets.only(bottom: 1.5.h),
@@ -596,67 +611,81 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        timeString,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.bold,
+                      SizedBox(
+                        width: 20.w,
+                        child: Text(
+                          timeString,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                          ),
                         ),
                       ),
-                      Text(
-                        "Total: $totalCount",
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Colors.grey[700],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // Taken count bar
+                            Expanded(
+                              flex: takenCount,
+                              child: Container(
+                                height: 2.5.h,
+                                decoration: BoxDecoration(
+                                  color: takenColor,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(4),
+                                    bottomLeft: Radius.circular(4),
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: takenCount > 0 
+                                    ? Text(
+                                        takenCount.toString(),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10.sp,
+                                        ),
+                                      )
+                                    : SizedBox.shrink(),
+                              ),
+                            ),
+                            // Missed count bar
+                            Expanded(
+                              flex: missedCount,
+                              child: Container(
+                                height: 2.5.h,
+                                decoration: BoxDecoration(
+                                  color: missedColor,
+                                  borderRadius: BorderRadius.only(
+                                    topRight: Radius.circular(4),
+                                    bottomRight: Radius.circular(4),
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: missedCount > 0 
+                                    ? Text(
+                                        missedCount.toString(),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10.sp,
+                                        ),
+                                      )
+                                    : SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   SizedBox(height: 0.5.h),
-                  // Heat map style bar with gradient intensity
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Row(
-                      children: [
-                        if (takenCount > 0)
-                          Expanded(
-                            flex: takenCount,
-                            child: Container(
-                              height: 2.h,
-                              color: Colors.green.withOpacity(0.7 + (adherencePercentage / 300)),
-                            ),
-                          ),
-                        if (missedCount > 0)
-                          Expanded(
-                            flex: missedCount,
-                            child: Container(
-                              height: 2.h,
-                              color: Colors.red.withOpacity(0.7 + ((100 - adherencePercentage) / 300)),
-                            ),
-                          ),
-                      ],
+                  Text(
+                    "${adherencePercentage.toStringAsFixed(1)}% adherence (${takenCount}/${totalCount})",
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
                     ),
-                  ),
-                  SizedBox(height: 0.5.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Adherence: ${adherencePercentage.toStringAsFixed(1)}%",
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        "$takenCount taken, $missedCount missed",
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
