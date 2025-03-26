@@ -707,4 +707,93 @@ class ProgressService {
       return Stream.value([]);
     }
   }
+
+  /// Gets all progress entries for statistics calculation (no pagination)
+  Future<List<ProgressEntry>> getAllProgressEntriesForStats({
+    required String userId, 
+    String? medicationId,
+    String? reminderId,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool noCache = false,
+  }) async {
+    try {
+      if (userId.isEmpty) {
+        throw ArgumentError("User ID is required");
+      }
+      
+      // Build collection path
+      final collectionPath = "users/$userId/progress";
+      
+      // Create filters based on parameters
+      List<Map<String, dynamic>> filters = [];
+      
+      // Add medication filter if specified
+      if (medicationId != null && medicationId.isNotEmpty) {
+        filters.add({
+          'field': 'medicationId',
+          'operator': '==',
+          'value': medicationId,
+        });
+      }
+      
+      // Add reminder filter if specified
+      if (reminderId != null && reminderId.isNotEmpty) {
+        filters.add({
+          'field': 'reminderId',
+          'operator': '==',
+          'value': reminderId,
+        });
+      }
+      
+      // Add date range filters if specified
+      if (startDate != null) {
+        filters.add({
+          'field': 'scheduledAt',
+          'operator': '>=',
+          'value': Timestamp.fromDate(startDate),
+        });
+      }
+      
+      if (endDate != null) {
+        // Include the full day of the end date
+        final adjustedEndDate = DateTime(
+          endDate.year, 
+          endDate.month, 
+          endDate.day, 
+          23, 59, 59
+        );
+        
+        filters.add({
+          'field': 'scheduledAt',
+          'operator': '<=',
+          'value': Timestamp.fromDate(adjustedEndDate),
+        });
+      }
+      
+      // Query Firestore with filters and order by scheduledAt
+      final entriesData = await _firestoreService.queryCollectionWithIds(
+        collectionPath: collectionPath,
+        filters: filters.isEmpty ? null : filters,
+        orderBy: {'field': 'scheduledAt', 'descending': true},
+        noCache: noCache,
+        // No pagination parameters - get all entries
+      );
+      
+      // Convert to ProgressEntry objects
+      final allEntries = entriesData.map((data) {
+        try {
+          return ProgressEntry.fromFirestore(data, data['id'] ?? '');
+        } catch (e) {
+          log('Error parsing progress entry: $e');
+          return null;
+        }
+      }).whereType<ProgressEntry>().toList();
+      
+      return allEntries;
+    } catch (e) {
+      log('Error getting all progress entries for stats: $e');
+      throw Exception('Failed to retrieve progress data for statistics: $e');
+    }
+  }
 }

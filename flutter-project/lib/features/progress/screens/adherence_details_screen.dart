@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as Math;
 
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'package:eyedrop/features/progress/models/progress_entry.dart';
@@ -416,133 +417,154 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
   }
 
   Widget _buildScheduleTypeBreakdown(ProgressController controller) {
-    final scheduleTypeStats = controller.scheduleTypeStats;
-    
-    if (scheduleTypeStats.isEmpty) {
-      return SizedBox.shrink();
-    }
-    
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: EdgeInsets.all(3.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Schedule Type Breakdown",
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.bold,
-              ),
+  final scheduleTypeStats = controller.scheduleTypeStats;
+  
+  if (scheduleTypeStats.isEmpty) {
+    return SizedBox.shrink();
+  }
+  
+  return Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    child: Padding(
+      padding: EdgeInsets.all(3.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Schedule Type Breakdown",
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.bold,
             ),
-            SizedBox(height: 2.h),
+          ),
+          SizedBox(height: 2.h),
+          
+          ...scheduleTypeStats.entries.map((entry) {
+            final scheduleType = entry.key;
+            final stats = entry.value;
             
-            ...scheduleTypeStats.entries.map((entry) {
-              // Format schedule type for display
-              String scheduleType = entry.key;
-              scheduleType = scheduleType.substring(0, 1).toUpperCase() + scheduleType.substring(1);
-              
-              final stats = entry.value;
-              final adherencePercentage = stats['adherencePercentage'] ?? 0.0;
-              final takenCount = stats['takenCount'] ?? 0;
-              final missedCount = stats['missedCount'] ?? 0;
-              
-              // Complete schedule type breakdown visualization
-              return Padding(
-                padding: EdgeInsets.only(bottom: 2.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      scheduleType,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
+            final takenCount = stats['takenCount'] ?? 0;
+            final missedCount = stats['missedCount'] ?? 0;
+            final totalCount = takenCount + missedCount;
+            
+            // CRITICAL FIX: Calculate the adherence percentage correctly
+            final adherencePercentage = totalCount > 0 
+                ? (takenCount / totalCount * 100).roundToDouble() 
+                : 0.0;
+            
+            // Total of takenFlex + missedFlex must equal 100 for proper proportion
+            final takenFlex = adherencePercentage.round();
+            final missedFlex = 100 - takenFlex;
+            
+            // Ensure minimum visibility of each section if it has entries
+            final effectiveTakenFlex = takenCount > 0 ? Math.max<int>(takenFlex, 5) : 0;
+            final effectiveMissedFlex = missedCount > 0 ? Math.max(missedFlex, 5) : 0;
+            
+            // Complete schedule type breakdown visualization
+            return Padding(
+              padding: EdgeInsets.only(bottom: 2.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    scheduleType,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 0.5.h),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Row(
-                        children: [
-                          if (adherencePercentage > 0)
-                            Expanded(
-                              flex: adherencePercentage.toInt(),
-                              child: Container(
-                                height: 3.h,
-                                color: Colors.green,
-                                alignment: Alignment.center,
-                                child: adherencePercentage > 30
-                                    ? Text(
-                                        "${adherencePercentage.toInt()}%",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10.sp,
-                                        ),
-                                      )
-                                    : SizedBox(),
-                              ),
-                            ),
-                          if (adherencePercentage < 100)
-                            Expanded(
-                              flex: (100 - adherencePercentage).toInt(),
-                              child: Container(
-                                height: 3.h,
-                                color: Colors.red,
-                                alignment: Alignment.center,
-                                child: (100 - adherencePercentage) > 30
-                                    ? Text(
-                                        "${(100 - adherencePercentage).toInt()}%",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10.sp,
-                                        ),
-                                      )
-                                    : SizedBox(),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 0.5.h),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ),
+                  SizedBox(height: 0.5.h),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
                       children: [
-                        Text(
-                          "Taken: $takenCount",
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.green[700],
+                        if (takenCount > 0)
+                          Expanded(
+                            flex: effectiveTakenFlex,
+                            child: Container(
+                              height: 3.h,
+                              color: Colors.green,
+                              alignment: Alignment.center,
+                              child: effectiveTakenFlex > 25
+                                  ? Text(
+                                      "${adherencePercentage.round()}%",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10.sp,
+                                      ),
+                                    )
+                                  : SizedBox(),
+                            ),
                           ),
-                        ),
-                        Text(
-                          "Missed: $missedCount",
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.red[700],
+                        if (missedCount > 0)
+                          Expanded(
+                            flex: effectiveMissedFlex.toInt(),
+                            child: Container(
+                              height: 3.h,
+                              color: Colors.red,
+                              alignment: Alignment.center,
+                              child: effectiveMissedFlex > 25
+                                  ? Text(
+                                      "${(100 - adherencePercentage).round()}%",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10.sp,
+                                      ),
+                                    )
+                                  : SizedBox(),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
+                  ),
+                  SizedBox(height: 0.5.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Taken: $takenCount",
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                      Text(
+                        "Missed: $missedCount",
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      Text(
+                        "${adherencePercentage.round()}% adherence",
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTimeOfDayAnalysis(ProgressController controller) {
   // Group entries by hour of day
   final entriesByHour = <int, Map<String, int>>{};
   
-  for (final entry in controller.entries) {
+  // Use the complete stats entries if available, otherwise use the displayed entries
+  final entriesToUse = controller.entries;
+  
+  for (final entry in entriesToUse) {
     final hour = entry.hour;
     
     if (!entriesByHour.containsKey(hour)) {
@@ -594,7 +616,6 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
             final timeString = timeFormat.format(DateTime(2022, 1, 1, hour));
             
             // Calculate opacity safely (ensure it's between 0.1 and 1.0)
-            // This is where the error was occurring
             double opacity = 0.1;
             if (totalCount > 0) {
               // Ensure opacity is within valid range
@@ -626,7 +647,7 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                           children: [
                             // Taken count bar
                             Expanded(
-                              flex: takenCount,
+                              flex: takenCount > 0 ? takenCount : 1,
                               child: Container(
                                 height: 2.5.h,
                                 decoration: BoxDecoration(
@@ -651,7 +672,7 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
                             ),
                             // Missed count bar
                             Expanded(
-                              flex: missedCount,
+                              flex: missedCount > 0 ? missedCount : 1,
                               child: Container(
                                 height: 2.5.h,
                                 decoration: BoxDecoration(

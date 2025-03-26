@@ -32,6 +32,8 @@ class ProgressController extends ChangeNotifier {
   final BehaviorSubject<List<ProgressEntry>> _entriesSubject = BehaviorSubject<List<ProgressEntry>>();
   // Add this new field to track reminder changes
   StreamSubscription<List<Map<String, dynamic>>>? _reminderStreamSubscription;
+  // Add a new field to store all entries for statistics
+  List<ProgressEntry> _statsEntries = [];
   
   // Getters
   List<ProgressEntry> get entries => _entries;
@@ -49,6 +51,10 @@ class ProgressController extends ChangeNotifier {
   Stream<bool> get refreshStream => _refreshTrigger.stream;
   bool get isActive => _isActive;
   Stream<List<ProgressEntry>> get entriesStream => _entriesSubject.stream;
+  // Add this getter
+
+  // Getter for stats entries
+  List<ProgressEntry> get statsEntries => _statsEntries;
   
   /// Loads progress data with current filters
   Future<void> loadProgressData({
@@ -75,6 +81,7 @@ class ProgressController extends ChangeNotifier {
       if (user == null) {
         // User not authenticated 
         _entries = [];
+        _statsEntries = [];
         _stats = {};
         _scheduleTypeStats = {};
         _errorMessage = "You must be signed in to view progress data";
@@ -85,6 +92,21 @@ class ProgressController extends ChangeNotifier {
         return;
       }
 
+      // First, get ALL entries for statistics (no pagination)
+      if (reset) {
+        _statsEntries = await _progressService.getAllProgressEntriesForStats(
+          userId: user.uid,
+          medicationId: _selectedMedicationId,
+          reminderId: _selectedReminderId,
+          startDate: _startDate,
+          endDate: _endDate,
+          noCache: forceRefresh,
+        );
+        
+        // Calculate statistics from complete data
+        _stats = _progressService.calculateAdherenceStats(_statsEntries);
+        _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
+      }
 
       // Get the next page of entries
       final lastEntry = _entries.isNotEmpty ? _entries.last : null;
@@ -108,8 +130,6 @@ class ProgressController extends ChangeNotifier {
       }
       
       _hasMoreData = newEntries.length >= pageSize;
-      _stats = _progressService.calculateAdherenceStats(_entries);
-      _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_entries);
       
       // Add this line to update the stream
       if (!_entriesSubject.isClosed) {
@@ -261,15 +281,15 @@ void initializeRealTimeUpdates() {
       // Special handling for the "entries deleted" case - check if our data differs
       if (_entries.isNotEmpty && _areProgressEntriesChanged(entries)) {
         log('Significant change detected - immediate refresh needed');
-        // Trigger a refresh when data changes externally
+        // Trigger a complete refresh when data changes externally
         _refreshTrigger.add(true);
       } else if (entries.isEmpty && _entries.isNotEmpty) {
         // All entries were deleted
         log('All entries deleted - immediate refresh needed');
         _refreshTrigger.add(true);
       } else {
-        // Standard refresh for small changes
-        _refreshTrigger.add(true);
+        // Minor change, queue a background refresh for stats
+        _refreshStatsOnly();
       }
     });
 }
@@ -287,6 +307,38 @@ bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
   
   // If the sets of IDs differ, data has changed
   return !setEquals(currentIds, firestoreIds);
+}
+
+// Add this new method to refresh only the statistics
+Future<void> _refreshStatsOnly() async {
+  if (!_isActive) return;
+  
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    // Get fresh stats entries without updating the UI
+    _statsEntries = await _progressService.getAllProgressEntriesForStats(
+      userId: user.uid,
+      medicationId: _selectedMedicationId,
+      reminderId: _selectedReminderId,
+      startDate: _startDate,
+      endDate: _endDate,
+      noCache: true, // Force fresh data
+    );
+    
+    // Recalculate statistics
+    _stats = _progressService.calculateAdherenceStats(_statsEntries);
+    _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
+    
+    // Notify listeners but don't show loading state
+    if (_isActive) {
+      notifyListeners();
+    }
+  } catch (e) {
+    log('Error refreshing stats: $e');
+    // Don't update error state to avoid UI disruption
+  }
 }
 
   // Add a clean-up method
