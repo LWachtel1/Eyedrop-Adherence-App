@@ -48,30 +48,16 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
       // Ensure controller is ready for use
       _progressController.resetController();
       
-      // Initialize safely
+      // Initialize safely with the enhanced method
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          // Initialize both types of real-time updates
+          _progressController.initialize();
+          // Load initial data
           _progressController.loadProgressData();
-          _setupRealTimeUpdates();
         }
       });
     }
-  }
-  
-  void _setupRealTimeUpdates() {
-    // Cancel existing subscription if any
-    _refreshSubscription?.cancel();
-    
-    // Initialize real-time updates
-    _progressController.initializeRealTimeUpdates();
-    
-    // Set up the listener
-    _refreshSubscription = _progressController.refreshStream.listen((shouldRefresh) {
-      if (shouldRefresh && mounted) {
-        // Actually reload the data, not just update UI
-        _progressController.loadProgressData();
-      }
-    });
   }
 
   @override
@@ -364,153 +350,131 @@ class _ProgressOverviewScreenState extends State<ProgressOverviewScreen> with Wi
   // Replace the existing _buildProgressList method with this StreamBuilder approach
 
 Widget _buildProgressList(ProgressController controller) {
-  return StreamBuilder<List<ProgressEntry>>(
-    stream: controller.entriesStream,
-    builder: (context, snapshot) {
-      // Show loading state when initially connecting
-      if ((snapshot.connectionState == ConnectionState.waiting || controller.isLoading) && 
-          controller.entries.isEmpty) {
-        return Center(child: CircularProgressIndicator());
-      }
-      
-      // Handle errors
-      if (controller.hasError) {
-        return Center(
-          child: SingleChildScrollView(
-            physics: AlwaysScrollableScrollPhysics(),
+  return RefreshIndicator(
+    onRefresh: () async {
+      // Force a complete reload from the server
+      await _progressController.loadProgressData(reset: true, forceRefresh: true);
+    },
+    child: StreamBuilder<List<ProgressEntry>>(
+      stream: controller.entriesStream,
+      builder: (context, snapshot) {
+        // Handle connection states
+        if (snapshot.connectionState == ConnectionState.waiting && controller.entries.isEmpty) {
+          return Center(child: CircularProgressIndicator());
+        }
+        
+        // Complete the error handling section in _buildProgressList
+        if (snapshot.hasError) {
+          return Center(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 40.sp,
-                  color: Colors.red[300],
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  "Error Loading Data",
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 1.h),
-                Text(
-                  controller.errorMessage ?? "An unknown error occurred",
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: Colors.grey[700],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 2.h),
+                Icon(Icons.error_outline, color: Colors.red, size: 48),
+                SizedBox(height: 16),
+                Text("Error loading data: ${snapshot.error}"),
                 ElevatedButton(
-                  onPressed: () => controller.loadProgressData(),
-                  child: Text("Try Again"),
+                  onPressed: () => controller.loadProgressData(forceRefresh: true),
+                  child: Text("Retry"),
                 ),
               ],
             ),
-          ),
-        );
-      }
-      
-      // Use the entries from the stream if available, otherwise fall back to controller entries
-      final entries = snapshot.hasData 
-          ? snapshot.data! 
-          : controller.entries;
-      
-      if (entries.isEmpty) {
-        return Center(
-          child: SingleChildScrollView(
-            physics: AlwaysScrollableScrollPhysics(),
-            child: Padding(
-              padding: EdgeInsets.all(5.w),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 40.sp,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 2.h),
-                  Text(
-                    "Start taking your medications to track your progress.",
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: Colors.grey[600],
+          );
+        }
+        
+        // When we have data, use it
+        final entries = snapshot.data ?? controller.entries;
+        
+        if (entries.isEmpty) {
+          return Center(
+            child: SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.all(5.w),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.analytics_outlined,
+                      size: 40.sp,
+                      color: Colors.grey,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    SizedBox(height: 2.h),
+                    Text(
+                      "Start taking your medications to track your progress.",
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }
-      
-      // Group entries by day
-      final entriesByDay = controller.getEntriesByDay(entries);
-      final days = entriesByDay.keys.toList();
-      
-      return NotificationListener<ScrollNotification>(
-        onNotification: (ScrollNotification scrollInfo) {
-          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
-              !controller.isLoading && 
-              !controller.isLoadingMore &&
-              controller.hasMoreData) {
-            // We're at the bottom, load more data
-            controller.loadMoreData();
-          }
-          return false;
-        },
-        child: ListView.builder(
-          itemCount: days.length + (controller.isLoadingMore || controller.hasMoreData ? 1 : 0),
-          itemBuilder: (context, index) {
-            // Show loader at the end
-            if (index == days.length) {
-              return Center(
-                child: Padding(
-                  padding: EdgeInsets.all(2.h),
-                  child: controller.isLoadingMore
-                      ? CircularProgressIndicator(strokeWidth: 2)
-                      : controller.hasMoreData
-                          ? TextButton(
-                              onPressed: () => controller.loadMoreData(),
-                              child: Text("Load More"),
-                            )
-                          : Text("No more entries"),
-                ),
-              );
+          );
+        }
+        
+        // Group entries by day
+        final entriesByDay = controller.getEntriesByDay(entries);
+        final days = entriesByDay.keys.toList();
+        
+        return NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
+                !controller.isLoading && 
+                !controller.isLoadingMore &&
+                controller.hasMoreData) {
+              // We're at the bottom, load more data
+              controller.loadMoreData();
             }
-            
-            final dayString = days[index];
-            final dayEntries = entriesByDay[dayString]!;
-            // Use timezone utility to format day
-            final formattedDay = TimezoneUtil.formatDayString(dayString);
-            
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(2.w, 2.h, 0, 1.h),
-                  child: Text(
-                    formattedDay,
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
+            return false;
+          },
+          child: ListView.builder(
+            itemCount: days.length + (controller.isLoadingMore || controller.hasMoreData ? 1 : 0),
+            itemBuilder: (context, index) {
+              // Show loader at the end
+              if (index == days.length) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(2.h),
+                    child: controller.isLoadingMore
+                        ? CircularProgressIndicator(strokeWidth: 2)
+                        : controller.hasMoreData
+                            ? TextButton(
+                                onPressed: () => controller.loadMoreData(),
+                                child: Text("Load More"),
+                              )
+                            : Text("No more entries"),
+                  ),
+                );
+              }
+              
+              final dayString = days[index];
+              final dayEntries = entriesByDay[dayString]!;
+              // Use timezone utility to format day
+              final formattedDay = TimezoneUtil.formatDayString(dayString);
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(2.w, 2.h, 0, 1.h),
+                    child: Text(
+                      formattedDay,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                ...dayEntries.map((entry) => _buildProgressEntryCard(entry, controller)).toList(),
-              ],
-            );
-          },
-        ),
-      );
-    },
+                  ...dayEntries.map((entry) => _buildProgressEntryCard(entry, controller)).toList(),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    ),
   );
 }
 

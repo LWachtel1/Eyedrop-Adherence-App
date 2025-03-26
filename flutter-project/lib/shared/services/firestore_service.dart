@@ -736,14 +736,26 @@ Future<List<Map<String, dynamic>>> queryCollectionWithIds({
   Map<String, dynamic>? orderBy,
   int? limit,
   String? startAfterDocument,
+  bool noCache = false, // Add this parameter
 }) async {
   try {
-    if (collectionPath.isEmpty) {
-      throw Exception("Collection path cannot be empty");
-    }
-
+    // Start building the query
     Query query = _firestore.collection(collectionPath);
-
+    
+    // Apply no-cache option if requested
+    if (noCache) {
+      query = query.withConverter(
+        fromFirestore: (snapshot, _) {
+          final data = snapshot.data() ?? {};
+          data['id'] = snapshot.id;
+          return data;
+        },
+        toFirestore: (data, _) => Map<String, dynamic>.from(data),
+      ).get(GetOptions(source: Source.server)).then((snapshot) => 
+        snapshot.docs.map((doc) => doc.data()).toList()
+      ) as Query;
+    }
+    
     // Apply filters
     if (filters != null && filters.isNotEmpty) {
       for (var filter in filters) {
@@ -874,5 +886,30 @@ Stream<Map<String, dynamic>?> getDocumentStream({
   }
 }
 
+/// Add this method to get a fresh stream that bypasses cache
+Stream<List<Map<String, dynamic>>> getCollectionStreamWithIdsNoCache(String collectionPath) {
+  try {
+    return _firestore
+        .collection(collectionPath)
+        .snapshots(includeMetadataChanges: true)  // This captures server changes immediately
+        .map((snapshot) {
+          // Only process server documents, not cached ones
+          if (!snapshot.metadata.hasPendingWrites && snapshot.metadata.isFromCache == false) {
+            return snapshot.docs.map((doc) {
+              Map<String, dynamic> data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList();
+          }
+          // Return previous value to avoid duplicate updates
+          return <Map<String, dynamic>>[];
+        })
+        .where((list) => list.isNotEmpty) // Only emit when we have data
+        .cast<List<Map<String, dynamic>>>(); // Explicitly cast to preserve type information
+  } catch (e) {
+    log("Error getting collection stream with IDs (no cache): $e");
+    return Stream.value([]);
+  }
+}
 
 }

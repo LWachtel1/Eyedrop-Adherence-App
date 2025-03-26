@@ -162,6 +162,7 @@ class ProgressService {
     DateTime? endDate,
     int pageSize = 50,
     String? lastDocument,
+    bool noCache = false, // Add this parameter
   }) async {
     try {
       if (userId.isEmpty) {
@@ -229,6 +230,7 @@ class ProgressService {
           orderBy: {'field': 'scheduledAt', 'descending': true},
           limit: pageSize,
           startAfterDocument: lastDocument,
+          noCache: noCache, // Pass the parameter through
         );
         
         // Convert to ProgressEntry objects
@@ -698,7 +700,8 @@ class ProgressService {
     }
     
     try {
-      return _firestoreService.getCollectionStreamWithIds("users/$userId/progress");
+      // Use the no-cache version for real-time updates
+      return _firestoreService.getCollectionStreamWithIdsNoCache("users/$userId/progress");
     } catch (e) {
       log('Error creating progress entries stream: $e');
       return Stream.value([]);

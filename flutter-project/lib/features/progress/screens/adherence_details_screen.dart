@@ -65,6 +65,32 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
         child: StreamBuilder<List<ProgressEntry>>(
           stream: controller.entriesStream,
           builder: (context, snapshot) {
+            // Handle connection states
+            if (snapshot.connectionState == ConnectionState.waiting && controller.entries.isEmpty) {
+              return Center(child: CircularProgressIndicator());
+            }
+            
+            // Handle errors
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    SizedBox(height: 16),
+                    Text("Error loading data: ${snapshot.error}"),
+                    ElevatedButton(
+                      onPressed: () => controller.loadProgressData(forceRefresh: true),
+                      child: Text("Retry"),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
+            // Use data from stream or fallback to controller entries
+            final entries = snapshot.data ?? controller.entries;
+            
             return SingleChildScrollView(
               physics: AlwaysScrollableScrollPhysics(),
               child: Padding(

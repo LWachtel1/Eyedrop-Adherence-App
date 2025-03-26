@@ -393,18 +393,33 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
     return Consumer<ProgressController>(
       builder: (context, controller, child) {
         return StreamBuilder<List<ProgressEntry>>(
-          stream: controller.entriesStream,
-          builder: (context, snapshot) {
-            // Show loading state when initially connecting
-            if ((snapshot.connectionState == ConnectionState.waiting || controller.isLoading) && 
-                controller.entries.isEmpty) {
-              return Center(child: CircularProgressIndicator());
-            }
-            
-            // Use the entries from the stream if available, otherwise fall back to controller entries
-            final entries = snapshot.hasData 
-                ? snapshot.data! 
-                : controller.entries;
+        stream: controller.entriesStream,
+        builder: (context, snapshot) {
+          // Handle connection states
+          if (snapshot.connectionState == ConnectionState.waiting && controller.entries.isEmpty) {
+            return Center(child: CircularProgressIndicator());
+          }
+          
+          // Handle errors
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  SizedBox(height: 16),
+                  Text("Error loading data: ${snapshot.error}"),
+                  ElevatedButton(
+                    onPressed: () => controller.loadMedicationProgress(medication['id']),
+                    child: Text("Retry"),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          // When we have data, use it
+          final entries = snapshot.data ?? controller.entries;
             
             if (entries.isEmpty) {
               return Center(

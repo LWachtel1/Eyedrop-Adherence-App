@@ -1,5 +1,7 @@
 import 'dart:developer';
 import 'dart:async';
+import 'package:eyedrop/features/reminders/services/reminder_service.dart';
+import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:eyedrop/features/progress/models/progress_entry.dart';
@@ -28,6 +30,8 @@ class ProgressController extends ChangeNotifier {
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
   final BehaviorSubject<List<ProgressEntry>> _entriesSubject = BehaviorSubject<List<ProgressEntry>>();
+  // Add this new field to track reminder changes
+  StreamSubscription<List<Map<String, dynamic>>>? _reminderStreamSubscription;
   
   // Getters
   List<ProgressEntry> get entries => _entries;
@@ -47,7 +51,11 @@ class ProgressController extends ChangeNotifier {
   Stream<List<ProgressEntry>> get entriesStream => _entriesSubject.stream;
   
   /// Loads progress data with current filters
-  Future<void> loadProgressData({bool reset = true, int pageSize = 50}) async {
+  Future<void> loadProgressData({
+    bool reset = true, 
+    int pageSize = 50,
+    bool forceRefresh = false, // Add this parameter
+  }) async {
     if (!_isActive) return;
     
     if (reset) {
@@ -89,6 +97,7 @@ class ProgressController extends ChangeNotifier {
         endDate: _endDate,
         pageSize: pageSize,
         lastDocument: reset ? null : lastEntry?.id,
+        noCache: forceRefresh, // Pass through the force refresh flag
       );
       
       // If refreshing, replace entries; if paginating, append entries
@@ -306,6 +315,9 @@ bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
     _progressStreamSubscription?.cancel();
     _progressStreamSubscription = null;
     
+    _reminderStreamSubscription?.cancel();
+    _reminderStreamSubscription = null;
+    
     // Close streams safely
     if (!_refreshTrigger.isClosed) {
       _refreshTrigger.close();
@@ -365,5 +377,34 @@ bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
     if (_isActive && !_refreshTrigger.isClosed) {
       _refreshTrigger.add(true);
     }
+  }
+
+  // Add this method to initialize the controller
+  void initialize() {
+    if (!_isActive) return;
+    
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    initializeRealTimeUpdates();
+    initializeReminderUpdates(user.uid);
+  }
+
+  // Add this new method to listen for reminder changes
+  void initializeReminderUpdates(String userId) {
+    // Cancel existing subscription if any
+    _reminderStreamSubscription?.cancel();
+    
+    // Get a reference to the ReminderService
+    final reminderService = ReminderService(FirestoreService());
+    
+    // Listen to the reminders collection for changes
+    _reminderStreamSubscription = reminderService.buildRemindersStream(userId)
+      .listen((reminders) {
+        if (!_isActive || _refreshTrigger.isClosed) return;
+        
+        log('Reminders collection changed, refreshing progress data');
+        triggerRefresh();
+      });
   }
 }
