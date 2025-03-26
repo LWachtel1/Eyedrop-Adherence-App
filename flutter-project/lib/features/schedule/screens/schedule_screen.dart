@@ -25,10 +25,6 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  // View options
-  bool _showDayView = true;
-  bool _showScheduleTypeView = true;
-  
   // For pending notifications data
   List<Map<String, dynamic>> _pendingNotifications = [];
   Map<String, Map<String, dynamic>> _reminderDataById = {};
@@ -169,13 +165,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // View toggle
+          // Header
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
             child: Row(
               children: [
                 Text(
-                  'Upcoming Reminders',
+                  'Schedule Overview',
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
@@ -186,54 +182,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   icon: Icon(Icons.refresh, size: 20.sp),
                   onPressed: _loadData,
                   tooltip: 'Refresh',
-                ),
-                // View selector button with dropdown menu
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    _getViewIcon(),
-                    size: 20.sp,
-                  ),
-                  tooltip: 'Change view',
-                  onSelected: (value) {
-                    setState(() {
-                      if (value == 'schedule_type') {
-                        _showScheduleTypeView = true;
-                        _showDayView = true;
-                      } else if (value == 'day') {
-                        _showScheduleTypeView = false;
-                        _showDayView = true;
-                      } else if (value == 'card') {
-                        _showScheduleTypeView = false;
-                        _showDayView = false;
-                      }
-                    });
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    PopupMenuItem<String>(
-                      value: 'schedule_type',
-                      child: ListTile(
-                        leading: Icon(Icons.category),
-                        title: Text('Schedule Type View'),
-                        selected: _showScheduleTypeView,
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'day',
-                      child: ListTile(
-                        leading: Icon(Icons.view_day),
-                        title: Text('Day View'),
-                        selected: !_showScheduleTypeView && _showDayView,
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'card',
-                      child: ListTile(
-                        leading: Icon(Icons.view_module),
-                        title: Text('Card View'),
-                        selected: !_showScheduleTypeView && !_showDayView,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -274,17 +222,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             _buildEmptyState()
           else
             Expanded(
-              child: _showScheduleTypeView
-                  ? _buildScheduleTypeButtons()
-                  : (_showDayView
-                      ? _buildDayView()
-                      : _buildReminderCardView()),
+              child: _buildScheduleTypeButtons(),
             ),
         ],
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Expanded(
       child: Center(
@@ -323,429 +267,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ),
     );
   }
-  
-  Widget _buildDayView() {
-    // Get sorted days
-    final sortedDays = _scheduledRemindersByDay.keys.toList()..sort();
-    
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-      itemCount: sortedDays.length,
-      itemBuilder: (context, index) {
-        final dayString = sortedDays[index];
-        
-        // Ensure all reminders for this day are properly sorted by time
-        final reminders = _scheduledRemindersByDay[dayString]!;
-        reminders.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
-        
-        // Format day string for display
-        final date = DateFormat('yyyy-MM-dd').parse(dayString);
-        final now = DateTime.now();
-        final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
-        final isTomorrow = date.year == now.year && date.month == now.month && date.day == now.day + 1;
-        
-        String dayLabel = DateFormat('EEEE, MMMM d').format(date);
-        if (isToday) {
-          dayLabel = 'Today - $dayLabel';
-        } else if (isTomorrow) {
-          dayLabel = 'Tomorrow - $dayLabel';
-        }
-        
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: 2.h, bottom: 1.h),
-              child: Text(
-                dayLabel,
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: isToday ? Colors.blue : Colors.grey[800],
-                ),
-              ),
-            ),
-            ...reminders.map((reminder) => _buildReminderTimeRow(reminder)).toList(),
-            Divider(thickness: 1),
-          ],
-        );
-      },
-    );
-  }
-  
-  Widget _buildReminderTimeRow(ScheduledReminder reminder) {
-    final timeString = DateFormat('h:mm a').format(reminder.scheduledTime);
-    
-    return InkWell(
-      onTap: () => _navigateToReminderDetails(reminder.reminderData),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 1.h),
-        child: Row(
-          children: [
-            Container(
-              width: 18.w,
-              child: Text(
-                timeString,
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
-                ),
-              ),
-            ),
-            SizedBox(width: 2.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    reminder.medicationName,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (reminder.reminderData['doseQuantity'] != null && 
-                      reminder.reminderData['doseUnits'] != null)
-                    Text(
-                      '${_formatDoseQuantity(reminder.reminderData['doseQuantity'])} ${reminder.reminderData['doseUnits']}',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (reminder.reminderData['medicationType'] == 'Eye Medication' &&
-                reminder.reminderData['applicationSite'] != null)
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  reminder.reminderData['applicationSite'],
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildReminderCardView() {
-    // Group notifications by medication+reminder ID combination
-    final reminderGroups = <String, List<ScheduledReminder>>{};
-    final now = DateTime.now();
 
-    
-    // First, group all scheduled reminders by their reminder ID
-    _scheduledRemindersByDay.forEach((day, reminders) {
-      for (var reminder in reminders) {
-        final key = reminder.reminderId;
-        if (!reminderGroups.containsKey(key)) {
-          reminderGroups[key] = [];
-        }
-        reminderGroups[key]!.add(reminder);
-      }
-    });
-    
-    // Sort each group by time (ascending order)
-    reminderGroups.forEach((reminderId, reminders) {
-      reminders.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
-    });
-    final medicationReminders = reminderGroups.entries.map((entry) {
-    final group = entry.value;
-
-    // Sort by scheduled time
-    group.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
-
-    // Pick the next upcoming or fallback to the earliest past one
-    final upcoming = group.firstWhere(
-      (r) => r.scheduledTime.isAfter(now),
-      orElse: () => group.first,
-    );
-
-    return upcoming.copyWith(scheduledNotifications: group);
-  }).toList();
-
-      
-    return GridView.builder(
-      padding: EdgeInsets.all(3.w),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.8,
-        crossAxisSpacing: 2.w,
-        mainAxisSpacing: 2.h,
-      ),
-      itemCount: medicationReminders.length,
-      itemBuilder: (context, index) {
-        final reminder = medicationReminders[index];
-        return _buildReminderCard(reminder);
-      },
-    );
-  }
-
-  Widget _buildReminderCard(ScheduledReminder reminder) {
-    final reminderData = reminder.reminderData;
-    final isEnabled = reminderData['isEnabled'] ?? true;
-    final isExpired = reminderData['isExpired'] == true;
-    
-    // Format next time
-    final nextTimeString = DateFormat('h:mm a').format(reminder.scheduledTime);
-    final nextDateString = DateFormat('E, MMM d').format(reminder.scheduledTime);
-    
-    // Count upcoming reminders for this medication
-    final upcomingCount = _pendingCountByReminder[reminder.reminderId] ?? 0;
-       // Count total scheduled notifications for today and future
-              final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-              final todayNotifications = reminder.scheduledNotifications?.where(
-                (r) => DateFormat('yyyy-MM-dd').format(r.scheduledTime) == today
-              )?.toList() ?? [];
-              
-              final futureNotifications = reminder.scheduledNotifications?.where(
-                (r) => DateFormat('yyyy-MM-dd').format(r.scheduledTime).compareTo(today) > 0
-              )?.toList() ?? [];
-              
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      color: isExpired ? Colors.red[50] : (isEnabled ? null : Colors.grey[100]),
-      child: InkWell(
-        onTap: () => _navigateToReminderDetails(reminder.reminderData),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: EdgeInsets.all(3.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(1.w),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.medication_outlined,
-                      size: 16.sp,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                  SizedBox(width: 1.w),
-                  Expanded(
-                    child: Text(
-                      reminder.medicationName,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
-              ),
-              Divider(),
-              
-              // Next dose
-              Text(
-                "Next Reminder:",
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
-              ),
-              SizedBox(height: 0.5.h),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14.sp, color: Colors.blue[700]),
-                  SizedBox(width: 1.w),
-                  Text(
-                    nextTimeString,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                nextDateString,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: Colors.grey[600],
-                ),
-              ),
-              
-              SizedBox(height: 1.h),
-              
-           
-              
-              // Show all scheduled times for today
-              if (todayNotifications.isNotEmpty)...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "All Times Today:",
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    SizedBox(height: 0.5.h),
-                    Wrap(
-                      spacing: 1.w,
-                      children: todayNotifications.map((r) {
-                        final timeStr = DateFormat('h:mm a').format(r.scheduledTime);
-                        final now = DateTime.now();
-                        final isPast = r.scheduledTime.isBefore(now);
-                        
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 0.5.h),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 2.w, 
-                            vertical: 0.3.h
-                          ),
-                          decoration: BoxDecoration(
-                            color: isPast ? Colors.grey[200] : Colors.blue[50],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            timeStr,
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              color: isPast ? Colors.grey[600] : Colors.blue[700],
-                              decoration: isPast ? TextDecoration.lineThrough : null,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-                
-                // Show count of future days with notifications
-                if (futureNotifications.isNotEmpty)...[
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 0.5.h),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      "${futureNotifications.length} more upcoming reminder${futureNotifications.length != 1 ? 's' : ''}",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-              
-              // Dosage info
-              if (reminderData['doseQuantity'] != null && reminderData['doseUnits'] != null)
-                Row(
-                  children: [
-                    Icon(Icons.medication, size: 14.sp, color: Colors.grey[700]),
-                    SizedBox(width: 1.w),
-                    Text(
-                      '${_formatDoseQuantity(reminderData['doseQuantity'])} ${reminderData['doseUnits']}',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              
-              // Application site for eye medications
-              if (reminderData['medicationType'] == 'Eye Medication' && 
-                  reminderData['applicationSite'] != null)
-                Padding(
-                  padding: EdgeInsets.only(top: 0.5.h),
-                  child: Row(
-                    children: [
-                      Icon(Icons.remove_red_eye, size: 14.sp, color: Colors.grey[700]),
-                      SizedBox(width: 1.w),
-                      Text(
-                        reminderData['applicationSite'],
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              
-              Spacer(),
-              
-              // Upcoming count
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 0.5.h),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  "$upcomingCount upcoming reminder${upcomingCount != 1 ? 's' : ''}",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _navigateToReminderDetails(Map<String, dynamic> reminderData) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReminderDetailScreen(reminder: reminderData),
-      ),
-    );
-  }
-  
-  String _formatDoseQuantity(dynamic quantity) {
-    if (quantity == null) return '';
-    
-    if (quantity is int) return quantity.toString();
-    if (quantity is double) {
-      // Format to remove trailing zeros if it's a whole number
-      return quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 1);
-    }
-    
-    return quantity.toString();
-  }
-  
-  // Add this method to create navigation buttons to the specialized schedule screens
   Widget _buildScheduleTypeButtons() {
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.all(4.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,84 +282,122 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               color: Colors.grey[800],
             ),
           ),
-          SizedBox(height: 3.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildScheduleTypeButton(
-                title: "Daily",
-                icon: Icons.today,
-                color: Colors.green,
-                onTap: () => Navigator.pushNamed(context, DailyScheduleScreen.id),
-              ),
-              _buildScheduleTypeButton(
-                title: "Weekly",
-                icon: Icons.view_week,
-                color: Colors.blue,
-                onTap: () => Navigator.pushNamed(context, WeeklyScheduleScreen.id),
-              ),
-              _buildScheduleTypeButton(
-                title: "Monthly",
-                icon: Icons.calendar_month,
-                color: Colors.purple,
-                onTap: () => Navigator.pushNamed(context, MonthlyScheduleScreen.id),
-              ),
-            ],
+          SizedBox(height: 2.h),
+          Text(
+            "Choose the type of schedule you want to view:",
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: Colors.grey[600],
+            ),
           ),
           SizedBox(height: 3.h),
-          Divider(thickness: 1),
           
+          // Daily button - larger and more prominent
+          _buildLargeScheduleButton(
+            title: "Daily Reminders",
+            description: "View medications scheduled on a daily basis",
+            icon: Icons.today,
+            color: Colors.green,
+            onTap: () => Navigator.pushNamed(context, DailyScheduleScreen.id),
+          ),
+          
+          SizedBox(height: 2.h),
+          
+          // Weekly button
+          _buildLargeScheduleButton(
+            title: "Weekly Reminders",
+            description: "View medications scheduled weekly",
+            icon: Icons.view_week,
+            color: Colors.blue,
+            onTap: () => Navigator.pushNamed(context, WeeklyScheduleScreen.id),
+          ),
+          
+          SizedBox(height: 2.h),
+          
+          // Monthly button
+          _buildLargeScheduleButton(
+            title: "Monthly Reminders",
+            description: "View medications scheduled monthly",
+            icon: Icons.calendar_month,
+            color: Colors.purple,
+            onTap: () => Navigator.pushNamed(context, MonthlyScheduleScreen.id),
+          ),
+          
+          SizedBox(height: 4.h),
+          
+         
         ],
       ),
     );
   }
 
-  Widget _buildScheduleTypeButton({
-    required String title, 
-    required IconData icon, 
+  Widget _buildLargeScheduleButton({
+    required String title,
+    required String description,
+    required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: 25.w,
-        padding: EdgeInsets.all(2.w),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 24.sp,
-              color: color,
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.bold,
-                color: color,
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(3.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(3.w),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 26.sp,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+              SizedBox(width: 4.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    SizedBox(height: 0.5.h),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: color,
+                size: 18.sp,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Add this helper method to get the appropriate icon for the current view
-  IconData _getViewIcon() {
-    if (_showScheduleTypeView) return Icons.category;
-    if (_showDayView) return Icons.view_day;
-    return Icons.view_module;
-  }
+  
 }
 
 /// Helper class to represent a scheduled reminder
