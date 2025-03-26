@@ -8,6 +8,7 @@ import 'dart:developer';
 import 'package:eyedrop/features/auth/controllers/auth_checker.dart';
 import 'package:eyedrop/features/progress/screens/progress_overview_screen.dart';
 import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
+import 'package:eyedrop/features/schedule/screens/schedule_screen.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/features/auth/screens/auth_gate.dart';
 import 'package:eyedrop/features/medications/controllers/medication_form_controller.dart';
@@ -157,6 +158,8 @@ class MyApp extends StatelessWidget {
         MedicationsScreen.id: (BuildContext context) => MedicationsScreen(),
         SettingsScreen.id: (BuildContext context) => SettingsScreen(),
         ProgressOverviewScreen.id: (BuildContext context) => ProgressOverviewScreen(),
+        ScheduleScreen.id: (BuildContext context) => ScheduleScreen(), // Add this line
+
       },
       builder: (context, child) {
         return Stack(

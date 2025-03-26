@@ -38,6 +38,9 @@ class NotificationService {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   
+  // A cache to track all scheduled notifications
+  final Map<String, List<Map<String, dynamic>>> _scheduledNotificationsCache = {};
+  
   factory NotificationService() => _instance;
   
   NotificationService._internal();
@@ -162,7 +165,8 @@ class NotificationService {
     final minute = scheduledTime.minute;
     final timeString = '$hour:$minute';
     final notificationId = '${reminderId}_$timeString'.hashCode;
-    
+    final scheduledTimestamp = scheduledTime.millisecondsSinceEpoch.toString();
+
     log('Attempting to schedule notification: ID=$notificationId, time=${scheduledTime.toString()}');
     
     // Build notification details.
@@ -172,8 +176,8 @@ class NotificationService {
     );
     
     try {
-      // Creates payload string with key reminder data.
-      final payload = '$reminderId|$medicationId|$medicationName';
+      // Creates payload string with key reminder data including scheduled time.
+      final payload = '$reminderId|$medicationId|$medicationName|$scheduledTimestamp';
       
       // Schedules notification.
       await _localNotifications.zonedSchedule(
@@ -185,6 +189,20 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: payload,
       );
+      
+      // Save this notification to our cache
+      if (!_scheduledNotificationsCache.containsKey(reminderId)) {
+        _scheduledNotificationsCache[reminderId] = [];
+      }
+      
+      _scheduledNotificationsCache[reminderId]!.add({
+        'id': notificationId,
+        'reminderId': reminderId,
+        'medicationId': medicationId,
+        'medicationName': medicationName,
+        'scheduledTime': scheduledTime.millisecondsSinceEpoch,
+        'payload': payload
+      });
       
       log('Successfully scheduled notification for $medicationName at ${scheduledTime.toString()}');
       return notificationId;
@@ -244,6 +262,9 @@ class NotificationService {
           }
         }
       }
+      
+      // Clear this reminder from our cache
+      _scheduledNotificationsCache.remove(reminderId);
       
       log('Cancelled $cancelCount notifications for reminder: $reminderId');
     } catch (e) {
@@ -709,7 +730,9 @@ class NotificationService {
     
     try {
       await _localNotifications.cancelAll();
-      log('Cancelled all notifications');
+      // Clear our cache
+      _scheduledNotificationsCache.clear();
+      log('All notifications cancelled');
     } catch (e) {
       log('Error cancelling all notifications: $e');
     }
@@ -812,6 +835,77 @@ class NotificationService {
       return await _localNotifications.pendingNotificationRequests();
     } catch (e) {
       log('Error getting pending notification requests: $e');
+      return [];
+    }
+  }
+
+  /// Gets all pending notification requests with complete information
+  Future<List<Map<String, dynamic>>> getPendingNotificationsWithInfo() async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      final pendingRequests = await _localNotifications.pendingNotificationRequests();
+      
+      return pendingRequests.map((request) {
+        final payload = request.payload?.split('|') ?? [];
+        
+        return {
+          'id': request.id,
+          'title': request.title ?? 'Medication Reminder',
+          'body': request.body ?? '',
+          'reminderId': payload.isNotEmpty ? payload[0] : '',
+          'medicationId': payload.length > 1 ? payload[1] : '',
+          'medicationName': payload.length > 2 ? payload[2] : 'Medication',
+        };
+      }).toList();
+    } catch (e) {
+      log('Error getting pending notifications with info: $e');
+      return [];
+    }
+  }
+
+  /// Add this method to get all cached notifications
+  Future<List<Map<String, dynamic>>> getAllScheduledNotifications() async {
+    if (!_isInitialized) await initialize();
+    
+    final List<Map<String, dynamic>> allNotifications = [];
+    
+    try {
+      // First, get the actual pending notifications from the system
+      final pendingRequests = await _localNotifications.pendingNotificationRequests();
+      
+      // Create a set of notification IDs that are actually pending
+      final Set<int> pendingIds = pendingRequests.map((req) => req.id).toSet();
+      
+      // Flatten our cache and filter to only include notifications that are still pending
+      // or scheduled for the future
+      final now = DateTime.now().millisecondsSinceEpoch;
+      
+      for (final reminderNotifications in _scheduledNotificationsCache.values) {
+        for (final notification in reminderNotifications) {
+          // Only include if it's still pending (in the system) or scheduled for the future
+          final scheduledTime = notification['scheduledTime'] as int;
+          if (pendingIds.contains(notification['id']) || scheduledTime > now) {
+            // Create a fake PendingNotificationRequest-like object
+            allNotifications.add({
+              'id': notification['id'],
+              'title': 'Medication Reminder',
+              'body': 'Time to take ${notification['medicationName']}',
+              'payload': notification['payload'],
+              'scheduledDateTime': DateTime.fromMillisecondsSinceEpoch(scheduledTime),
+            });
+          }
+        }
+      }
+      
+      // Sort by scheduled time
+      allNotifications.sort((a, b) => 
+        (a['scheduledDateTime'] as DateTime).compareTo(b['scheduledDateTime'] as DateTime)
+      );
+      
+      return allNotifications;
+    } catch (e) {
+      log('Error getting all scheduled notifications: $e');
       return [];
     }
   }
