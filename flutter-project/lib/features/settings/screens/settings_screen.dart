@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:eyedrop/features/notifications/controllers/notification_controller.dart';
@@ -123,7 +124,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             SizedBox(height: 1.h),
             Text(
-              "Paste JSON-formatted progress entry data to simulate progress tracking",
+              "Paste JSON-formatted progress entry data to simulate progress tracking\n\nYou can paste a single entry object {} or an array of entries [{}, {}, {}]",
               style: TextStyle(
                 fontSize: 12.sp,
                 color: Colors.grey[700],
@@ -162,7 +163,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
   
-  /// Uploads a progress entry from JSON text
+  /// Uploads progress entries from JSON text (either a single entry or an array of entries)
   void _uploadProgressEntry(BuildContext context, String jsonText) async {
     final progressService = ProgressService();
     final user = FirebaseAuth.instance.currentUser;
@@ -176,39 +177,95 @@ class SettingsScreen extends StatelessWidget {
       // Parse the JSON text
       final jsonData = json.decode(jsonText);
       
-      // Validate essential fields
-      if (!_validateProgressEntry(jsonData)) {
-        _showSnackBar(context, "Invalid progress entry format - missing required fields", isError: true);
+      // Process the JSON based on whether it's an array or a single object
+      List<Map<String, dynamic>> entries = [];
+      
+      if (jsonData is List) {
+        // Handle array of entries
+        for (var item in jsonData) {
+          if (item is Map<String, dynamic>) {
+            entries.add(item);
+          } else {
+            _showSnackBar(context, "Invalid entry format in array - must be JSON objects", isError: true);
+            return;
+          }
+        }
+      } else if (jsonData is Map<String, dynamic>) {
+        // Handle single entry
+        entries.add(jsonData);
+      } else {
+        _showSnackBar(context, "Invalid JSON format - must be an object or array of objects", isError: true);
         return;
       }
       
-      // Convert timestamps to DateTime objects if they are strings
-      final scheduledAt = _parseDateTime(jsonData['scheduledAt']);
-      final respondedAt = jsonData['respondedAt'] != null ? _parseDateTime(jsonData['respondedAt']) : null;
-      
-      // Call the appropriate method based on whether the medication was taken
-      if (jsonData['taken'] == true && respondedAt != null) {
-        await progressService.recordMedicationTaken(
-          userId: user.uid,
-          reminderId: jsonData['reminderId'],
-          medicationId: jsonData['medicationId'],
-          scheduledAt: scheduledAt,
-          respondedAt: respondedAt,
-          scheduleType: jsonData['scheduleType'] ?? 'daily',
-        );
-      } else {
-        await progressService.recordMedicationMissed(
-          userId: user.uid,
-          reminderId: jsonData['reminderId'],
-          medicationId: jsonData['medicationId'],
-          scheduledAt: scheduledAt,
-          scheduleType: jsonData['scheduleType'] ?? 'daily',
-        );
+      if (entries.isEmpty) {
+        _showSnackBar(context, "No valid entries found in JSON", isError: true);
+        return;
       }
       
-      _showSnackBar(context, "Progress entry uploaded successfully");
+      // Process each entry
+      int successCount = 0;
+      int errorCount = 0;
+      List<String> errors = [];
+      
+      for (var entry in entries) {
+        try {
+          // Validate essential fields
+          if (!_validateProgressEntry(entry)) {
+            errors.add("Entry missing required fields");
+            errorCount++;
+            continue;
+          }
+          
+          // Convert timestamps to DateTime objects if they are strings
+          final scheduledAt = _parseDateTime(entry['scheduledAt']);
+          final respondedAt = entry['respondedAt'] != null ? _parseDateTime(entry['respondedAt']) : null;
+          
+          // Call the appropriate method based on whether the medication was taken
+          if (entry['taken'] == true && respondedAt != null) {
+            await progressService.recordMedicationTaken(
+              userId: user.uid,
+              reminderId: entry['reminderId'],
+              medicationId: entry['medicationId'],
+              scheduledAt: scheduledAt,
+              respondedAt: respondedAt,
+              scheduleType: entry['scheduleType'] ?? 'daily',
+            );
+          } else {
+            await progressService.recordMedicationMissed(
+              userId: user.uid,
+              reminderId: entry['reminderId'],
+              medicationId: entry['medicationId'],
+              scheduledAt: scheduledAt,
+              scheduleType: entry['scheduleType'] ?? 'daily',
+            );
+          }
+          
+          successCount++;
+        } catch (e) {
+          errors.add(e.toString());
+          errorCount++;
+        }
+      }
+      
+      // Show result
+      if (errorCount == 0) {
+        _showSnackBar(context, "Successfully uploaded $successCount progress entries");
+      } else if (successCount == 0) {
+        _showSnackBar(context, "Failed to upload any entries: ${errors.first}", isError: true);
+      } else {
+        _showSnackBar(context, "Uploaded $successCount entries with $errorCount errors", isError: true);
+      }
+      
+      // Refresh progress data if any entries were successfully uploaded
+      if (successCount > 0) {
+        // Find and refresh the progress controller if available
+        final progressController = Provider.of<ProgressController>(context, listen: false);
+        progressController.triggerRefresh();
+      }
+      
     } catch (e) {
-      _showSnackBar(context, "Error uploading progress entry: ${e.toString()}", isError: true);
+      _showSnackBar(context, "Error parsing JSON: ${e.toString()}", isError: true);
     }
   }
   
