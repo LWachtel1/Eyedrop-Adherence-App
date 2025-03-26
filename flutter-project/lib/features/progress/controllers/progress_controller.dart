@@ -27,6 +27,7 @@ class ProgressController extends ChangeNotifier {
   final BehaviorSubject<bool> _refreshTrigger = BehaviorSubject<bool>.seeded(false);
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
+  final BehaviorSubject<List<ProgressEntry>> _entriesSubject = BehaviorSubject<List<ProgressEntry>>();
   
   // Getters
   List<ProgressEntry> get entries => _entries;
@@ -43,6 +44,7 @@ class ProgressController extends ChangeNotifier {
   bool get hasMoreData => _hasMoreData;
   Stream<bool> get refreshStream => _refreshTrigger.stream;
   bool get isActive => _isActive;
+  Stream<List<ProgressEntry>> get entriesStream => _entriesSubject.stream;
   
   /// Loads progress data with current filters
   Future<void> loadProgressData({bool reset = true, int pageSize = 50}) async {
@@ -99,6 +101,11 @@ class ProgressController extends ChangeNotifier {
       _hasMoreData = newEntries.length >= pageSize;
       _stats = _progressService.calculateAdherenceStats(_entries);
       _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_entries);
+      
+      // Add this line to update the stream
+      if (!_entriesSubject.isClosed) {
+        _entriesSubject.add(_entries);
+      }
       
     } catch (e) {
       log('Error loading progress data: $e');
@@ -177,11 +184,13 @@ class ProgressController extends ChangeNotifier {
     }
   }
   
-  // Add to ProgressController class
-Map<String, List<ProgressEntry>> getEntriesByDay() {
+  // Update the getEntriesByDay method to accept an optional entries parameter
+
+Map<String, List<ProgressEntry>> getEntriesByDay([List<ProgressEntry>? entriesParam]) {
+  final entriesToUse = entriesParam ?? _entries;
   final entriesByDay = <String, List<ProgressEntry>>{};
   
-  for (final entry in _entries) {
+  for (final entry in entriesToUse) {
     if (!entriesByDay.containsKey(entry.dayString)) {
       entriesByDay[entry.dayString] = [];
     }
@@ -297,9 +306,13 @@ bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
     _progressStreamSubscription?.cancel();
     _progressStreamSubscription = null;
     
-    // Close stream safely
+    // Close streams safely
     if (!_refreshTrigger.isClosed) {
       _refreshTrigger.close();
+    }
+  
+    if (!_entriesSubject.isClosed) {
+      _entriesSubject.close();
     }
   }
 

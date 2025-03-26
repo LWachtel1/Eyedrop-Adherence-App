@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:eyedrop/features/medications/services/medication_service.dart';
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
+import 'package:eyedrop/features/progress/models/progress_entry.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -391,160 +392,168 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
   Widget _buildMedicationProgressDetails(Map<String, dynamic> medication) {
     return Consumer<ProgressController>(
       builder: (context, controller, child) {
-        if (controller.isLoading && controller.entries.isEmpty) {
-          return Center(child: CircularProgressIndicator());
-        }
-        
-        if (controller.entries.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(5.w),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 40.sp,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 2.h),
-                  Text(
-                    "No Progress Data",
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 1.h),
-                  Text(
-                    "There is no progress data for this medication in the selected time period.",
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-        
-        final stats = controller.stats;
-        final adherencePercentage = stats['adherencePercentage'] ?? 0.0;
-        final takenCount = stats['takenCount'] ?? 0;
-        final missedCount = stats['missedCount'] ?? 0;
-        final totalCount = stats['totalCount'] ?? 0;
-        
-        // Group entries by day for display
-        final entriesByDay = controller.getEntriesByDay();
-        final days = entriesByDay.keys.toList();
-        
-        return NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification scrollInfo) {
-            if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
-                !controller.isLoading && 
-                !controller.isLoadingMore &&
-                controller.hasMoreData) {
-              // We're at the bottom, load more data
-              controller.loadMoreData();
+        return StreamBuilder<List<ProgressEntry>>(
+          stream: controller.entriesStream,
+          builder: (context, snapshot) {
+            // Show loading state when initially connecting
+            if ((snapshot.connectionState == ConnectionState.waiting || controller.isLoading) && 
+                controller.entries.isEmpty) {
+              return Center(child: CircularProgressIndicator());
             }
-            return false;
-          },
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Overall stats
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: EdgeInsets.all(3.w),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+            
+            // Use the entries from the stream if available, otherwise fall back to controller entries
+            final entries = snapshot.hasData 
+                ? snapshot.data! 
+                : controller.entries;
+            
+            if (entries.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(5.w),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.analytics_outlined,
+                        size: 40.sp,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        "No progress data for this medication",
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 1.h),
+                      Text(
+                        "Take your medication to start tracking your progress",
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            
+            // Calculate adherence stats
+            final stats = controller.stats;
+            final adherencePercentage = stats['adherencePercentage'] ?? 0.0;
+            final takenCount = stats['takenCount'] ?? 0;
+            final missedCount = stats['missedCount'] ?? 0;
+            final totalCount = stats['totalCount'] ?? 0;
+            
+            // Group entries by day for display
+            final entriesByDay = controller.getEntriesByDay(entries);
+            final days = entriesByDay.keys.toList();
+            
+            return NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification scrollInfo) {
+                if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
+                    !controller.isLoading && 
+                    !controller.isLoadingMore &&
+                    controller.hasMoreData) {
+                  // We're at the bottom, load more data
+                  controller.loadMoreData();
+                }
+                return false;
+              },
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Adherence statistics
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      child: Padding(
+                        padding: EdgeInsets.all(3.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildStatColumn(
-                              "${adherencePercentage.toStringAsFixed(1)}%",
-                              "Adherence",
-                              adherencePercentage >= 80 ? Colors.green : Colors.red,
+                            Text(
+                              "Adherence Statistics",
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            _buildStatColumn(
-                              "$takenCount",
-                              "Taken",
-                              Colors.green,
-                            ),
-                            _buildStatColumn(
-                              "$missedCount",
-                              "Missed",
-                              Colors.red,
-                            ),
-                            _buildStatColumn(
-                              "$totalCount",
-                              "Total",
-                              Colors.blue,
+                            SizedBox(height: 2.h),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatColumn(
+                                  "${adherencePercentage.toStringAsFixed(1)}%", 
+                                  "Adherence", 
+                                  _getAdherenceColor(adherencePercentage)
+                                ),
+                                _buildStatColumn("$takenCount", "Taken", Colors.green),
+                                _buildStatColumn("$missedCount", "Missed", Colors.red),
+                                _buildStatColumn("$totalCount", "Total", Colors.blue),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                SizedBox(height: 3.h),
-                
-                // Timeline of entries
-                Text(
-                  "History",
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 1.h),
-                
-                for (final dayString in days) ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 1.h),
-                    child: Text(
-                      controller.formatDayString(dayString),
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  ...entriesByDay[dayString]!.map((entry) => _buildEntryCard(entry, controller)).toList(),
-                  Divider(),
-                ],
-                
-                // Loading indicator for pagination
-                if (controller.isLoadingMore)
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2.h),
-                      child: CircularProgressIndicator(),
+                    
+                    SizedBox(height: 2.h),
+                    
+                    // Progress entries by day
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: days.length,
+                      itemBuilder: (context, index) {
+                        final dayString = days[index];
+                        final dayEntries = entriesByDay[dayString]!;
+                        final formattedDay = controller.formatDayString(dayString);
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(top: 2.h, bottom: 1.h),
+                              child: Text(
+                                formattedDay,
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            ...dayEntries.map((entry) => _buildEntryCard(entry, controller)).toList(),
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                
-                // Load more button
-                if (controller.hasMoreData && !controller.isLoadingMore)
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2.h),
-                      child: OutlinedButton.icon(
-                        icon: Icon(Icons.refresh),
-                        label: Text("Load More"),
-                        onPressed: () => controller.loadMoreData(),
+                    
+                    // Loading indicator for pagination
+                    if (controller.isLoadingMore || controller.hasMoreData)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(2.h),
+                          child: controller.isLoadingMore
+                              ? CircularProgressIndicator(strokeWidth: 2)
+                              : controller.hasMoreData
+                                  ? TextButton(
+                                      onPressed: () => controller.loadMoreData(),
+                                      child: Text("Load More"),
+                                    )
+                                  : SizedBox(),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -637,5 +646,12 @@ class _MedicationProgressScreenState extends State<MedicationProgressScreen> {
         ),
       ),
     );
+  }
+
+  Color _getAdherenceColor(double percentage) {
+    if (percentage >= 80) return Colors.green;
+    if (percentage >= 60) return Colors.orange;
+    if (percentage >= 40) return Colors.amber;
+    return Colors.red;
   }
 }

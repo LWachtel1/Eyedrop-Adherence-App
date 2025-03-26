@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
+import 'package:eyedrop/features/progress/models/progress_entry.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -61,51 +62,66 @@ class _AdherenceDetailsScreenState extends State<AdherenceDetailsScreen> {
           final controller = Provider.of<ProgressController>(context, listen: false);
           await controller.loadProgressData();
         },
-        child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        child: StreamBuilder<List<ProgressEntry>>(
+          stream: controller.entriesStream,
+          builder: (context, snapshot) {
+            return SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Text(
+                          "Overall Adherence",
+                          style: TextStyle(
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      "Overall Adherence",
-                      style: TextStyle(
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    
+                    SizedBox(height: 3.h),
+                    
+                    // Date range indicator
+                    _buildDateRangeInfo(controller),
+                    
+                    SizedBox(height: 3.h),
+                    
+                    // Loading indicator if data is loading
+                    if (controller.isLoading && controller.entries.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 5.h),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else ...[
+                      // Overall stats card
+                      _buildOverallStatsCard(controller),
+                      
+                      SizedBox(height: 3.h),
+                      
+                      // Schedule type breakdown
+                      _buildScheduleTypeBreakdown(controller),
+                      
+                      SizedBox(height: 3.h),
+                      
+                      // Time of day analysis card
+                      _buildTimeOfDayAnalysis(controller),
+                    ],
                   ],
                 ),
-                
-                SizedBox(height: 3.h),
-                
-                // Date range indicator
-                _buildDateRangeInfo(controller),
-                
-                SizedBox(height: 3.h),
-                
-                // Overall stats card
-                _buildOverallStatsCard(controller),
-                
-                SizedBox(height: 3.h),
-                
-                // Schedule type breakdown
-                _buildScheduleTypeBreakdown(controller),
-                
-                SizedBox(height: 3.h),
-                
-                // Time of day analysis card
-                _buildTimeOfDayAnalysis(controller),
-              ],
-            ),
-          ),
+              ),
+            );
+          }
         ),
       ),
     );
