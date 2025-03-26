@@ -29,6 +29,7 @@ import 'package:eyedrop/features/notifications/controllers/notification_controll
 import 'package:eyedrop/features/settings/screens/settings_screen.dart';
 import 'package:eyedrop/features/notifications/services/notification_verification_service.dart';
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
+import 'features/education/screens/education_screen.dart';
 
 // Add these imports at the top of your file
 import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
@@ -168,6 +169,7 @@ class MyApp extends StatelessWidget {
         DailyScheduleScreen.id: (BuildContext context) => DailyScheduleScreen(),
         WeeklyScheduleScreen.id: (BuildContext context) => WeeklyScheduleScreen(),
         MonthlyScheduleScreen.id: (BuildContext context) => MonthlyScheduleScreen(),
+        EducationScreen.id: (BuildContext context) => EducationScreen(),
       },
       builder: (context, child) {
         return Stack(

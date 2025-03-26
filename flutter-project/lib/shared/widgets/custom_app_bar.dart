@@ -2,6 +2,7 @@ import 'package:eyedrop/features/settings/screens/settings_screen.dart';
 import 'package:eyedrop/shared/widgets/add_form_menu.dart';
 import 'package:eyedrop/shared/widgets/link_external_menu.dart';
 import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
 
 /// App bar implementation customised to provide top navigation bar for application.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -21,13 +22,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             textDirection: TextDirection.rtl,
-            children:  [
+            children:  [AddFormMenu(), 
               IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings, size: 40,),
             tooltip: 'Settings',
             onPressed: () => Navigator.of(context).pushNamed(SettingsScreen.id),
           ),
-              AddFormMenu(), LinkExternalMenu()]))
+              ]))
   ]);
     }
 
