@@ -35,6 +35,34 @@ class ReviewsController {
     ).asStream().asBroadcastStream();
   }
 
+  /// Get all reviews directly (not as a stream)
+  Future<List<Map<String, dynamic>>> getAllReviews() async {
+    try {
+      return await firestoreService.getAllDocsWithIds(
+        collectionPath: "reviews",
+      );
+    } catch (e) {
+      log("Error getting all reviews: $e");
+      throw Exception("Failed to load reviews: $e");
+    }
+  }
+
+  /// Get reviews for a specific user directly (not as a stream)
+  Future<List<Map<String, dynamic>>> getUserReviews(String userId) async {
+    try {
+      return await firestoreService.queryCollectionWithIds(
+        collectionPath: "reviews",
+        filters: [
+          {"field": "userId", "operator": "==", "value": userId}
+        ],
+        noCache: true, // Force server fetch to get latest data
+      );
+    } catch (e) {
+      log("Error getting user reviews: $e");
+      throw Exception("Failed to load your reviews: $e");
+    }
+  }
+
   /// Check if a medication exists in the medications collection
   Future<Map<String, dynamic>?> _getMedicationById(String medicationId) async {
     return await firestoreService.readDoc(

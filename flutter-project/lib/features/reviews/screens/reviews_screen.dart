@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/features/reviews/controllers/reviews_controller.dart';
 import 'package:eyedrop/features/reviews/screens/create_review_screen.dart';
 import 'package:eyedrop/features/reviews/widgets/review_card.dart';
@@ -21,9 +22,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
   late ReviewsController _reviewsController;
   String _filterOption = "All Medications";
   
-  // Add stream variables
-  late Stream<List<Map<String, dynamic>>> _allReviewsStream;
-  Stream<List<Map<String, dynamic>>>? _userReviewsStream;
+  // Replace streams with lists to store data
+  List<Map<String, dynamic>> _allReviews = [];
+  List<Map<String, dynamic>> _userReviews = [];
+  bool _isLoadingAll = true;
+  bool _isLoadingUser = true;
   
   @override
   void initState() {
@@ -32,20 +35,71 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
     _reviewsController = ReviewsController(firestoreService: firestoreService);
     
-    // Initialize streams
-    _allReviewsStream = _reviewsController.getAllReviewsStream();
+    // Add listener to tab controller to refresh data when tab changes
+    _tabController.addListener(_handleTabChange);
     
-    // Initialize user reviews stream if user is logged in
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _userReviewsStream = _reviewsController.getUserReviewsStream(user.uid);
-    }
+    // Initial data load
+    _loadReviews();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    // If tab selection actually changed, refresh the data
+    if (_tabController.indexIsChanging || _tabController.animation!.value == _tabController.index) {
+      _loadReviews();
+    }
+  }
+  
+  // Load both all reviews and user reviews
+  Future<void> _loadReviews() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    
+    // Set loading states
+    setState(() {
+      _isLoadingAll = true;
+      _isLoadingUser = true;
+    });
+    
+    try {
+      // Load all reviews
+      final allReviews = await _reviewsController.getAllReviews();
+      setState(() {
+        _allReviews = allReviews;
+        _isLoadingAll = false;
+      });
+      
+      // Load user reviews if user is logged in
+      if (user != null) {
+        final userReviews = await _reviewsController.getUserReviews(user.uid);
+        setState(() {
+          _userReviews = userReviews;
+          _isLoadingUser = false;
+        });
+      } else {
+        setState(() {
+          _userReviews = [];
+          _isLoadingUser = false;
+        });
+      }
+    } catch (e) {
+      // Handle errors
+      setState(() {
+        _isLoadingAll = false;
+        _isLoadingUser = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error loading reviews: $e"))
+        );
+      }
+    }
   }
 
   @override
@@ -136,104 +190,77 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
       return Center(child: Text("Please log in to view your reviews"));
     }
 
-    // Initialize user stream if it wasn't initialized in initState
-    if (_userReviewsStream == null) {
-      _userReviewsStream = _reviewsController.getUserReviewsStream(user.uid);
+    if (_isLoadingUser) {
+      return Center(child: CircularProgressIndicator());
     }
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _userReviewsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
+    // Apply filtering
+    final filteredReviews = _applyFilter(_userReviews);
 
-        if (snapshot.hasError) {
-          return Center(child: Text("Error loading reviews: ${snapshot.error}"));
-        }
-
-        final reviews = snapshot.data ?? [];
-
-        // Apply filtering
-        final filteredReviews = _applyFilter(reviews);
-
-        if (filteredReviews.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text("You haven't written any reviews yet."),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CreateReviewScreen(),
-                      ),
-                    );
-                  },
-                  child: Text("Write Your First Review"),
-                ),
-              ],
+    if (filteredReviews.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("You haven't written any reviews yet."),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateReviewScreen(),
+                  ),
+                ).then((_) => _loadReviews()); // Refresh after returning
+              },
+              child: Text("Write Your First Review"),
             ),
-          );
-        }
+          ],
+        ),
+      );
+    }
 
-        return SearchableList<Map<String, dynamic>>(
-          items: filteredReviews,
-          getSearchString: (review) => review["medicationName"] ?? "",
-          itemBuilder: (review, index) => ReviewCard(
-            review: review,
-            isUserReview: true,
-            onEdit: (review) => _navigateToEditReview(review),
-            onDelete: (review) => _showDeleteConfirmation(review),
-          ),
-          onSelect: (review) => _navigateToEditReview(review),
-          hintText: "Search your reviews",
-        );
-      },
+    return SearchableList<Map<String, dynamic>>(
+      items: filteredReviews,
+      getSearchString: (review) => review["medicationName"] ?? "",
+      itemBuilder: (review, index) => ReviewCard(
+        review: review,
+        isUserReview: true,
+        onEdit: (review) => _navigateToEditReview(review),
+        onDelete: (review) => _showDeleteConfirmation(review),
+      ),
+      onSelect: (review) => _navigateToEditReview(review),
+      hintText: "Search your reviews",
     );
   }
 
   Widget _buildAllReviewsTab(User? user) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _allReviewsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+    if (_isLoadingAll) {
+      return Center(child: CircularProgressIndicator());
+    }
+    
+    // Apply filtering
+    final filteredReviews = _applyFilter(_allReviews);
+
+    if (filteredReviews.isEmpty) {
+      return Center(child: Text("No reviews found"));
+    }
+
+    return SearchableList<Map<String, dynamic>>(
+      items: filteredReviews,
+      getSearchString: (review) => review["medicationName"] ?? "",
+      itemBuilder: (review, index) => ReviewCard(
+        review: review,
+        isUserReview: user != null && review["userId"] == user.uid,
+        onEdit: (review) => _navigateToEditReview(review),
+        onDelete: (review) => _showDeleteConfirmation(review),
+      ),
+      onSelect: (review) {
+        if (user != null && review["userId"] == user.uid) {
+          _navigateToEditReview(review);
         }
-
-        if (snapshot.hasError) {
-          return Center(child: Text("Error loading reviews: ${snapshot.error}"));
-        }
-
-        final reviews = snapshot.data ?? [];
-        
-        // Apply filtering
-        final filteredReviews = _applyFilter(reviews);
-
-        if (filteredReviews.isEmpty) {
-          return Center(child: Text("No reviews found"));
-        }
-
-        return SearchableList<Map<String, dynamic>>(
-          items: filteredReviews,
-          getSearchString: (review) => review["medicationName"] ?? "",
-          itemBuilder: (review, index) => ReviewCard(
-            review: review,
-            isUserReview: user != null && review["userId"] == user.uid,
-            onEdit: (review) => _navigateToEditReview(review),
-            onDelete: (review) => _showDeleteConfirmation(review),
-          ),
-          onSelect: (review) {
-            if (user != null && review["userId"] == user.uid) {
-              _navigateToEditReview(review);
-            }
-          },
-          hintText: "Search reviews",
-        );
       },
+      hintText: "Search reviews",
     );
   }
 
@@ -245,9 +272,27 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
         return List.from(reviews)..sort((a, b) => (a["rating"] as num).compareTo(b["rating"] as num));
       case "Most Recent":
         return List.from(reviews)..sort((a, b) {
-          final aTime = a["createdAt"] as DateTime? ?? DateTime.now();
-          final bTime = b["createdAt"] as DateTime? ?? DateTime.now();
-          return bTime.compareTo(aTime);
+          // Handle Timestamp or DateTime for comparison
+          DateTime aTime;
+          DateTime bTime;
+          
+          if (a["createdAt"] is Timestamp) {
+            aTime = (a["createdAt"] as Timestamp).toDate();
+          } else if (a["createdAt"] is DateTime) {
+            aTime = a["createdAt"] as DateTime;
+          } else {
+            aTime = DateTime.now(); // Fallback
+          }
+          
+          if (b["createdAt"] is Timestamp) {
+            bTime = (b["createdAt"] as Timestamp).toDate();
+          } else if (b["createdAt"] is DateTime) {
+            bTime = b["createdAt"] as DateTime;
+          } else {
+            bTime = DateTime.now(); // Fallback
+          }
+          
+          return bTime.compareTo(aTime); // Newer first
         });
       default:
         return reviews;
@@ -260,7 +305,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
       MaterialPageRoute(
         builder: (context) => CreateReviewScreen(existingReview: review),
       ),
-    );
+    ).then((_) => _loadReviews()); // Refresh after returning
   }
 
   void _showDeleteConfirmation(Map<String, dynamic> review) {
@@ -284,6 +329,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
                     SnackBar(content: Text("Review deleted successfully")),
                   );
                 }
+                _loadReviews(); // Refresh after deletion
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
