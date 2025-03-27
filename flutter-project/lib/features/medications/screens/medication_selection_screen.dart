@@ -13,6 +13,7 @@ import 'package:eyedrop/shared/widgets/searchable_list.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Medication Selection Screen
 /// 
@@ -22,8 +23,10 @@ import 'package:sizer/sizer.dart';
 /// - Implements real-time filtering as users type in the search bar.
 class MedicationSelectionScreen extends StatefulWidget {
 
-  // StatefulWidget chosen as it fetches data asynchronously from Firestore & 
-  // updates the UI dynamically when users search for medications.
+  // Add a filterByType parameter
+  final String? filterByType;
+
+  const MedicationSelectionScreen({Key? key, this.filterByType}) : super(key: key);
 
   @override
   _MedicationSelectionScreenState createState() => _MedicationSelectionScreenState();
@@ -31,179 +34,110 @@ class MedicationSelectionScreen extends StatefulWidget {
 
 class _MedicationSelectionScreenState extends State<MedicationSelectionScreen> {
 
-  /// Tracks if an error has occurred during FireStore retrieval.
-  String? _errorMessage;
-
-  // List of all medications fetched from Firestore. 
-  List<String> _medicationNames = [];
-
-  bool _isLoading = true; // Whether medications data is still loading or not.
+  List<Map<String, dynamic>> _medications = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchMedications(); // Calls _fetchMedications() when the screen loads.
-
+    _loadMedications();
   }
 
-
-  /*
-  Future<void> _fetchMedications() async {
+  Future<void> _loadMedications() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null; // Reset error message when retrying.
     });
 
     try {
-      // Get FirestoreService instance
-      // `listen: false` means this widget won’t rebuild when FirestoreService updates.
-      final firestoreService = Provider.of<FirestoreService>(context, listen: false);
-
-      // Fetch medications using FirestoreService's getAllDocs method
-      List<Map<String, dynamic>> meds = await firestoreService.getAllDocs(collectionPath: "medications");
-
-      // Handles empty medications list case.
-      if (meds.isEmpty) {
-          throw Exception("No medications found in the database.");
-        }
-
-      setState(() {
-         _medicationNames = meds.map((med) => med["medicationName"] as String? ?? "").toList(); // Initialises with full list of medications.
-        _isLoading = false; // Stops loading indicator.
-      });
-    } on FirebaseException catch (e) {
-        log("Firestore error: ${e.message}");
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
         setState(() {
-        _errorMessage = "Failed to fetch medications. Please check your network."; // Stops loading on error.
-        _isLoading = false;
-      });
+          _isLoading = false;
+        });
+        return;
+      }
 
-    } catch (e) {
-        log("Unexpected error fetching medications: $e");
-        setState(() {
-        _errorMessage = "Something went wrong. Please try again later.";
-        _isLoading = false;
-      });
-
-    }
-
-  } */
- 
-  /// Fetches medications using `MedicationService`.
-  Future<void> _fetchMedications() async {
-    try {
       final medicationService = Provider.of<MedicationService>(context, listen: false);
-      List<Map<String, dynamic>> meds = await medicationService.fetchCommonMedications();
-
-      setState(() {
-        _medicationNames = meds.map((med) => med["medicationName"] as String? ?? "").toList(); // Initialises with full list of medications.
-        _isLoading = false;
-      });
+      final allMedications = await medicationService.getMedications(user.uid);
+      
+      // Apply type filter if specified
+      if (widget.filterByType != null) {
+        setState(() {
+          _medications = allMedications.where((med) => 
+            med["medType"] == widget.filterByType
+          ).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _medications = allMedications;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      log("Error fetching medications: $e");
+      print("Error loading medications: $e");
       setState(() {
-        _errorMessage = e.toString();
         _isLoading = false;
       });
     }
   }
 
-
-  /// Builds the medication selection UI.
-  ///
-  /// Displays:
-  /// - Back button for navigation.
-  /// - Search bar for filtering medications.
-  /// - List of medications, dynamically updating based on search.
   @override
   Widget build(BuildContext context) {
     return BaseLayoutScreen(
       child: Column(
         children: [
-
-          // Back Button.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.only(left: 4.w, top: 2.h),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back, size: 24.sp),
-                onPressed: () {
-                  Navigator.pop(context); // Simply returns to the previous screen with no selection.
-                },
-              ),
+          // Add Back Button and Title
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: "Go Back",
+                ),
+                Text(
+                  "Select Medication",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(width: 48), // Balance the header
+              ],
             ),
           ),
-
         
-          // Main content area - shows either loading, error, or the searchbar & searchable list
+          // Rest of the content
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator()) // Shows loading spinner.
-                : _errorMessage != null
-                    ? _buildErrorWidget() // Shows error message.
-                : _medicationNames.isEmpty
+                ? Center(child: CircularProgressIndicator())
+                : _medications.isEmpty
                     ? Center(child: Text("No medications found"))
-                 : SearchableList<String>(
-                      items: _medicationNames,
-                      getSearchString: (medication) => medication,
-                      itemBuilder: (medication, index) => Card(
-                        margin: EdgeInsets.symmetric(vertical: 0.5.h, horizontal: 5.w),
-                        elevation: 2,
-                        child: ListTile(
-                          title: Text(
-                            medication,
-                            style: TextStyle(fontSize: 16.sp),
-                          ),
-                          trailing: Icon(Icons.chevron_right),
-                        ),
+                    : SearchableList<Map<String, dynamic>>(
+                        items: _medications,
+                        getSearchString: (med) => med["medicationName"] ?? "",
+                        itemBuilder: (med, index) => _buildMedicationItem(med),
+                        onSelect: (med) => Navigator.pop(context, med),
+                        hintText: "Search medications",
                       ),
-                      onSelect: (selectedMedication) {
-                        Navigator.pop(context, selectedMedication);
-                      },
-                      hintText: "Search Medications",
-                    ),
           ),
         ],
       ),
     );
   }
 
-  /// Displays an error message with a retry button.
-  Widget _buildErrorWidget() {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, color: Colors.red, size: 32.sp),
-            SizedBox(height: 1.h),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red, fontSize: 16.sp),
-            ),
-            SizedBox(height: 2.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _fetchMedications,
-                  child: Text("Retry"),
-                ),
-                SizedBox(width: 2.w),
-                //Back button.
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text("Back"),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
+  Widget _buildMedicationItem(Map<String, dynamic> medication) {
+    final medName = medication["medicationName"] ?? "Unknown Medication";
+    final medType = medication["medType"] ?? "Unknown Type";
+
+    return Card(
+      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: ListTile(
+        title: Text(medName),
+        subtitle: Text(medType),
+        trailing: Icon(Icons.arrow_forward_ios),
+        onTap: () => Navigator.pop(context, medication),
+      ),
+    );
   }
-  
-
-  
-
 }

@@ -70,7 +70,7 @@ class FirestoreService {
   ///
   /// Returns:
   /// A String consisting of a unique document id.
-  String _generateUniqueId(
+  String generateUniqueId(
       {required String collectionPath}) {
     // FireStore-generated ID
     String uniqueId =
@@ -227,7 +227,7 @@ class FirestoreService {
   }
 
   try {
-    String finalDocId = docId ?? _generateUniqueId(collectionPath: path);
+    String finalDocId = docId ?? generateUniqueId(collectionPath: path);
 
     // Use authenticated user's UID as doc ID (for top-level user docs).
     if (useAuthUid) {

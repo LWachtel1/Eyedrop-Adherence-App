@@ -24,6 +24,9 @@ class FormComponents {
   /// - `inputFormatters`: Optional formatters to restrict input values.
   /// - `icon`: An optional icon to display in the field (e.g., a search icon).
   /// - `onChanged`: Callback triggered when the text changes.
+  /// - `validator`: Function to validate the input value.
+  /// - `maxLines`: Number of lines for the text field.
+  /// - `hintText`: Hint text to display when the field is empty.
   static Widget buildTextField({
     required String label,
     required TextEditingController controller,
@@ -33,6 +36,9 @@ class FormComponents {
     List<TextInputFormatter>? inputFormatters,
     IconData? icon, // Optional icon (e.g., search icon)
     Function(String)? onChanged, // Add onChanged parameter
+    String? Function(String?)? validator,
+    int? maxLines,
+    String? hintText,
   }) {
     return Padding(
       padding: EdgeInsets.only(bottom: 2.h),
@@ -41,10 +47,12 @@ class FormComponents {
         readOnly: isReadOnly, // Allows manual entry unless explicitly read-only.
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
+        maxLines: maxLines ?? 1,
         // Pass the onChanged callback to TextFormField
         onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,
+          hintText: hintText,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.w)),
           suffixIcon: icon != null
               ? IconButton(
@@ -53,7 +61,7 @@ class FormComponents {
                 )
               : null, // No icon if none provided.
         ),
-        validator: (value) => (value == null || value.isEmpty) ? "This field cannot be empty" : null,
+        validator: validator ?? ((value) => (value == null || value.isEmpty) ? "This field cannot be empty" : null),
       ),
     );
   }
