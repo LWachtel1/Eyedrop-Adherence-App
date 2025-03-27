@@ -249,13 +249,29 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
     return SearchableList<Map<String, dynamic>>(
       items: filteredReviews,
       getSearchString: (review) => review["medicationName"] ?? "",
-      itemBuilder: (review, index) => ReviewCard(
-        review: review,
-        isUserReview: user != null && review["userId"] == user.uid,
-        onEdit: (review) => _navigateToEditReview(review),
-        onDelete: (review) => _showDeleteConfirmation(review),
-      ),
+      itemBuilder: (review, index) {
+        // Check if this review belongs to the current user
+        bool isUserReview = user != null && review["userId"] == user.uid;
+        
+        return ReviewCard(
+          review: review,
+          isUserReview: isUserReview,
+          onEdit: (review) {
+            // Only allow editing if it's the user's review
+            if (isUserReview) {
+              _navigateToEditReview(review);
+            }
+          },
+          onDelete: (review) {
+            // Only allow deletion if it's the user's review
+            if (isUserReview) {
+              _showDeleteConfirmation(review);
+            }
+          },
+        );
+      },
       onSelect: (review) {
+        // Only navigate to edit if it's the user's review
         if (user != null && review["userId"] == user.uid) {
           _navigateToEditReview(review);
         }
@@ -300,6 +316,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
   }
 
   void _navigateToEditReview(Map<String, dynamic> review) {
+    // Extra safety check to ensure only the owner can edit
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null || review["userId"] != user.uid) {
+      // User is not the owner of this review
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("You can only edit your own reviews"))
+      );
+      return;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -309,6 +335,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
   }
 
   void _showDeleteConfirmation(Map<String, dynamic> review) {
+    // Extra safety check to ensure only the owner can delete
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null || review["userId"] != user.uid) {
+      // User is not the owner of this review
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("You can only delete your own reviews"))
+      );
+      return;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
