@@ -58,7 +58,7 @@ class _MedicationSelectionScreenState extends State<MedicationSelectionScreen> {
       }
 
       final medicationService = Provider.of<MedicationService>(context, listen: false);
-      final allMedications = await medicationService.getMedications(user.uid);
+      final allMedications = await medicationService.fetchCommonMedications();
       
       // Apply type filter if specified
       if (widget.filterByType != null) {
