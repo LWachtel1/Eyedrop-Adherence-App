@@ -168,6 +168,16 @@ class _EducationScreenState extends State<EducationScreen> {
     );
   }
 
+  List<EducationResource> _filterResources(List<EducationResource> resources) {
+    return resources.where((resource) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          resource.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (resource.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      final matchesCategory = _selectedCategory == null || resource.category == _selectedCategory;
+      return matchesSearch && matchesCategory;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BaseLayoutScreen(
@@ -207,9 +217,7 @@ class _EducationScreenState extends State<EducationScreen> {
                 children: [
                   // All Resources Tab
                   _buildResourcesList(
-                    _educationService.searchResources(_searchQuery)
-                        .where((r) => _selectedCategory == null || r.category == _selectedCategory)
-                        .toList(),
+                    _filterResources(_educationService.searchResources('')),
                   ),
                   // Favourites Tab
                   FutureBuilder<List<EducationResource>>(
@@ -221,7 +229,9 @@ class _EducationScreenState extends State<EducationScreen> {
                       if (snapshot.hasError) {
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
-                      return _buildResourcesList(snapshot.data ?? []);
+                      return _buildResourcesList(
+                        _filterResources(snapshot.data ?? []),
+                      );
                     },
                   ),
                   // Recent Tab
@@ -234,7 +244,9 @@ class _EducationScreenState extends State<EducationScreen> {
                       if (snapshot.hasError) {
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
-                      return _buildResourcesList(snapshot.data ?? []);
+                      return _buildResourcesList(
+                        _filterResources(snapshot.data ?? []),
+                      );
                     },
                   ),
                 ],
