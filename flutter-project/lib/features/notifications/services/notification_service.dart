@@ -437,137 +437,65 @@ class NotificationService {
     String? applicationSite,
     String? doseInfo,
     required List timings,
-    String scheduleType = 'daily', // Add scheduleType parameter with default
+    String scheduleType = 'daily', // Default to daily
   }) async {
     final now = DateTime.now();
     
-    log('Scheduling manual reminder for $medicationName with ${timings.length} timings, scheduleType: $scheduleType');
+    log('Scheduling manual reminder for $medicationName with ${timings.length} timings');
     
-    // Process based on schedule type
-    if (scheduleType.toLowerCase() == 'weekly') {
-      await _scheduleManualWeeklyReminder(
-        reminderId: reminderId,
-        medicationId: medicationId,
-        medicationName: medicationName,
-        applicationSite: applicationSite,
-        doseInfo: doseInfo,
-        timings: timings
-      );
-    } else if (scheduleType.toLowerCase() == 'monthly') {
-      await _scheduleManualMonthlyReminder(
-        reminderId: reminderId,
-        medicationId: medicationId,
-        medicationName: medicationName,
-        applicationSite: applicationSite,
-        doseInfo: doseInfo,
-        timings: timings
-      );
-    } else {
-      // Original daily scheduling logic
-      for (final timing in timings) {
-        try {
-          // Log the timing for debugging
-          log('Processing timing: $timing (${timing.runtimeType})');
-          
-          // Handle timings as Map with hour/minute fields.
-          int hour;
-          int minute;
-          
-          if (timing is Map) {
-            // Extracts hour and minute from the map.
-            hour = timing['hour'] is int ? timing['hour'] : int.tryParse(timing['hour']?.toString() ?? '0') ?? 0;
-            minute = timing['minute'] is int ? timing['minute'] : int.tryParse(timing['minute']?.toString() ?? '0') ?? 0;
-            log('Extracted time from map: $hour:$minute');
-          } else if (timing is String) {
-            // Handle string format (like "21:35").
-            final parts = timing.split(':');
-            hour = int.parse(parts[0]);
-            minute = int.parse(parts[1]);
-            log('Extracted time from string: $hour:$minute');
-          } else {
-            // Skip invalid format.
-            log('Invalid timing format: $timing');
-            continue;
-          }
-          
-          // Create a DateTime for today with the specified time.
-          var scheduledTime = DateTime(
-            now.year, now.month, now.day, hour, minute);
-          
-          // If the time is in the past, schedule for tomorrow.
-          if (scheduledTime.isBefore(now)) {
-            scheduledTime = scheduledTime.add(const Duration(days: 1));
-            log('Time already passed today, scheduling for tomorrow: ${scheduledTime.toString()}');
-          }
-          
-          // Schedule the notification.
-          final notificationId = await scheduleReminderNotification(
-            reminderId: reminderId,
-            medicationId: medicationId,
-            medicationName: medicationName,
-            scheduledTime: scheduledTime,
-            applicationSite: applicationSite,
-            doseInfo: doseInfo,
-          );
-          
-          log('Scheduled notification with ID: $notificationId for time: $hour:$minute');
-        } catch (e) {
-          log('Error scheduling manual reminder: $e');
-        }
-      }
-    }
-  }
-
-  /// Helper method to schedule manual weekly reminders distributed across days of the week
-  Future<void> _scheduleManualWeeklyReminder({
-    required String reminderId,
-    required String medicationId,
-    required String medicationName,
-    String? applicationSite,
-    String? doseInfo,
-    required List timings,
-  }) async {
-    final now = DateTime.now();
+    // Set to track unique time slots (in minutes since midnight)
+    final Set<int> uniqueTimeSlots = {};
     
-    // Distribute timings across days of the week
-    for (int i = 0; i < timings.length; i++) {
+    // Original daily scheduling logic
+    for (final timing in timings) {
       try {
-        final timing = timings[i];
+        // Log the timing for debugging
+        log('Processing timing: $timing (${timing.runtimeType})');
         
-        // Extract hour and minute
+        // Handle timings as Map with hour/minute fields.
         int hour;
         int minute;
         
         if (timing is Map) {
+          // Extracts hour and minute from the map.
           hour = timing['hour'] is int ? timing['hour'] : int.tryParse(timing['hour']?.toString() ?? '0') ?? 0;
           minute = timing['minute'] is int ? timing['minute'] : int.tryParse(timing['minute']?.toString() ?? '0') ?? 0;
+          log('Extracted time from map: $hour:$minute');
         } else if (timing is String) {
+          // Handle string format (like "21:35").
           final parts = timing.split(':');
           hour = int.parse(parts[0]);
           minute = int.parse(parts[1]);
+          log('Extracted time from string: $hour:$minute');
         } else {
+          // Skip invalid format.
           log('Invalid timing format: $timing');
           continue;
         }
+
+        // Convert time to minutes since midnight for uniqueness check
+        final timeInMinutes = hour * 60 + minute;
         
-        // Distribute across days - one timing per day starting from today
-        int daysToAdd = i; // Each timing gets a different day
+        // Skip if this time slot is already scheduled
+        if (uniqueTimeSlots.contains(timeInMinutes)) {
+          log('Skipping duplicate time slot: $hour:$minute');
+          continue;
+        }
         
-        // Create DateTime for the specified day and time
+        // Add to unique time slots
+        uniqueTimeSlots.add(timeInMinutes);
+        
+        // Create a DateTime for today with the specified time.
         var scheduledTime = DateTime(
-          now.year, 
-          now.month, 
-          now.day, 
-          hour, 
-          minute
-        ).add(Duration(days: daysToAdd));
+          now.year, now.month, now.day, hour, minute);
         
-        // If time is in past, move to next week
+        // If the time is in the past, schedule for tomorrow.
         if (scheduledTime.isBefore(now)) {
-          scheduledTime = scheduledTime.add(const Duration(days: 7));
+          scheduledTime = scheduledTime.add(const Duration(days: 1));
+          log('Time already passed today, scheduling for tomorrow: ${scheduledTime.toString()}');
         }
         
-        // Schedule notification
+        // Schedule the notification.
         final notificationId = await scheduleReminderNotification(
           reminderId: reminderId,
           medicationId: medicationId,
@@ -577,90 +505,14 @@ class NotificationService {
           doseInfo: doseInfo,
         );
         
-        log('Scheduled weekly notification with ID: $notificationId for day ${scheduledTime.weekday} at $hour:$minute');
+        log('Scheduled notification with ID: $notificationId for time: $hour:$minute');
       } catch (e) {
-        log('Error scheduling manual weekly reminder: $e');
-      }
-    }
-  }
-
-  /// Helper method to schedule manual monthly reminders distributed across days of the month
-  Future<void> _scheduleManualMonthlyReminder({
-    required String reminderId,
-    required String medicationId,
-    required String medicationName,
-    String? applicationSite,
-    String? doseInfo,
-    required List timings,
-  }) async {
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    
-    // Calculate day interval based on number of timings
-    int dayInterval = (daysInMonth / timings.length).floor();
-    if (dayInterval < 1) dayInterval = 1;
-    
-    for (int i = 0; i < timings.length; i++) {
-      try {
-        final timing = timings[i];
-        
-        // Extract hour and minute
-        int hour;
-        int minute;
-        
-        if (timing is Map) {
-          hour = timing['hour'] is int ? timing['hour'] : int.tryParse(timing['hour']?.toString() ?? '0') ?? 0;
-          minute = timing['minute'] is int ? timing['minute'] : int.tryParse(timing['minute']?.toString() ?? '0') ?? 0;
-        } else if (timing is String) {
-          final parts = timing.split(':');
-          hour = int.parse(parts[0]);
-          minute = int.parse(parts[1]);
-        } else {
-          log('Invalid timing format: $timing');
-          continue;
-        }
-        
-        // Start from today's day or day 1, then distribute evenly
-        int startDay = now.day;
-        if (startDay > daysInMonth - timings.length) startDay = 1;
-        
-        // Calculate the day for this timing
-        int targetDay = startDay + (i * dayInterval);
-        if (targetDay > daysInMonth) targetDay = targetDay - daysInMonth;
-        
-        // Create DateTime for the specified day and time
-        DateTime scheduledTime;
-        if (targetDay >= now.day) {
-          // This month
-          scheduledTime = DateTime(now.year, now.month, targetDay, hour, minute);
-        } else {
-          // Next month
-          scheduledTime = DateTime(now.year, now.month + 1, targetDay, hour, minute);
-        }
-        
-        // If time is in past, adjust accordingly
-        if (scheduledTime.isBefore(now)) {
-          scheduledTime = DateTime(now.year, now.month + 1, targetDay, hour, minute);
-        }
-        
-        // Schedule notification
-        final notificationId = await scheduleReminderNotification(
-          reminderId: reminderId,
-          medicationId: medicationId,
-          medicationName: medicationName,
-          scheduledTime: scheduledTime,
-          applicationSite: applicationSite,
-          doseInfo: doseInfo,
-        );
-        
-        log('Scheduled monthly notification with ID: $notificationId for day $targetDay at $hour:$minute');
-      } catch (e) {
-        log('Error scheduling manual monthly reminder: $e');
+        log('Error scheduling manual reminder: $e');
       }
     }
   }
   
-  /// Schedule a smart reminder with calculated times based on frequency and schedule type.
+  /// Schedule a smart reminder with calculated times based on frequency.
   Future<void> scheduleSmartReminder({
     required String reminderId,
     required String medicationId,
@@ -673,12 +525,11 @@ class NotificationService {
     String? endTime,
   }) async {
     try {
-      // Calculates reminder times based on schedule type and frequency
-      final times = _calculateScheduleTimes(
-        frequency: frequency,
-        scheduleType: scheduleType, // Pass scheduleType
-        startTime: startTime,
-        endTime: endTime,
+      // Calculates reminder times based on frequency
+      final times = _calculateDailyScheduleTimes(
+        frequency,
+        startTime,
+        endTime,
       );
       
       log('Smart scheduling for $medicationName: ${times.length} times calculated');
@@ -696,26 +547,6 @@ class NotificationService {
       }
     } catch (e) {
       log('Error scheduling smart reminder: $e');
-    }
-  }
-
-  /// Calculates schedule times based on frequency and schedule type
-  List<DateTime> _calculateScheduleTimes({
-    required int frequency,
-    required String scheduleType,
-    String? startTime,
-    String? endTime,
-  }) {
-    scheduleType = scheduleType.toLowerCase();
-    
-    // Use different scheduling strategies based on schedule type
-    if (scheduleType == 'weekly') {
-      return _calculateWeeklyScheduleTimes(frequency, startTime, endTime);
-    } else if (scheduleType == 'monthly') {
-      return _calculateMonthlyScheduleTimes(frequency, startTime, endTime);
-    } else {
-      // Default to daily scheduling for daily or any other schedule types
-      return _calculateDailyScheduleTimes(frequency, startTime, endTime);
     }
   }
 
@@ -781,172 +612,6 @@ class NotificationService {
     }
     
     return times;
-  }
-
-  /// Calculates evenly distributed times for weekly schedules
-  List<DateTime> _calculateWeeklyScheduleTimes(
-    int frequency, 
-    String? startTime, 
-    String? endTime
-  ) {
-    final now = DateTime.now();
-    final List<DateTime> times = [];
-    
-    // Parse default time from start/end time params
-    var defaultTime = _parseTimeOfDay(startTime) ?? TimeOfDay(hour: 9, minute: 0);
-    
-    // Calculate how many days to distribute the doses over
-    int daysToUse = math.min(7, frequency);
-    
-    // Calculate days between doses
-    int interval = frequency <= 7 ? (7 / frequency).floor() : 1;
-    
-    // Starting from today, calculate the next 'frequency' days
-    int currentDay = 0;
-    while (times.length < frequency) {
-      final dayToSchedule = now.add(Duration(days: currentDay));
-      final hour = defaultTime.hour;
-      final minute = defaultTime.minute;
-      
-      // Create DateTime for this day
-      DateTime time = DateTime(
-        dayToSchedule.year, 
-        dayToSchedule.month, 
-        dayToSchedule.day, 
-        hour, 
-        minute
-      );
-      
-      // If it's today and the time has passed, move to tomorrow
-      if (currentDay == 0 && time.isBefore(now)) {
-        currentDay++;
-        continue;
-      }
-      
-      times.add(time);
-      
-      // Move to next day based on interval
-      currentDay += interval;
-      
-      // For frequencies greater than 7, we need to add multiple per day
-      if (frequency > 7 && times.length % daysToUse == 0) {
-        // Reset to start of week and use a different time
-        currentDay = 0;
-        
-        // Add 2 hours to the time for the next round
-        defaultTime = TimeOfDay(
-          hour: (defaultTime.hour + 2) % 24,
-          minute: defaultTime.minute
-        );
-      }
-    }
-    
-    return times;
-  }
-
-  /// Calculates evenly distributed times for monthly schedules
-  List<DateTime> _calculateMonthlyScheduleTimes(
-    int frequency, 
-    String? startTime, 
-    String? endTime
-  ) {
-    final now = DateTime.now();
-    final List<DateTime> times = [];
-    
-    // Parse default time from start/end time params
-    var defaultTime = _parseTimeOfDay(startTime) ?? TimeOfDay(hour: 9, minute: 0);
-    
-    // Get days in current month
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    
-    // Calculate how many days to distribute the doses over
-    int daysToUse = math.min(daysInMonth, frequency);
-    
-    // Calculate days between doses
-    int interval = frequency <= daysInMonth 
-        ? (daysInMonth / frequency).floor() 
-        : 1;
-    
-    // Start from today or day 1 if today is past day 28
-    int startDay = now.day;
-    if (startDay > 28) startDay = 1;
-    
-    // Track the current day of month
-    int currentDay = startDay;
-    
-    while (times.length < frequency) {
-      // If we've gone past the end of the month, wrap to next month
-      if (currentDay > daysInMonth) {
-        currentDay = 1;
-      }
-      
-      // Calculate date for this day
-      DateTime dateToUse;
-      if (currentDay >= now.day) {
-        // This month
-        dateToUse = DateTime(now.year, now.month, currentDay);
-      } else {
-        // Next month
-        dateToUse = DateTime(now.year, now.month + 1, currentDay);
-      }
-      
-      final hour = defaultTime.hour;
-      final minute = defaultTime.minute;
-      
-      // Create DateTime for this day
-      DateTime time = DateTime(
-        dateToUse.year, 
-        dateToUse.month, 
-        dateToUse.day, 
-        hour, 
-        minute
-      );
-      
-      // If it's today and the time has passed, skip
-      if (dateToUse.day == now.day && 
-          dateToUse.month == now.month && 
-          dateToUse.year == now.year && 
-          time.isBefore(now)) {
-        currentDay += interval;
-        continue;
-      }
-      
-      times.add(time);
-      
-      // Move to next day based on interval
-      currentDay += interval;
-      
-      // For frequencies greater than days in month
-      if (frequency > daysInMonth && times.length % daysToUse == 0) {
-        // Reset to start day and use a different time
-        currentDay = startDay;
-        
-        // Add 2 hours to the time for the next round
-        defaultTime = TimeOfDay(
-          hour: (defaultTime.hour + 2) % 24,
-          minute: defaultTime.minute
-        );
-      }
-    }
-    
-    return times;
-  }
-
-  /// Helper method to parse a time string into TimeOfDay
-  TimeOfDay? _parseTimeOfDay(String? timeString) {
-    if (timeString == null || timeString.isEmpty) return null;
-    
-    final parts = timeString.split(':');
-    if (parts.length >= 2) {
-      final hour = int.tryParse(parts[0]);
-      final minute = int.tryParse(parts[1]);
-      
-      if (hour != null && minute != null) {
-        return TimeOfDay(hour: hour, minute: minute);
-      }
-    }
-    
-    return null;
   }
   
   /// Cancels all notifications.

@@ -1,5 +1,5 @@
 import 'dart:developer';
-import 'package:eyedrop/features/schedule/screens/schedule_screen.dart';
+import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
 import 'package:eyedrop/shared/models/doc_templates.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
@@ -123,7 +123,7 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            return ScheduleScreen();
+            return DailyScheduleScreen();
             
           },
         );

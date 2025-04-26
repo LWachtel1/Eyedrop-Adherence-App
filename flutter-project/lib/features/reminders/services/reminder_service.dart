@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:eyedrop/features/notifications/services/notification_service.dart';
 
 /// Service class for handling reminder-related operations with FireStore.
 /// 
@@ -222,7 +223,17 @@ class ReminderService {
         }
       }
 
-      // First, delete all associated progress entries
+      // First, cancel all notifications for this reminder
+      try {
+        final notificationService = NotificationService();
+        await notificationService.cancelReminderNotifications(reminderId);
+        log("Notifications for reminder cancelled successfully");
+      } catch (e) {
+        log("Warning: Error cancelling notifications: $e");
+        // Continue with deletion even if notification cancellation fails
+      }
+
+      // Then, delete all associated progress entries
       try {
         final progressService = ProgressService();
         await progressService.deleteProgressEntriesForReminder(
@@ -235,7 +246,7 @@ class ReminderService {
         // Continue with deletion even if progress deletion fails
       }
 
-      // Then delete the reminder document
+      // Finally delete the reminder document
       await firestoreService.deleteDoc(
         collectionPath: collectionPath, 
         docId: reminderId
@@ -243,11 +254,10 @@ class ReminderService {
       
       // Add this line at the end, after successful deletion
       // This will help to ensure fast UI updates on delete
-      // Change this line
       Provider.of<ProgressController>(navigatorKey.currentContext!, listen: false)
         .triggerRefresh();
       
-      log("Reminder and associated progress entries deleted successfully");
+      log("Reminder, notifications, and associated progress entries deleted successfully");
     } on FirebaseException catch (e) {
       log("Firestore error deleting reminder: ${e.message}");
       throw Exception("Failed to delete reminder: ${e.message}");
@@ -421,7 +431,7 @@ class ReminderService {
 
   /// Get all enabled reminders for a user.
   /// 
-  /// Provides all active reminders to NotificationService.scheduleAllReminders(), 
+  /// Provides all active reminders to NotificationService.scheduleAllReminders(), 
   /// which creates actual notifications.
   Future<List<Map<String, dynamic>>> getAllEnabledReminders(String userId) async {
     try {

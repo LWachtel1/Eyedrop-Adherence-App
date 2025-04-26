@@ -124,13 +124,9 @@ class MedicationFormState extends State<MedicationForm> {
             // 7. Schedule Type Dropdown field
             FormComponents.buildDropdown(
               label: "Schedule Type",
-              value: controller.scheduleType.isNotEmpty ? controller.scheduleType : null,
-              items: ["daily", "weekly", "monthly"],
-              onChanged: (val) {
-                setState(() {
-                  controller.scheduleType = val!;
-                });
-              },
+              value: "daily", // Always daily
+              items: ["daily"], // Only daily option
+              onChanged: (_) {}, // Empty function since we don't need to handle changes
             ),
 
             SizedBox(height: 1.h),

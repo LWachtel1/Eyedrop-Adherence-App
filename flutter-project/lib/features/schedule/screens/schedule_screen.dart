@@ -4,8 +4,6 @@ import 'package:eyedrop/features/notifications/services/notification_service.dar
 import 'package:eyedrop/features/reminders/screens/reminder_details_screen.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
-import 'package:eyedrop/features/schedule/screens/monthly_schedule_screen.dart';
-import 'package:eyedrop/features/schedule/screens/weekly_schedule_screen.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -308,31 +306,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             onTap: () => Navigator.pushNamed(context, DailyScheduleScreen.id),
           ),
           
-          SizedBox(height: 2.h),
-          
-          // Weekly button
-          _buildLargeScheduleButton(
-            title: "Weekly Reminders",
-            description: "View medications scheduled weekly",
-            icon: Icons.view_week,
-            color: Colors.blue,
-            onTap: () => Navigator.pushNamed(context, WeeklyScheduleScreen.id),
-          ),
-          
-          SizedBox(height: 2.h),
-          
-          // Monthly button
-          _buildLargeScheduleButton(
-            title: "Monthly Reminders",
-            description: "View medications scheduled monthly",
-            icon: Icons.calendar_month,
-            color: Colors.purple,
-            onTap: () => Navigator.pushNamed(context, MonthlyScheduleScreen.id),
-          ),
-          
           SizedBox(height: 4.h),
-          
-         
         ],
       ),
     );

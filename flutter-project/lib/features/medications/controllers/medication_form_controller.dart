@@ -25,7 +25,7 @@ class MedicationFormController extends ChangeNotifier {
   TimeOfDay? prescriptionTime;
   bool isIndefinite = false;
   String _durationUnit = '';
-  String scheduleType = '';
+  String scheduleType = 'daily';
   String doseUnits = '';
   String applicationSite = "";
 
@@ -243,7 +243,7 @@ class MedicationFormController extends ChangeNotifier {
     prescriptionTime = null;
     isIndefinite = false;
     _durationUnit = '';
-    scheduleType = '';
+    scheduleType = 'daily';
     doseUnits = '';
     applicationSite = '';
     
@@ -272,7 +272,7 @@ class MedicationFormController extends ChangeNotifier {
         isIndefinite: isIndefinite,
         durationUnits: isIndefinite ? "Indefinite" : durationUnit,
         durationLength: isIndefinite ? "Indefinite" : durationController.text,
-        scheduleType: scheduleType,
+        scheduleType: 'daily',
         frequency: frequencyController.text,
         doseUnits: doseUnits,
         doseQuantity: doseQuantityController.text,

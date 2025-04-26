@@ -226,13 +226,6 @@ abstract class ScheduleTypeBaseState<T extends ScheduleTypeBaseScreen> extends S
                   onPressed: _loadData,
                   tooltip: 'Refresh',
                 ),
-                IconButton(
-                  padding: EdgeInsets.all(1.w), // Smaller padding
-                  constraints: BoxConstraints(), // Remove default constraints
-                  icon: Icon(Icons.arrow_back, color: themeColor, size: 18.sp),
-                  onPressed: () => Navigator.pop(context),
-                  tooltip: 'Back to all reminders',
-                ),
               ],
             ),
           ),
@@ -317,15 +310,6 @@ abstract class ScheduleTypeBaseState<T extends ScheduleTypeBaseScreen> extends S
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 3.h),
-              ElevatedButton.icon(
-                icon: Icon(Icons.arrow_back),
-                label: Text("Back to All Reminders"),
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeColor,
-                ),
               ),
             ],
           ),

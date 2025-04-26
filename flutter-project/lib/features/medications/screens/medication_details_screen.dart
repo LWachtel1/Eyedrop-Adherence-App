@@ -203,7 +203,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                         MedicationDetailsFields.buildDropdownField(
                           label: "Schedule Type",
                           fieldKey: "scheduleType",
-                          options: ["daily", "weekly", "monthly"],
+                          options: ["daily"],
                           medicationData: _controller.editableMedication,
                           isEditing: _controller.isEditing,
                           onValueChanged: _updateFieldValue,
