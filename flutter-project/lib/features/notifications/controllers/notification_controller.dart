@@ -178,6 +178,7 @@ class NotificationController extends ChangeNotifier {
     if (reminder['smartScheduling'] == false && reminder['timings'] is List) {
       // Manual scheduling with specific times
       final timings = reminder['timings'] as List;
+      final scheduleType = reminder['scheduleType'] ?? 'daily'; // Get schedule type
       
       await _notificationService.scheduleManualReminder(
         reminderId: reminderId,
@@ -186,6 +187,7 @@ class NotificationController extends ChangeNotifier {
         applicationSite: applicationSite,
         doseInfo: doseInfo,
         timings: timings,
+        scheduleType: scheduleType, // Pass scheduleType
       );
       
       log('Scheduled manual reminders for: $medicationName');
