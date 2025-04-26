@@ -215,6 +215,34 @@ class ReminderFormController extends ChangeNotifier {
       );
 
       if (pickedTime != null) {
+        // Check if this time already exists in another timing slot
+        bool isDuplicate = false;
+        
+        for (int i = 0; i < timings.length; i++) {
+          // Skip comparing with itself when editing an existing timing
+          if (i == index) continue;
+          
+          // Compare hour and minute for equality
+          if (timings[i].hour == pickedTime.hour && timings[i].minute == pickedTime.minute) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        
+        // Show error if duplicate and don't save
+        if (isDuplicate) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("This time is already set. Please choose a different time."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        
+        // No duplicate found, proceed with saving the time
         if (index < timings.length) {
           timings[index] = pickedTime;
         } else {
