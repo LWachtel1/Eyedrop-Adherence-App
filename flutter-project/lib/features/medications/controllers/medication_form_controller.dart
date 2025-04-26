@@ -29,7 +29,6 @@ class MedicationFormController extends ChangeNotifier {
   String doseUnits = '';
   String applicationSite = "";
 
-
   // Controllers for text input fields within form.
   final TextEditingController medicationController = TextEditingController();
   final TextEditingController durationController = TextEditingController(text: '1');
@@ -64,11 +63,16 @@ class MedicationFormController extends ChangeNotifier {
       try {
         final selectedMedication = await Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => MedicationSelectionScreen()),
+          MaterialPageRoute(builder: (context) => MedicationSelectionScreen(filterByType: "Eye Medication")),
         );
 
         if (selectedMedication != null) {
-          medicationController.text = selectedMedication as String;
+          // Handle either a Map or a String
+          if (selectedMedication is Map<String, dynamic>) {
+            medicationController.text = selectedMedication["medicationName"] ?? "";
+          } else {
+            medicationController.text = selectedMedication.toString();
+          }
           notifyListeners();
         }
       } catch (e) {
@@ -79,9 +83,6 @@ class MedicationFormController extends ChangeNotifier {
       }
     }
   }
-
-
-  
 
   /// Opens a date picker for selecting the prescription date.
   ///
@@ -249,7 +250,6 @@ class MedicationFormController extends ChangeNotifier {
     notifyListeners();
   }
 
-
   /// Submits the form and saves the medication to FireStore.
   ///
   /// - Ensures required fields are filled before submission.
@@ -287,11 +287,9 @@ class MedicationFormController extends ChangeNotifier {
         }
       } else {
 
-
         await medicationService.addMedication(user.uid, medData, medType == "Eye Medication");
         resetForm();
 
-        
         if (context.mounted){
           Navigator.pop(context);
         }
@@ -308,5 +306,4 @@ class MedicationFormController extends ChangeNotifier {
   void _showErrorSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
-
 }

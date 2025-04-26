@@ -14,7 +14,6 @@ class MedicationDetailsFields {
   // Use a static map to store timers for different field keys
   static final Map<String, Timer?> _debounceTimers = {};
 
-
   /// Builds an editable text field or a read-only detail row.
   ///
   /// If `isEditing` is true, it displays a text input field. Otherwise, it shows a non-editable text field.
@@ -32,7 +31,6 @@ class MedicationDetailsFields {
     TextEditingController controller = TextEditingController(
       text: medicationData[fieldKey]?.toString() ?? ''
     );
-    
 
     // Use FormComponents for text field
     return isEditing
@@ -401,12 +399,18 @@ class MedicationDetailsFields {
     try {
       final selectedMedication = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => MedicationSelectionScreen()),
+        MaterialPageRoute(builder: (context) => MedicationSelectionScreen(filterByType: "Eye Medication")),
       );
 
       if (selectedMedication != null) {
-        controller.text = selectedMedication;
-        onValueChanged(fieldKey, selectedMedication);
+        // Handle both Map and String return types
+        if (selectedMedication is Map<String, dynamic>) {
+          controller.text = selectedMedication["medicationName"] ?? "";
+          onValueChanged(fieldKey, selectedMedication["medicationName"] ?? "");
+        } else {
+          controller.text = selectedMedication.toString();
+          onValueChanged(fieldKey, selectedMedication.toString());
+        }
       }
     } catch (e) {
       print("Error selecting medication: $e");
