@@ -55,46 +55,70 @@ class NotificationService {
   
   /// Initializes timezone data, permissions, and the notification plugin.
   Future<void> initialize() async {
-    try{
-    if (_isInitialized) return;
-    
-    log("Starting notification service initialization");
-    // Load settings
-    await _loadSettings();
-    
-    // Initialises timezone database.
-    tz_data.initializeTimeZones();
-    
-    // Requests permission (iOS)s
-    final permission = await _requestPermission();
-    if (!permission) {
-      log('Notification permissions denied');
-      _notificationsEnabled = false;
-      await _saveSettings();
-    }
-    
-    // Initialises notification plugin.
-    const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initializationSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    
-    const initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-    
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-    
-    _isInitialized = true;
+    try {
+      if (_isInitialized) return;
+      
+      log("Starting notification service initialization");
+      
+      // Load settings first
+      await _loadSettings();
+      
+      // Initialize timezone database
+      tz_data.initializeTimeZones();
+      
+      // Request permissions with enhanced error handling
+      final permission = await _requestPermission();
+      if (!permission) {
+        log('Notification permissions denied');
+        _notificationsEnabled = false;
+        await _saveSettings();
+        return;
+      }
+
+      // Check for exact alarm permission on Android 12+
+      if (Platform.isAndroid) {
+        final hasExactAlarm = await _requestExactAlarmPermission();
+        if (!hasExactAlarm) {
+          log('Exact alarm permission not granted');
+          _notificationsEnabled = false;
+          await _saveSettings();
+          return;
+        }
+      }
+      
+      // Initialize notification plugin with proper error handling
+      try {
+        const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+        const initializationSettingsIOS = DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+        
+        const initializationSettings = InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
+        
+        await _localNotifications.initialize(
+          initializationSettings,
+          onDidReceiveNotificationResponse: _onNotificationTapped,
+        );
+        
+      } catch (e) {
+        log('Error initializing notification plugin: $e');
+        _notificationsEnabled = false;
+        await _saveSettings();
+        return;
+      }
+      
+      _isInitialized = true;
+      log('Notification service initialized successfully');
     } catch (e) {
       log("Error initializing notification service: $e");
-      _isInitialized = true;
+      _isInitialized = false;
+      _notificationsEnabled = false;
+      await _saveSettings();
     }
   }
   
@@ -148,6 +172,72 @@ class NotificationService {
     }
   }
   
+  /// Creates notification channel details depending on platform and user settings.
+  Future<NotificationDetails> _buildNotificationDetails({
+    required String title,
+    required String body,
+  }) async {
+    // Android specific notification details
+    final androidDetails = AndroidNotificationDetails(
+      'medication_reminders_exact',  // Changed channel ID to be specific
+      'Medication Reminders (Exact)',  // Changed channel name to indicate exact timing
+      channelDescription: 'Time-sensitive notifications for medication reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+      enableVibration: _vibrationEnabled,
+      playSound: _soundEnabled,
+      vibrationPattern: _vibrationEnabled ? Int64List.fromList([0, 500, 200, 500]) : null,
+      icon: '@mipmap/ic_launcher',
+      channelShowBadge: true,
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      visibility: NotificationVisibility.public,
+      actions: [
+        AndroidNotificationAction('taken', 'Taken'),
+        AndroidNotificationAction('snooze', 'Snooze'),
+      ],
+      // Add these settings for more reliable delivery
+      showWhen: true,
+      autoCancel: false,
+      ongoing: true,  // Make notification persistent until acted upon
+      timeoutAfter: 300000,  // 5 minutes timeout
+    );
+      
+    // iOS specific notification details
+    final iOSDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: _soundEnabled,
+      sound: _soundEnabled ? 'default' : null,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+      threadIdentifier: 'medication_reminders',
+    );
+    
+    return NotificationDetails(android: androidDetails, iOS: iOSDetails);
+  }
+  
+  /// Helper method to create a proper timezone-aware DateTime
+  tz.TZDateTime _nextInstanceOfTime(DateTime scheduledTime) {
+    final now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledTZ = tz.TZDateTime.from(scheduledTime, tz.local);
+    
+    // If the scheduled time has already passed today, schedule for tomorrow
+    if (scheduledTZ.isBefore(now)) {
+      // Calculate tomorrow's date while keeping the same time
+      scheduledTZ = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day + 1,  // Next day
+        scheduledTime.hour,
+        scheduledTime.minute,
+      );
+      log('Time already passed, scheduling for tomorrow: ${scheduledTZ.toString()}');
+    }
+    
+    return scheduledTZ;
+  }
+  
   /// Schedules a local notification for a specific reminder.
   Future<int> scheduleReminderNotification({
     required String reminderId,
@@ -167,7 +257,7 @@ class NotificationService {
     final notificationId = '${reminderId}_$timeString'.hashCode;
     final scheduledTimestamp = scheduledTime.millisecondsSinceEpoch.toString();
 
-    log('Attempting to schedule notification: ID=$notificationId, time=${scheduledTime.toString()}');
+    log('Attempting to schedule notification: ID=$notificationId, requested_time=${scheduledTime.toString()}');
     
     // Build notification details.
     final notificationDetails = await _buildNotificationDetails(
@@ -176,21 +266,25 @@ class NotificationService {
     );
     
     try {
+      // Convert to proper timezone-aware DateTime
+      final scheduledTZ = _nextInstanceOfTime(scheduledTime);
+      
       // Creates payload string with key reminder data including scheduled time.
       final payload = '$reminderId|$medicationId|$medicationName|$scheduledTimestamp';
       
-      // Schedules notification.
+      // Schedule the notification
       await _localNotifications.zonedSchedule(
         notificationId,
         'Medication Reminder',
         _buildNotificationBody(medicationName, applicationSite, doseInfo),
-        tz.TZDateTime.from(scheduledTime, tz.local),
+        scheduledTZ,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
         payload: payload,
       );
       
-      // Save this notification to our cache
+      // Save to cache
       if (!_scheduledNotificationsCache.containsKey(reminderId)) {
         _scheduledNotificationsCache[reminderId] = [];
       }
@@ -200,11 +294,11 @@ class NotificationService {
         'reminderId': reminderId,
         'medicationId': medicationId,
         'medicationName': medicationName,
-        'scheduledTime': scheduledTime.millisecondsSinceEpoch,
+        'scheduledTime': scheduledTZ.millisecondsSinceEpoch,
         'payload': payload
       });
       
-      log('Successfully scheduled notification for $medicationName at ${scheduledTime.toString()}');
+      log('Successfully scheduled notification for $medicationName at ${scheduledTZ.toString()}');
       return notificationId;
     } catch (e) {
       log('Error scheduling notification: $e');
@@ -689,41 +783,6 @@ class NotificationService {
     return null;
   }
   
-  /// Creates notification channel details depending on platform and user settings.
-  Future<NotificationDetails> _buildNotificationDetails({
-    required String title,
-    required String body,
-  }) async {
-    // Android specific notification details
-    final androidDetails = AndroidNotificationDetails(
-      'medication_reminders',
-      'Medication Reminders',
-      channelDescription: 'Notifications for medication reminders',
-      importance: Importance.high,
-      priority: Priority.high,
-      enableVibration: _vibrationEnabled,
-      playSound: _soundEnabled,
-      vibrationPattern: _vibrationEnabled ? Int64List.fromList([0, 500, 200, 500]) : null, // Add vibration pattern
-      icon: '@mipmap/ic_launcher',
-      channelShowBadge: true,
-      fullScreenIntent: true, // Makes notification appear even when screen is on
-      category: AndroidNotificationCategory.alarm, // Treat as an alarm
-      visibility: NotificationVisibility.public, 
-      );
-      
-    // iOS specific notification details
-    final iOSDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: _soundEnabled,
-      sound: _soundEnabled ? 'default' : null,
-      interruptionLevel: InterruptionLevel.timeSensitive, // Make it more likely to show
-
-    );
-    
-    return NotificationDetails(android: androidDetails, iOS: iOSDetails);
-  }
-  
   /// Cancels all notifications.
   Future<void> cancelAllNotifications() async {
     if (!_isInitialized) await initialize();
@@ -907,6 +966,42 @@ class NotificationService {
     } catch (e) {
       log('Error getting all scheduled notifications: $e');
       return [];
+    }
+  }
+
+  /// Request exact alarm permission for Android 12+
+  Future<bool> _requestExactAlarmPermission() async {
+    try {
+      final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+          
+      if (androidPlugin == null) {
+        log('Failed to get Android plugin implementation');
+        return false;
+      }
+
+      // Check if we already have the permission
+      final hasPermission = await androidPlugin.requestExactAlarmsPermission();
+      if (hasPermission == true) {
+        log('Exact alarm permission already granted');
+        return true;
+      }
+
+      // If not, request it
+      await androidPlugin.requestExactAlarmsPermission();
+      
+      // Check again after request
+      final granted = await androidPlugin.requestExactAlarmsPermission();
+      if (granted == false) {
+        log('Exact alarm permission denied');
+        return false;
+      }
+
+      log('Exact alarm permission granted');
+      return true;
+    } catch (e) {
+      log('Error requesting exact alarm permission: $e');
+      return false;
     }
   }
 }
