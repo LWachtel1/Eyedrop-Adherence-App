@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyedrop/features/reviews/controllers/reviews_controller.dart';
 import 'package:eyedrop/features/reviews/screens/create_review_screen.dart';
+import 'package:eyedrop/features/reviews/screens/medication_reviews_screen.dart';
 import 'package:eyedrop/features/reviews/widgets/review_card.dart';
 import 'package:eyedrop/shared/services/firestore_service.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
@@ -22,11 +23,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
   late ReviewsController _reviewsController;
   String _filterOption = "All Medications";
   
-  // Replace streams with lists to store data
-  List<Map<String, dynamic>> _allReviews = [];
   List<Map<String, dynamic>> _userReviews = [];
-  bool _isLoadingAll = true;
+  List<Map<String, dynamic>> _medications = [];
   bool _isLoadingUser = true;
+  bool _isLoadingMedications = true;
   
   @override
   void initState() {
@@ -35,11 +35,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
     _reviewsController = ReviewsController(firestoreService: firestoreService);
     
-    // Add listener to tab controller to refresh data when tab changes
     _tabController.addListener(_handleTabChange);
-    
-    // Initial data load
-    _loadReviews();
+    _loadData();
   }
 
   @override
@@ -50,30 +47,20 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
   }
 
   void _handleTabChange() {
-    // If tab selection actually changed, refresh the data
     if (_tabController.indexIsChanging || _tabController.animation!.value == _tabController.index) {
-      _loadReviews();
+      _loadData();
     }
   }
   
-  // Load both all reviews and user reviews
-  Future<void> _loadReviews() async {
+  Future<void> _loadData() async {
     User? user = FirebaseAuth.instance.currentUser;
     
-    // Set loading states
     setState(() {
-      _isLoadingAll = true;
       _isLoadingUser = true;
+      _isLoadingMedications = true;
     });
     
     try {
-      // Load all reviews
-      final allReviews = await _reviewsController.getAllReviews();
-      setState(() {
-        _allReviews = allReviews;
-        _isLoadingAll = false;
-      });
-      
       // Load user reviews if user is logged in
       if (user != null) {
         final userReviews = await _reviewsController.getUserReviews(user.uid);
@@ -87,16 +74,22 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
           _isLoadingUser = false;
         });
       }
-    } catch (e) {
-      // Handle errors
+
+      // Load reviewed medications
+      final medications = await _reviewsController.getReviewedMedications();
       setState(() {
-        _isLoadingAll = false;
+        _medications = medications;
+        _isLoadingMedications = false;
+      });
+    } catch (e) {
+      setState(() {
         _isLoadingUser = false;
+        _isLoadingMedications = false;
       });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error loading reviews: $e"))
+          SnackBar(content: Text("Error loading data: $e"))
         );
       }
     }
@@ -109,45 +102,17 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
     return BaseLayoutScreen(
       child: Column(
         children: [
-          // Tab Bar
           TabBar(
             controller: _tabController,
             tabs: [
               Tab(text: "My Reviews"),
-              Tab(text: "All Reviews"),
+              Tab(text: "Browse Reviews"),
             ],
             labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.grey,
             indicatorColor: Theme.of(context).primaryColor,
           ),
           
-          // Filter Dropdown
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
-            child: DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: "Filter Reviews",
-                border: OutlineInputBorder(),
-              ),
-              value: _filterOption,
-              items: [
-                "All Medications",
-                "Highest Rated",
-                "Lowest Rated",
-                "Most Recent"
-              ].map((option) => DropdownMenuItem(
-                value: option,
-                child: Text(option),
-              )).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _filterOption = value!;
-                });
-              },
-            ),
-          ),
-          
-          // Tab Content
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -155,8 +120,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
                 // My Reviews Tab
                 _buildMyReviewsTab(user),
                 
-                // All Reviews Tab
-                _buildAllReviewsTab(user),
+                // Browse Reviews Tab
+                _buildBrowseReviewsTab(),
               ],
             ),
           ),
@@ -171,7 +136,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
                   MaterialPageRoute(
                     builder: (context) => CreateReviewScreen(),
                   ),
-                );
+                ).then((_) => _loadData());
               },
               icon: Icon(Icons.add),
               label: Text("Write an Eye Medication Review"),
@@ -194,34 +159,14 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
       return Center(child: CircularProgressIndicator());
     }
 
-    // Apply filtering
-    final filteredReviews = _applyFilter(_userReviews);
-
-    if (filteredReviews.isEmpty) {
+    if (_userReviews.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text("You haven't written any reviews yet."),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CreateReviewScreen(),
-                  ),
-                ).then((_) => _loadReviews()); // Refresh after returning
-              },
-              child: Text("Write Your First Review"),
-            ),
-          ],
-        ),
+        child: Text("You haven't written any reviews yet.")
       );
     }
 
     return SearchableList<Map<String, dynamic>>(
-      items: filteredReviews,
+      items: _userReviews,
       getSearchString: (review) => review["medicationName"] ?? "",
       itemBuilder: (review, index) => ReviewCard(
         review: review,
@@ -234,92 +179,66 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildAllReviewsTab(User? user) {
-    if (_isLoadingAll) {
+  Widget _buildBrowseReviewsTab() {
+    if (_isLoadingMedications) {
       return Center(child: CircularProgressIndicator());
     }
-    
-    // Apply filtering
-    final filteredReviews = _applyFilter(_allReviews);
 
-    if (filteredReviews.isEmpty) {
-      return Center(child: Text("No reviews found"));
+    if (_medications.isEmpty) {
+      return Center(child: Text("No reviewed medications found"));
     }
 
     return SearchableList<Map<String, dynamic>>(
-      items: filteredReviews,
-      getSearchString: (review) => review["medicationName"] ?? "",
-      itemBuilder: (review, index) {
-        // Check if this review belongs to the current user
-        bool isUserReview = user != null && review["userId"] == user.uid;
-        
-        return ReviewCard(
-          review: review,
-          isUserReview: isUserReview,
-          onEdit: (review) {
-            // Only allow editing if it's the user's review
-            if (isUserReview) {
-              _navigateToEditReview(review);
-            }
-          },
-          onDelete: (review) {
-            // Only allow deletion if it's the user's review
-            if (isUserReview) {
-              _showDeleteConfirmation(review);
-            }
-          },
-        );
-      },
-      onSelect: (review) {
-        // Only navigate to edit if it's the user's review
-        if (user != null && review["userId"] == user.uid) {
-          _navigateToEditReview(review);
-        }
-      },
-      hintText: "Search reviews",
+      items: _medications,
+      getSearchString: (medication) => medication["medicationName"] ?? "",
+      itemBuilder: (medication, index) => _buildMedicationCard(medication),
+      onSelect: (medication) => _navigateToMedicationReviews(medication),
+      hintText: "Search medications",
     );
   }
 
-  List<Map<String, dynamic>> _applyFilter(List<Map<String, dynamic>> reviews) {
-    switch (_filterOption) {
-      case "Highest Rated":
-        return List.from(reviews)..sort((a, b) => (b["rating"] as num).compareTo(a["rating"] as num));
-      case "Lowest Rated":
-        return List.from(reviews)..sort((a, b) => (a["rating"] as num).compareTo(b["rating"] as num));
-      case "Most Recent":
-        return List.from(reviews)..sort((a, b) {
-          // Handle Timestamp or DateTime for comparison
-          DateTime aTime;
-          DateTime bTime;
-          
-          if (a["createdAt"] is Timestamp) {
-            aTime = (a["createdAt"] as Timestamp).toDate();
-          } else if (a["createdAt"] is DateTime) {
-            aTime = a["createdAt"] as DateTime;
-          } else {
-            aTime = DateTime.now(); // Fallback
-          }
-          
-          if (b["createdAt"] is Timestamp) {
-            bTime = (b["createdAt"] as Timestamp).toDate();
-          } else if (b["createdAt"] is DateTime) {
-            bTime = b["createdAt"] as DateTime;
-          } else {
-            bTime = DateTime.now(); // Fallback
-          }
-          
-          return bTime.compareTo(aTime); // Newer first
-        });
-      default:
-        return reviews;
-    }
+  Widget _buildMedicationCard(Map<String, dynamic> medication) {
+    final medName = medication["medicationName"] ?? "Unknown Medication";
+    final reviewCount = medication["reviewCount"] ?? 0;
+    final averageRating = medication["averageRating"] ?? 0.0;
+
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        title: Text(
+          medName,
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Row(
+          children: [
+            Icon(Icons.star, color: Colors.amber, size: 16),
+            SizedBox(width: 4),
+            Text(averageRating.toStringAsFixed(1)),
+            SizedBox(width: 8),
+            Text("($reviewCount reviews)"),
+          ],
+        ),
+        trailing: Icon(Icons.chevron_right),
+        onTap: () => _navigateToMedicationReviews(medication),
+      ),
+    );
+  }
+
+  void _navigateToMedicationReviews(Map<String, dynamic> medication) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MedicationReviewsScreen(medication: medication),
+      ),
+    ).then((_) => _loadData());
   }
 
   void _navigateToEditReview(Map<String, dynamic> review) {
-    // Extra safety check to ensure only the owner can edit
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null || review["userId"] != user.uid) {
-      // User is not the owner of this review
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("You can only edit your own reviews"))
       );
@@ -331,14 +250,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
       MaterialPageRoute(
         builder: (context) => CreateReviewScreen(existingReview: review),
       ),
-    ).then((_) => _loadReviews()); // Refresh after returning
+    ).then((_) => _loadData());
   }
 
   void _showDeleteConfirmation(Map<String, dynamic> review) {
-    // Extra safety check to ensure only the owner can delete
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null || review["userId"] != user.uid) {
-      // User is not the owner of this review
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("You can only delete your own reviews"))
       );
@@ -365,7 +282,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> with SingleTickerProvider
                     SnackBar(content: Text("Review deleted successfully")),
                   );
                 }
-                _loadReviews(); // Refresh after deletion
+                _loadData();
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -63,6 +63,78 @@ class ReviewsController {
     }
   }
 
+  /// Get reviews for a specific medication
+  Future<List<Map<String, dynamic>>> getMedicationReviews(String medicationId) async {
+    try {
+      return await firestoreService.queryCollectionWithIds(
+        collectionPath: "reviews",
+        filters: [
+          {"field": "medicationId", "operator": "==", "value": medicationId}
+        ],
+        orderBy: {"field": "createdAt", "descending": true},
+      );
+    } catch (e) {
+      log("Error getting medication reviews: $e");
+      throw Exception("Failed to load medication reviews: $e");
+    }
+  }
+
+  /// Get all medications that have reviews with aggregated review data
+  Future<List<Map<String, dynamic>>> getReviewedMedications() async {
+    try {
+      // First get all reviews
+      final reviews = await getAllReviews();
+      
+      // Group reviews by medication
+      Map<String, List<Map<String, dynamic>>> reviewsByMedication = {};
+      for (var review in reviews) {
+        final medicationId = review["medicationId"];
+        if (medicationId != null) {
+          reviewsByMedication.putIfAbsent(medicationId, () => []);
+          reviewsByMedication[medicationId]!.add(review);
+        }
+      }
+      
+      // Get medication details and calculate stats
+      List<Map<String, dynamic>> medications = [];
+      for (var entry in reviewsByMedication.entries) {
+        final medicationId = entry.key;
+        final medicationReviews = entry.value;
+        
+        // Get medication details
+        final medication = await firestoreService.readDoc(
+          collectionPath: "medications",
+          docId: medicationId,
+        );
+        
+        if (medication != null) {
+          // Calculate average rating
+          double totalRating = 0;
+          for (var review in medicationReviews) {
+            totalRating += (review["rating"] as num).toDouble();
+          }
+          double averageRating = totalRating / medicationReviews.length;
+          
+          // Add medication with stats
+          medications.add({
+            ...medication,
+            "id": medicationId,
+            "reviewCount": medicationReviews.length,
+            "averageRating": averageRating,
+          });
+        }
+      }
+      
+      // Sort by review count (most reviewed first)
+      medications.sort((a, b) => (b["reviewCount"] as num).compareTo(a["reviewCount"] as num));
+      
+      return medications;
+    } catch (e) {
+      log("Error getting reviewed medications: $e");
+      throw Exception("Failed to load reviewed medications: $e");
+    }
+  }
+
   /// Check if a medication exists in the medications collection
   Future<Map<String, dynamic>?> _getMedicationById(String medicationId) async {
     return await firestoreService.readDoc(
