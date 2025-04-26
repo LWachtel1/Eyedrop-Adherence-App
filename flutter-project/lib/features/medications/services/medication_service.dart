@@ -41,6 +41,13 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
       throw Exception("No medications found in the database.");
     }
 
+    // Sort medications alphabetically by name
+    meds.sort((a, b) {
+      String nameA = (a["medicationName"] ?? "").toString().toLowerCase();
+      String nameB = (b["medicationName"] ?? "").toString().toLowerCase();
+      return nameA.compareTo(nameB);
+    });
+
     return meds;
   } on FirebaseException catch (e) {
     log("Firestore error while fetching medications: ${e.message}");

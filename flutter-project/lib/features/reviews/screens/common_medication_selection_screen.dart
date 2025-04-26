@@ -59,6 +59,13 @@ class _CommonMedicationSelectionScreenState extends State<CommonMedicationSelect
         ).toList();
       }
       
+      // Sort medications alphabetically by name
+      commonMeds.sort((a, b) {
+        String nameA = (a["medicationName"] ?? "").toString().toLowerCase();
+        String nameB = (b["medicationName"] ?? "").toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+      
       setState(() {
         _medications = commonMeds;
         _filteredMedications = commonMeds;
