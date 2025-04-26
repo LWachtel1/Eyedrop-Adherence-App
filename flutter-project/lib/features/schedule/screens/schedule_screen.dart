@@ -77,9 +77,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       final notificationService = Provider.of<NotificationService>(context, listen: false);
       final reminderService = Provider.of<ReminderService>(context, listen: false);
 
-      await notificationService.scheduleAllReminders(user.uid, reminderService);
-      
-      // Get all pending notifications
+      // Get all pending notifications first
       final pendingNotifications = await notificationService.getAllScheduledNotifications();
 
       // Get all reminders to match with notifications
@@ -88,6 +86,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         for (var reminder in allReminders) 
           reminder['id'] as String: reminder
       };
+      
+      // Only reschedule if there are enabled reminders but no pending notifications
+      final enabledReminders = allReminders.where((r) => r['isEnabled'] == true).toList();
+      if (enabledReminders.isNotEmpty && pendingNotifications.isEmpty) {
+        log('No pending notifications found but there are enabled reminders. Rescheduling...');
+        await notificationService.scheduleAllReminders(user.uid, reminderService);
+        // Refresh the pending notifications list
+        pendingNotifications.addAll(await notificationService.getAllScheduledNotifications());
+      }
       
       // Count pending notifications per reminder
       final pendingCountByReminder = <String, int>{};
