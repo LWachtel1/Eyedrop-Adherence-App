@@ -196,6 +196,23 @@ class MedicationFormState extends State<MedicationForm> {
               },
             ),
 
+            SizedBox(height: 2.h),
+
+            // 11. Notes
+            TextFormField(
+              controller: controller.notesController,
+              decoration: InputDecoration(
+                labelText: "Notes",
+                hintText: "Add any additional notes about this medication",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+              textAlignVertical: TextAlignVertical.top,
+            ),
+
             SizedBox(height: 3.h),
 
             // Submit Button

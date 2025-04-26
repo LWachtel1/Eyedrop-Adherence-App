@@ -34,6 +34,7 @@ class MedicationFormController extends ChangeNotifier {
   final TextEditingController durationController = TextEditingController(text: '1');
   final TextEditingController frequencyController = TextEditingController(text: '1');
   final TextEditingController doseQuantityController = TextEditingController(text: '0.0');
+  final TextEditingController notesController = TextEditingController(); // Add notes controller
 
   @override
   /// Disposes of the controllers when the form is no longer in use.
@@ -42,6 +43,7 @@ class MedicationFormController extends ChangeNotifier {
     durationController.dispose();
     frequencyController.dispose();
     doseQuantityController.dispose();
+    notesController.dispose(); // Dispose of notes controller
     super.dispose();
   }
 
@@ -232,6 +234,7 @@ class MedicationFormController extends ChangeNotifier {
     durationController.text = '1';
     frequencyController.text = '1';
     doseQuantityController.text = '0.0';
+    notesController.text = ''; // Reset notes
     
     // Reset form state variables
     medType = 'Eye Medication';
@@ -271,7 +274,8 @@ class MedicationFormController extends ChangeNotifier {
         frequency: frequencyController.text,
         doseUnits: doseUnits,
         doseQuantity: doseQuantityController.text,
-        applicationSite: applicationSite
+        applicationSite: applicationSite,
+        notes: notesController.text, // Add notes to the medication data
       );
 
       final isDuplicate = await medicationService.isDuplicateMedication(user.uid, medData);

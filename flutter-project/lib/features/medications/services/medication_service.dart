@@ -64,6 +64,7 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
   /// - `doseUnits`: The units of the dose.
   /// - `doseQuantity`: The quantity of the dose.
   /// - `applicationSite`: The site of application.
+  /// - `notes`: Additional notes about the medication.
   /// 
   /// Returns:
   /// - A `Map<String, dynamic>` containing the user medication data.
@@ -81,7 +82,8 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
     required String frequency,
     required String doseUnits,
     required String doseQuantity,
-    required String applicationSite
+    required String applicationSite,
+    String? notes,
   }) {
     try {
       int parsedFrequency = int.tryParse(frequency) ?? 1;
@@ -106,7 +108,8 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
         "doseUnits": doseUnits,
         "doseQuantity": double.tryParse(doseQuantity) ?? 0.0,
         "applicationSite": applicationSite,
-        "reminderSet": false // Initialize to false
+        "reminderSet": false,
+        "notes": notes?.trim(),
       };
     } catch (e) {
       log("Error creating medication data: $e");

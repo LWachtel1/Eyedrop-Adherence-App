@@ -37,6 +37,7 @@ class MedicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool hasReminder = medication["reminderSet"] == true;
+    String? notes = medication["notes"]?.toString();
     
     return Card(
       elevation: 3,
@@ -50,7 +51,7 @@ class MedicationCard extends StatelessWidget {
           medication["medicationName"]?.toString() ?? "Unnamed Medication",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
         ),
-        // Displays reminder status
+        // Displays reminder status and notes
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -66,6 +67,19 @@ class MedicationCard extends StatelessWidget {
                 fontWeight: hasReminder ? FontWeight.bold : FontWeight.normal,
               ),
             ),
+            if (notes != null && notes.isNotEmpty) ...[
+              SizedBox(height: 0.5.h),
+              Text(
+                notes,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
 

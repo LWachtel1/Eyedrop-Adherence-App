@@ -158,6 +158,12 @@ class MedicationDetailsController {
       if (!preparedData.containsKey("applicationSite") || preparedData["applicationSite"] == null) {
         preparedData["applicationSite"] = "Both";
       }
+
+      // Handle notes - ensure it's a string or null
+      if (preparedData.containsKey("notes")) {
+        String? notes = preparedData["notes"]?.toString();
+        preparedData["notes"] = notes?.trim(); // Trim whitespace if notes exist
+      }
       
       // Updates the editable medication with the prepared data.
       editableMedication = preparedData;

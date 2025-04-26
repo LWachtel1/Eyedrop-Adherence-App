@@ -236,6 +236,46 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           step: 0.1,  // Explicitly set step to 0.1 for dose quantity
                           allowDecimals: true,
                         ),
+
+                        SizedBox(height: 2.h),
+
+                        // 11. Notes
+                        if (_controller.isEditing)
+                          TextFormField(
+                            initialValue: _controller.editableMedication["notes"]?.toString() ?? "",
+                            decoration: InputDecoration(
+                              labelText: "Notes",
+                              hintText: "Add any additional notes about this medication",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              alignLabelWithHint: true,
+                            ),
+                            maxLines: 3,
+                            textAlignVertical: TextAlignVertical.top,
+                            onChanged: (value) => _updateFieldValue("notes", value),
+                          )
+                        else if (_controller.editableMedication["notes"]?.toString()?.isNotEmpty == true)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Notes",
+                                style: TextStyle(
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[800],
+                                ),
+                              ),
+                              Divider(thickness: 1.5),
+                              Text(
+                                _controller.editableMedication["notes"]?.toString() ?? "",
+                                style: TextStyle(fontSize: 15.sp),
+                              ),
+                            ],
+                          ),
+                        
+                        SizedBox(height: 2.h),
                         
                         // Add the reminder status indicator
                         if (!_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication")...[
@@ -246,8 +286,6 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                                 : "No active reminder",
                           ),
                         ],
-                        
-                        SizedBox(height: 2.h),
                       ],
                     ),
                   ),
