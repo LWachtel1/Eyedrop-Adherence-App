@@ -31,6 +31,7 @@ import 'package:eyedrop/features/notifications/services/notification_verificatio
 import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 import 'features/education/screens/education_screen.dart';
 import 'package:eyedrop/features/reviews/screens/reviews_screen.dart';
+import 'package:eyedrop/features/education/services/education_service.dart';
 
 // Add these imports at the top of your file
 import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
@@ -121,6 +122,11 @@ Future<void> main() async {
         // Add this provider
         ChangeNotifierProvider<ProgressController>(
           create: (context) => ProgressController(),
+        ),
+
+        // Add EducationService provider
+        Provider<EducationService>(
+          create: (_) => EducationService(),
         ),
       ],
       child: Sizer( // Wraps the app in Sizer.
