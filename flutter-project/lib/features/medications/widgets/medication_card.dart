@@ -36,7 +36,6 @@ class MedicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isEyeMedication = medication["medType"]?.toString() == "Eye Medication";
     bool hasReminder = medication["reminderSet"] == true;
     
     return Card(
@@ -51,24 +50,22 @@ class MedicationCard extends StatelessWidget {
           medication["medicationName"]?.toString() ?? "Unnamed Medication",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
         ),
-        // Displays whether the medication is for the eyes or not and reminder status
+        // Displays reminder status
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isEyeMedication ? "Eye" : "Non-Eye",
+              "Eye Medication",
               style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
             ),
-            // Only show reminder status for eye medications
-            if (isEyeMedication)
-              Text(
-                hasReminder ? "Reminder set" : "No reminder",
-                style: TextStyle(
-                  fontSize: 12.sp, 
-                  color: hasReminder ? Colors.green[700] : Colors.grey[600],
-                  fontWeight: hasReminder ? FontWeight.bold : FontWeight.normal,
-                ),
+            Text(
+              hasReminder ? "Reminder set" : "No reminder",
+              style: TextStyle(
+                fontSize: 12.sp, 
+                color: hasReminder ? Colors.green[700] : Colors.grey[600],
+                fontWeight: hasReminder ? FontWeight.bold : FontWeight.normal,
               ),
+            ),
           ],
         ),
 

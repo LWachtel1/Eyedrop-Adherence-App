@@ -101,24 +101,10 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                         // Rearranged fields in the requested order
                         
                         // 1. Medication Type.
-                        _controller.isEditing
-                          ? MedicationDetailsFields.buildToggleButtons(
-                              medicationData: _controller.editableMedication,
-                              isEditing: _controller.isEditing,
-                              onValueChanged: (fieldKey, value) {
-                                setState(() {
-                                  _controller.updateMedicationType(value);
-                                });
-                              },
-                              options: ["Eye Medication", "Non-Eye Medication"],
-                              fieldKey: "medType",
-                            )
-                          : MedicationDetailsFields.buildDetailRow(
-                              "Type",
-                              _controller.editableMedication["medType"] == "Eye Medication"
-                                ? "Eye Medication" 
-                                : "Non-Eye Medication"
-                            ),
+                        MedicationDetailsFields.buildDetailRow(
+                          "Type",
+                          "Eye Medication"
+                        ),
                         
                         // 2. Medication Name.
                         MedicationDetailsFields.buildEditableField(
@@ -131,7 +117,17 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           onValueChanged: _updateFieldValue,
                         ),
 
-                        // 3. Date/Time.
+                        // 3. Application Site
+                        MedicationDetailsFields.buildDropdownField(
+                          label: "Application Site",
+                          fieldKey: "applicationSite",
+                          options: ["Left", "Right", "Both"],
+                          medicationData: _controller.editableMedication,
+                          isEditing: _controller.isEditing,
+                          onValueChanged: _updateFieldValue,
+                        ),
+                        
+                        // 4. Date/Time.
                         // Prescription Date.
                         MedicationDetailsFields.buildDatePicker(
                           label: "Prescription Date",
@@ -176,9 +172,9 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                             },
                           ),
     
-                        // 4. Duration Units and 5. Duration Length (if not indefinite).
+                        // 5. Duration Units and 6. Duration Length (if not indefinite).
                         if (_controller.isEditing && (_controller.editableMedication["isIndefinite"] == false)) ...[
-                          // 4. Duration Units
+                          // Duration Units
                           MedicationDetailsFields.buildDropdownField(
                             label: "Duration Units",
                             fieldKey: "durationUnits",
@@ -188,7 +184,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                             onValueChanged: _updateFieldValue,
                           ),
                           
-                          // 5. Duration Length.
+                          // Duration Length.
                           MedicationDetailsFields.buildNumericStepperField(
                             label: "Duration Length",
                             fieldKey: "durationLength",
@@ -199,7 +195,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           ),
                         ],
                         
-                        // 6. Schedule Type.
+                        // 7. Schedule Type.
                         MedicationDetailsFields.buildDropdownField(
                           label: "Schedule Type",
                           fieldKey: "scheduleType",
@@ -209,7 +205,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           onValueChanged: _updateFieldValue,
                         ),
                         
-                        // 7. Frequency.
+                        // 8. Frequency.
                         MedicationDetailsFields.buildNumericStepperField(
                           label: "Frequency",
                           fieldKey: "frequency",
@@ -219,19 +215,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           minValue: 1,
                         ),
                         
-                        // Application Site (moved here) - only shown for eye medications.
-                        if ((_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication") ||
-                           (!_controller.isEditing && _controller.editableMedication["medType"] == "Eye Medication"))
-                          MedicationDetailsFields.buildDropdownField(
-                            label: "Application Site",
-                            fieldKey: "applicationSite",
-                            options: ["Left", "Right", "Both"],
-                            medicationData: _controller.editableMedication,
-                            isEditing: _controller.isEditing,
-                            onValueChanged: _updateFieldValue,
-                          ),
-                        
-                        // 8. Dose Units.
+                        // 9. Dose Units.
                         MedicationDetailsFields.buildDropdownField(
                           label: "Dose Units",
                           fieldKey: "doseUnits",
@@ -241,7 +225,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                           onValueChanged: _updateFieldValue,
                         ),
                         
-                        // 9. Dose Quantity.
+                        // 10. Dose Quantity.
                         MedicationDetailsFields.buildNumericStepperField(
                           label: "Dose Quantity",
                           fieldKey: "doseQuantity",

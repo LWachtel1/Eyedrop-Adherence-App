@@ -20,14 +20,14 @@ class MedicationFormController extends ChangeNotifier {
   MedicationFormController({required this.medicationService});
 
   // Form state variables (store the state of the form).
-  String medType = '';
+  String medType = 'Eye Medication'; // Default to Eye Medication
   DateTime? prescriptionDate;
   TimeOfDay? prescriptionTime;
   bool isIndefinite = false;
   String _durationUnit = '';
   String scheduleType = 'daily';
   String doseUnits = '';
-  String applicationSite = "";
+  String applicationSite = "Both"; // Default application site
 
   // Controllers for text input fields within form.
   final TextEditingController medicationController = TextEditingController();
@@ -59,28 +59,26 @@ class MedicationFormController extends ChangeNotifier {
   /// - Only applicable if the medication type is "Eye Medication".
   /// - Updates the medication name field when a selection is made.
   Future<void> selectMedicationFromFirestore(BuildContext context) async {
-    if (medType == "Eye Medication") {
-      try {
-        final selectedMedication = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => MedicationSelectionScreen(filterByType: "Eye Medication")),
-        );
+    try {
+      final selectedMedication = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MedicationSelectionScreen(filterByType: "Eye Medication")),
+      );
 
-        if (selectedMedication != null) {
-          // Handle either a Map or a String
-          if (selectedMedication is Map<String, dynamic>) {
-            medicationController.text = selectedMedication["medicationName"] ?? "";
-          } else {
-            medicationController.text = selectedMedication.toString();
-          }
-          notifyListeners();
+      if (selectedMedication != null) {
+        // Handle either a Map or a String
+        if (selectedMedication is Map<String, dynamic>) {
+          medicationController.text = selectedMedication["medicationName"] ?? "";
+        } else {
+          medicationController.text = selectedMedication.toString();
         }
-      } catch (e) {
-          if(context.mounted) {
-            _showErrorSnackBar(context, "Failed to select medication.");
-          }
-          log("Error selecting medication: $e");
+        notifyListeners();
       }
+    } catch (e) {
+        if(context.mounted) {
+          _showErrorSnackBar(context, "Failed to select medication.");
+        }
+        log("Error selecting medication: $e");
     }
   }
 
@@ -102,11 +100,9 @@ class MedicationFormController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-
       if (context.mounted) {
         _showErrorSnackBar(context, "Failed to select date.");
       }
-
       log("Error selecting date: $e");
     }
   }
@@ -238,14 +234,14 @@ class MedicationFormController extends ChangeNotifier {
     doseQuantityController.text = '0.0';
     
     // Reset form state variables
-    medType = '';
+    medType = 'Eye Medication';
     prescriptionDate = null;
     prescriptionTime = null;
     isIndefinite = false;
     _durationUnit = '';
     scheduleType = 'daily';
     doseUnits = '';
-    applicationSite = '';
+    applicationSite = 'Both';
     
     notifyListeners();
   }
@@ -266,7 +262,6 @@ class MedicationFormController extends ChangeNotifier {
       }
 
       final medData = medicationService.createMedicationData(
-        medType: medType,
         medicationName: medicationController.text,
         prescriptionDate: getFinalPrescriptionDateTime(),
         isIndefinite: isIndefinite,
@@ -279,18 +274,17 @@ class MedicationFormController extends ChangeNotifier {
         applicationSite: applicationSite
       );
 
-      final isDuplicate = await medicationService.isDuplicateMedication(user.uid, medData, medType == "Eye Medication");
+      final isDuplicate = await medicationService.isDuplicateMedication(user.uid, medData);
 
       if (isDuplicate) {
         if(context.mounted) {
           _showErrorSnackBar(context, "This medication already exists.");
         }
       } else {
-
-        await medicationService.addMedication(user.uid, medData, medType == "Eye Medication");
+        await medicationService.addMedication(user.uid, medData);
         resetForm();
 
-        if (context.mounted){
+        if (context.mounted) {
           Navigator.pop(context);
         }
       }

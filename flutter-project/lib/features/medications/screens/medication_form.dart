@@ -27,30 +27,44 @@ class MedicationFormState extends State<MedicationForm> {
   @override
   Widget build(BuildContext context) {
     final controller = Provider.of<MedicationFormController>(context);
-  
+
     return BaseLayoutScreen(
       child: Form(
         key: controller.formKey,
         child: ListView(
           padding: EdgeInsets.all(5.w),
           children: [
-            // 1. Medication Type Toggle (Eye vs. Non-Eye)
-            _buildToggleButtons(controller),
+            Center(
+              child: Text(
+                "Add Eye Medication",
+                style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
+              ),
+            ),
             
-            SizedBox(height: 1.h),
+            SizedBox(height: 3.h),
 
-            // 2. Medication Name Field
-            // - Manual entry is always allowed.
-            // - If "Eye Medication" is selected, users can also search for a medication
+            // 1. Medication Name Field with search for eye medications
             FormComponents.buildTextField(
               label: "Medication Name",
               controller: controller.medicationController,
-              onTapIcon: controller.medType == "Eye Medication"
-                  ? () => controller.selectMedicationFromFirestore(context)
-                  : null, // Opens selection only if search icon is clicked.
-              icon: controller.medType == "Eye Medication" ? Icons.search : null,
+              onTapIcon: () => controller.selectMedicationFromFirestore(context),
+              icon: Icons.search,
             ),
           
+            SizedBox(height: 1.h),
+
+            // 2. Application Site
+            FormComponents.buildDropdown(
+              label: "Application Site",
+              value: controller.applicationSite,
+              items: ["Left", "Right", "Both"],
+              onChanged: (val) {
+                setState(() {
+                  controller.applicationSite = val!;
+                });
+              },
+            ),
+
             SizedBox(height: 1.h),
 
             // 3. Date/Time
@@ -73,7 +87,6 @@ class MedicationFormState extends State<MedicationForm> {
             SizedBox(height: 1.h),
 
             // 4. Taken Indefinitely Checkbox
-            // - If checked, the duration fields will be hidden.
             FormComponents.buildCheckbox(
               label: "Taken Indefinitely",
               value: controller.isIndefinite,
@@ -86,7 +99,7 @@ class MedicationFormState extends State<MedicationForm> {
 
             SizedBox(height: 1.h),
 
-            // 5-6. Duration Fields (Only show if not medication not taken indefinitely)
+            // 5-6. Duration Fields (Only show if not indefinite)
             if (!controller.isIndefinite) ...[
               // 5. Duration Units
               FormComponents.buildDropdown(
@@ -102,13 +115,13 @@ class MedicationFormState extends State<MedicationForm> {
 
               SizedBox(height: 1.h),
 
-              // 6. Duration Length field
+              // 6. Duration Length
               FormComponents.buildNumericStepperField(
                 label: "Duration Length",
                 controller: controller.durationController,
                 isEnabled: !controller.isIndefinite,
                 step: 1.0,
-                minValue: 1.0, // Ensures a minimum of 1
+                minValue: 1.0,
                 allowDecimals: false,
                 onIncrement: () {
                   controller.incrementDurationLength();
@@ -121,25 +134,27 @@ class MedicationFormState extends State<MedicationForm> {
 
             SizedBox(height: 1.h),
 
-            // 7. Schedule Type Dropdown field
+            // 7. Schedule Type
             FormComponents.buildDropdown(
               label: "Schedule Type",
-              value: "daily", // Always daily
-              items: ["daily"], // Only daily option
-              onChanged: (_) {}, // Empty function since we don't need to handle changes
+              value: "daily",
+              items: ["daily"],
+              onChanged: (val) {
+                setState(() {
+                  controller.scheduleType = val!;
+                });
+              },
             ),
 
             SizedBox(height: 1.h),
 
-            // 8. Frequency Field
-            // - Minimum value: 1
-            // - Increments/Decrements by 1
+            // 8. Frequency
             FormComponents.buildNumericStepperField(
               label: "Frequency",
               controller: controller.frequencyController,
               isEnabled: true,
               step: 1.0,
-              minValue: 1.0, // Ensures a minimum of 1
+              minValue: 1.0,
               allowDecimals: false,
               onIncrement: () {
                 controller.incrementFrequency();
@@ -151,23 +166,7 @@ class MedicationFormState extends State<MedicationForm> {
 
             SizedBox(height: 1.h),
 
-            // 9. Application Site field (Only show if medication is eye medication)
-            if (controller.medType == "Eye Medication") ...[
-              FormComponents.buildDropdown(
-                label: "Application Site",
-                value: controller.applicationSite.isNotEmpty ? controller.applicationSite : null,
-                items: ["Left Eye", "Right Eye", "Both Eyes"],
-                onChanged: (val) {
-                  setState(() {
-                    controller.applicationSite = val!;
-                  });
-                },
-              ),
-              
-              SizedBox(height: 1.h),
-            ],
-
-            // 10. Dose Units
+            // 9. Dose Units
             FormComponents.buildDropdown(
               label: "Dose Units",
               value: controller.doseUnits.isNotEmpty ? controller.doseUnits : null,
@@ -181,16 +180,13 @@ class MedicationFormState extends State<MedicationForm> {
 
             SizedBox(height: 1.h),
 
-            // 11. Dose Quantity
-            // - Allows manual entry
-            // - Increments/Decrements by 0.1
-            // - Minimum dose: 0.0
+            // 10. Dose Quantity
             FormComponents.buildNumericStepperField(
               label: "Dose Quantity",
               controller: controller.doseQuantityController,
               isEnabled: true,
               step: 0.1,
-              minValue: 0.0, // Allows exactly 0.0 minimum
+              minValue: 0.1,
               allowDecimals: true,
               onIncrement: () {
                 controller.incrementDoseQuantity();
@@ -200,45 +196,24 @@ class MedicationFormState extends State<MedicationForm> {
               },
             ),
 
-            SizedBox(height: 2.h),
+            SizedBox(height: 3.h),
 
             // Submit Button
-            ElevatedButton(
-              onPressed: () => controller.submitForm(context),
-              child: const Text("Submit"),
+            Center(
+              child: ElevatedButton(
+                onPressed: () => controller.submitForm(context),
+                child: Text(
+                  "Add Medication",
+                  style: TextStyle(fontSize: 16.sp),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+                ),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  /// Builds toggle buttons for selecting medication type (Eye vs. Non-Eye).
-  Widget _buildToggleButtons(MedicationFormController controller) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        FormComponents.buildToggleButton(
-          label: "Eye Medication",
-          isSelected: controller.medType == "Eye Medication",
-          onTap: () {
-            setState(() {
-              controller.medType = "Eye Medication";
-            });
-          },
-        ),
-        SizedBox(width: 10), 
-        
-        FormComponents.buildToggleButton(
-          label: "Non-Eye Medication",
-          isSelected: controller.medType == "Non-Eye Medication",
-          onTap: () {
-            setState(() {
-              controller.medType = "Non-Eye Medication";
-            });
-          },
-        ),
-      ],
     );
   }
 }

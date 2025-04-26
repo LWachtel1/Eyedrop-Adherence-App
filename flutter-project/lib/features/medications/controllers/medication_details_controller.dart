@@ -151,12 +151,11 @@ class MedicationDetailsController {
         preparedData["doseQuantity"] = doseQuantity.toString();
       }
       
-      // Remove applicationSite if not an eye medication
-      if (preparedData["medType"] != "Eye Medication") {
-        preparedData.remove("applicationSite");
-      } else if (!preparedData.containsKey("applicationSite") || 
-                preparedData["applicationSite"] == null) {
-        // Ensure applicationSite exists for eye medications
+      // Ensure medType is Eye Medication
+      preparedData["medType"] = "Eye Medication";
+      
+      // Ensure applicationSite exists
+      if (!preparedData.containsKey("applicationSite") || preparedData["applicationSite"] == null) {
         preparedData["applicationSite"] = "Both";
       }
       
@@ -177,16 +176,12 @@ class MedicationDetailsController {
   
   /// Updates medication type and handles related fields.
   void updateMedicationType(String type) {
-    editableMedication["medType"] = type;
+    // No need to update type since we only handle eye medications
+    editableMedication["medType"] = "Eye Medication";
     
-    if (type == "Eye Medication") {
-      // Ensure applicationSite exists when selecting Eye Medication
-      if (!editableMedication.containsKey("applicationSite")) {
-        editableMedication["applicationSite"] = "Both";
-      }
-    } else {
-      // Remove applicationSite when switching to Non-Eye Medication
-      editableMedication.remove("applicationSite");
+    // Ensure applicationSite exists
+    if (!editableMedication.containsKey("applicationSite")) {
+      editableMedication["applicationSite"] = "Both";
     }
   }
   

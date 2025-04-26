@@ -78,15 +78,6 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       return name.contains(query);
     }).toList();
     
-    // Apply filtering
-    if (_sortFilterOption == "Show Only Eye Medications") {
-      tempList = tempList.where((med) => med["medType"] == "Eye Medication").toList();
-      // tempList = tempList.where((med) => med["isEyeMedication"] == true).toList();
-    } else if (_sortFilterOption == "Show Only Non-Eye Medications") {
-          tempList = tempList.where((med) => med["medType"] != "Eye Medication").toList();
-          // tempList = tempList.where((med) => med["isEyeMedication"] == false).toList();
-    }
-
     // Apply sorting
     if (_sortFilterOption == "Sort A-Z") {
       tempList.sort((a, b) => (a["medicationName"] ?? "").compareTo(b["medicationName"] ?? ""));
@@ -96,7 +87,6 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     
     return tempList;
   }
-
 
   @override
   void dispose() {
@@ -179,25 +169,44 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     return BaseLayoutScreen(
       child: Column(
         children: [
-          
-          // Sorting & Filtering Dropdown
+          // Sort dropdown
           Padding(
             padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
-            child: FormComponents.buildDropdown(
-              label: "Filter/Sort",
-              value: _sortFilterOption,
-              items: [
-                "Show All",
-                "Show Only Eye Medications",
-                "Show Only Non-Eye Medications",
-                "Sort A-Z",
-                "Sort Z-A",
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: "Search medications",
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 2.w),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.sort),
+                  tooltip: "Sort medications",
+                  onSelected: (value) {
+                    setState(() {
+                      _sortFilterOption = value;
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: "Sort A-Z",
+                      child: Text("Sort A-Z"),
+                    ),
+                    PopupMenuItem(
+                      value: "Sort Z-A",
+                      child: Text("Sort Z-A"),
+                    ),
+                  ],
+                ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _sortFilterOption = value!;
-                });
-              },
             ),
           ),
 
