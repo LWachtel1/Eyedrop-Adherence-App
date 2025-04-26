@@ -165,37 +165,29 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
   Widget build(BuildContext context) {
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
     User? user = FirebaseAuth.instance.currentUser;
-    
+
     return BaseLayoutScreen(
       child: Column(
         children: [
-          // Sort dropdown
+          // Sort/Filter Button
           Padding(
             padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: "Search medications",
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 2.w),
                 PopupMenuButton<String>(
                   icon: Icon(Icons.sort),
-                  tooltip: "Sort medications",
+                  tooltip: "Sort/Filter medications",
                   onSelected: (value) {
                     setState(() {
                       _sortFilterOption = value;
                     });
                   },
                   itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: "Show All",
+                      child: Text("Show All"),
+                    ),
                     PopupMenuItem(
                       value: "Sort A-Z",
                       child: Text("Sort A-Z"),
@@ -210,32 +202,65 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
             ),
           ),
 
-          // Medication List with StreamBuilder
+          // Medications list
           Expanded(
             child: user == null
                 ? Center(child: Text("Please log in"))
                 : StreamBuilder<List<Map<String, dynamic>>>(
                     stream: medicationService.buildMedicationsStream(firestoreService, user.uid),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting && _medications.isEmpty) {
+                      if (snapshot.connectionState == ConnectionState.waiting && 
+                          _medications.isEmpty) {
                         return Center(child: CircularProgressIndicator());
                       }
-                      
-                    if (snapshot.hasData) {
-                      _medications = snapshot.data!;
-                      _filteredMedications = _processFilteredMedications(_medications);
-                    }
-                      
-                      if (_filteredMedications.isEmpty) {
-                        return Center(child: Text("No medications found"));
+
+                      if (snapshot.hasData) {
+                        _medications = snapshot.data!;
+                        _filteredMedications = _processFilteredMedications(_medications);
                       }
-                      
+
+                      if (_filteredMedications.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(5.w),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.medication_outlined,
+                                  size: 40.sp,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  "No Medications Found",
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 1.h),
+                                Text(
+                                  "Add medications using the + button in the top navigation bar.",
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
                       return SearchableList<Map<String, dynamic>>(
                         items: _filteredMedications,
                         getSearchString: (med) => med["medicationName"] ?? "Unnamed Medication",
                         itemBuilder: (med, index) => MedicationCard(
                           medication: med,
-                          onDelete: _handleMedicationDelete, // Use our new method
+                          onDelete: _handleMedicationDelete,
                           onTap: (medication) => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -260,5 +285,4 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       ),
     );
   }
-
 }
