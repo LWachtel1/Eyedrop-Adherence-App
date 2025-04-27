@@ -91,15 +91,15 @@ class AuthGate extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: action == AuthAction.signIn
-                    ? const Text('Welcome to [AppName], please sign in!')
-                    : const Text('Welcome to [AppName], please sign up!'),
+                    ? const Text('Welcome to DailyDose, please sign in!')
+                    : const Text('Welcome to DailyDose, please sign up!'),
               );
             },
             footerBuilder: (context, action) {
               return const Padding(
                 padding: EdgeInsets.only(top: 16),
                 child: Text(
-                  'By signing in, you agree to our terms and conditions.',
+                  '',
                   style: TextStyle(color: Colors.grey),
                 ),
               );
