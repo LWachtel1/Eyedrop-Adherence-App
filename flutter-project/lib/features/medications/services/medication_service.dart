@@ -308,4 +308,17 @@ Future<List<Map<String, dynamic>>> fetchCommonMedications() async {
     }
   }
 
+  /// Gets all eye medications for a user
+  Future<List<Map<String, dynamic>>> getEyeMedications(String userId) async {
+    try {
+      final medications = await buildMedicationsStream(firestoreService, userId).first;
+      return medications.where((med) => 
+        med["medType"] == "Eye Medication" && med["reminderSet"] == true
+      ).toList();
+    } catch (e) {
+      log('Error getting eye medications: $e');
+      return [];
+    }
+  }
+
 }

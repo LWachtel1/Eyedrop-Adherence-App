@@ -9,6 +9,8 @@ import 'package:eyedrop/features/progress/services/progress_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
 import 'package:eyedrop/features/notifications/models/notification_data.dart';
+import 'package:provider/provider.dart';
+import 'package:eyedrop/features/progress/controllers/progress_controller.dart';
 
 /// NotificationController manages the notification preferences and logic related to scheduling, rescheduling, and handling reminder notification taps.
 /// 
@@ -105,6 +107,10 @@ class NotificationController extends ChangeNotifier {
       if (notificationData.id != null) {
         await _notificationService.cancelNotification(notificationData.id!);
       }
+
+      // Force a refresh of progress data
+      final progressController = Provider.of<ProgressController>(navigator.context, listen: false);
+      await progressController.loadProgressData(reset: true, forceRefresh: true);
     } catch (e) {
       log('Error navigating to reminder details: $e');
     }

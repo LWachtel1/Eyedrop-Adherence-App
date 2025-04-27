@@ -31,10 +31,14 @@ class ProgressController extends ChangeNotifier {
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
   final BehaviorSubject<List<ProgressEntry>> _entriesSubject = BehaviorSubject<List<ProgressEntry>>();
-  // Add this new field to track reminder changes
   StreamSubscription<List<Map<String, dynamic>>>? _reminderStreamSubscription;
-  // Add a new field to store all entries for statistics
   List<ProgressEntry> _statsEntries = [];
+  
+  // Add new fields for better state management
+  bool _isInitialized = false;
+  bool _isRefreshing = false;
+  int _currentPage = 0;
+  static const int _pageSize = 50;
   
   // Getters
   List<ProgressEntry> get entries => _entries;
@@ -52,16 +56,15 @@ class ProgressController extends ChangeNotifier {
   Stream<bool> get refreshStream => _refreshTrigger.stream;
   bool get isActive => _isActive;
   Stream<List<ProgressEntry>> get entriesStream => _entriesSubject.stream;
-  // Add this getter
-
-  // Getter for stats entries
   List<ProgressEntry> get statsEntries => _statsEntries;
+  bool get isInitialized => _isInitialized;
+  bool get isRefreshing => _isRefreshing;
   
   /// Loads progress data with current filters
   Future<void> loadProgressData({
     bool reset = true, 
-    int pageSize = 50,
-    bool forceRefresh = false, // Add this parameter
+    int pageSize = _pageSize,
+    bool forceRefresh = false,
   }) async {
     if (!_isActive) return;
     
@@ -70,9 +73,9 @@ class ProgressController extends ChangeNotifier {
       _hasError = false;
       _errorMessage = null;
       _entries = [];
+      _currentPage = 0;
       notifyListeners();
     } else {
-      // Only update loading state for pagination
       _isLoadingMore = true;
       notifyListeners();
     }
@@ -80,7 +83,6 @@ class ProgressController extends ChangeNotifier {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // User not authenticated 
         _entries = [];
         _statsEntries = [];
         _stats = {};
@@ -104,7 +106,6 @@ class ProgressController extends ChangeNotifier {
           noCache: forceRefresh,
         );
         
-     
         _stats = _progressService.calculateAdherenceStats(_statsEntries);
         _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
       }
@@ -120,19 +121,21 @@ class ProgressController extends ChangeNotifier {
         endDate: _endDate,
         pageSize: pageSize,
         lastDocument: reset ? null : lastEntry?.id,
-        noCache: forceRefresh, // Pass through the force refresh flag
+        noCache: forceRefresh,
       );
       
       // If refreshing, replace entries; if paginating, append entries
       if (reset) {
         _entries = newEntries;
+        _currentPage = 1;
       } else {
         _entries.addAll(newEntries);
+        _currentPage++;
       }
       
       _hasMoreData = newEntries.length >= pageSize;
       
-      // Add this line to update the stream
+      // Update the stream
       if (!_entriesSubject.isClosed) {
         _entriesSubject.add(_entries);
       }
@@ -144,9 +147,9 @@ class ProgressController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
-    if (_isActive) {
-          notifyListeners();
-    }
+      if (_isActive) {
+        notifyListeners();
+      }
     }
   }
   
@@ -154,14 +157,14 @@ class ProgressController extends ChangeNotifier {
   Future<void> loadMedicationProgress(String medicationId) async {
     _selectedMedicationId = medicationId;
     _selectedReminderId = null;
-    await loadProgressData();
+    await loadProgressData(reset: true);
   }
   
   /// Loads progress data for a specific reminder
   Future<void> loadReminderProgress(String reminderId) async {
     _selectedReminderId = reminderId;
     _selectedMedicationId = null;
-    await loadProgressData();
+    await loadProgressData(reset: true);
   }
   
   /// Set date range filter
@@ -189,7 +192,7 @@ class ProgressController extends ChangeNotifier {
     _endDate = end;
     _hasError = false;
     _errorMessage = null;
-    await loadProgressData();
+    await loadProgressData(reset: true);
   }
   
   /// Reset all filters
@@ -198,7 +201,7 @@ class ProgressController extends ChangeNotifier {
     _selectedReminderId = null;
     _startDate = null;
     _endDate = null;
-    await loadProgressData();
+    await loadProgressData(reset: true);
   }
   
   /// Format a duration in milliseconds to a readable string
@@ -258,89 +261,71 @@ Map<String, List<ProgressEntry>> getEntriesByDay([List<ProgressEntry>? entriesPa
     notifyListeners();
   }
 
-  // Update the initializeRealTimeUpdates method:
-
-void initializeRealTimeUpdates() {
-  if (!_isActive) return;
-  
-  // Cancel any existing subscription
-  _progressStreamSubscription?.cancel();
-  
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-  
-  // Check if the stream is already closed
-  if (_refreshTrigger.isClosed) return;
-  
-  // Listen for changes to progress entries
-  _progressStreamSubscription = _progressService.getProgressEntriesStream(user.uid)
-    .listen((entries) {
-      if (!_isActive || _refreshTrigger.isClosed) return;
-      
-      log('Progress entries changed, refreshing data');
-      
-      // Special handling for the "entries deleted" case - check if our data differs
-      if (_entries.isNotEmpty && _areProgressEntriesChanged(entries)) {
-        log('Significant change detected - immediate refresh needed');
-        // Trigger a complete refresh when data changes externally
-        _refreshTrigger.add(true);
-      } else if (entries.isEmpty && _entries.isNotEmpty) {
-        // All entries were deleted
-        log('All entries deleted - immediate refresh needed');
-        _refreshTrigger.add(true);
-      } else {
-        // Minor change, queue a background refresh for stats
-        _refreshStatsOnly();
-      }
-    });
-}
-
-// Add this helper method to check if progress entries have significantly changed
-bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
-  // Quick length check
-  if (_entries.length != firestoreEntries.length) {
-    return true;
-  }
-  
-  // Count entries by ID in both collections
-  final currentIds = _entries.map((e) => e.id).toSet();
-  final firestoreIds = firestoreEntries.map((e) => e['id'] as String).toSet();
-  
-  // If the sets of IDs differ, data has changed
-  return !setEquals(currentIds, firestoreIds);
-}
-
-// Add this new method to refresh only the statistics
-Future<void> _refreshStatsOnly() async {
-  if (!_isActive) return;
-  
-  try {
+  /// Initialize real-time updates
+  void initializeRealTimeUpdates() {
+    if (!_isActive) return;
+    
+    // Cancel any existing subscription
+    _progressStreamSubscription?.cancel();
+    
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     
-    // Get fresh stats entries without updating the UI
-    _statsEntries = await _progressService.getAllProgressEntriesForStats(
-      userId: user.uid,
-      medicationId: _selectedMedicationId,
-      reminderId: _selectedReminderId,
-      startDate: _startDate,
-      endDate: _endDate,
-      noCache: true, // Force fresh data
-    );
+    // Check if the stream is already closed
+    if (_refreshTrigger.isClosed) return;
     
-    // Recalculate statistics
-    _stats = _progressService.calculateAdherenceStats(_statsEntries);
-    _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
-    
-    // Notify listeners but don't show loading state
-    if (_isActive) {
-      notifyListeners();
-    }
-  } catch (e) {
-    log('Error refreshing stats: $e');
-    // Don't update error state to avoid UI disruption
+    // Listen for changes to progress entries
+    _progressStreamSubscription = _progressService.getProgressEntriesStream(user.uid)
+      .listen((entries) {
+        if (!_isActive || _refreshTrigger.isClosed) return;
+        
+        log('Progress entries changed, refreshing data');
+        
+        // Always force a refresh when entries change
+        loadProgressData(reset: true, forceRefresh: true);
+      });
   }
-}
+
+  /// Refresh only the statistics
+  Future<void> _refreshStatsOnly() async {
+    if (!_isActive) return;
+    
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      
+      // Get fresh stats entries without updating the UI
+      _statsEntries = await _progressService.getAllProgressEntriesForStats(
+        userId: user.uid,
+        medicationId: _selectedMedicationId,
+        reminderId: _selectedReminderId,
+        startDate: _startDate,
+        endDate: _endDate,
+        noCache: true,
+      );
+      
+      // Recalculate statistics
+      _stats = _progressService.calculateAdherenceStats(_statsEntries);
+      _scheduleTypeStats = _progressService.calculateScheduleTypeStats(_statsEntries);
+      
+      // Notify listeners but don't show loading state
+      if (_isActive) {
+        notifyListeners();
+      }
+    } catch (e) {
+      log('Error refreshing stats: $e');
+    }
+  }
+
+  /// Clean up screen-specific resources
+  void cleanupScreenResources() {
+    _progressStreamSubscription?.cancel();
+    _progressStreamSubscription = null;
+    // Reset filters when leaving a screen
+    resetFilters();
+    // Force a refresh when leaving a screen
+    loadProgressData(reset: true, forceRefresh: true);
+  }
 
   // Add a clean-up method
   @override
@@ -351,16 +336,10 @@ Future<void> _refreshStatsOnly() async {
   }
 
   // Add method to load more data (for pagination)
-  Future<void> loadMoreData({int pageSize = 50}) async {
+  Future<void> loadMoreData({int pageSize = _pageSize}) async {
     if (_isLoading || _isLoadingMore || !_hasMoreData) return;
     
     await loadProgressData(reset: false, pageSize: pageSize);
-  }
-
-  // Add this method to safely clean up when leaving a screen
-  void cleanupScreenResources() {
-    _progressStreamSubscription?.cancel();
-    _progressStreamSubscription = null;
   }
 
   // Split resource cleanup from complete disposal
@@ -381,9 +360,9 @@ Future<void> _refreshStatsOnly() async {
     }
   }
 
-  // Reset controller for reuse
+  /// Reset controller for reuse
   void resetController() {
-    if (_isActive) return; // Don't reset if still active
+    if (_isActive) return;
     
     _isActive = true;
     _isLoading = false;
@@ -391,6 +370,13 @@ Future<void> _refreshStatsOnly() async {
     _errorMessage = null;
     _isLoadingMore = false;
     _hasMoreData = true;
+    _isInitialized = false;
+    _isRefreshing = false;
+    _currentPage = 0;
+    _selectedMedicationId = null;
+    _selectedReminderId = null;
+    _startDate = null;
+    _endDate = null;
   }
 
   /// Deletes all progress entries for a specific reminder
@@ -434,11 +420,12 @@ Future<void> _refreshStatsOnly() async {
 
   // Add this method to initialize the controller
   void initialize() {
-    if (!_isActive) return;
+    if (!_isActive || _isInitialized) return;
     
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     
+    _isInitialized = true;
     initializeRealTimeUpdates();
     initializeReminderUpdates(user.uid);
   }
@@ -466,8 +453,6 @@ Future<void> _refreshStatsOnly() async {
   void updateStatsFromEntries(List<ProgressEntry> allEntries) {
     if (!_isActive) return;
     
- 
-    
     _statsEntries = allEntries;
     _stats = _progressService.calculateAdherenceStats(allEntries);
     _scheduleTypeStats = _progressService.calculateScheduleTypeStats(allEntries);
@@ -475,5 +460,18 @@ Future<void> _refreshStatsOnly() async {
     notifyListeners();
   }
 
-
+  // Add this helper method to check if progress entries have significantly changed
+  bool _areProgressEntriesChanged(List<Map<String, dynamic>> firestoreEntries) {
+    // Quick length check
+    if (_entries.length != firestoreEntries.length) {
+      return true;
+    }
+    
+    // Count entries by ID in both collections
+    final currentIds = _entries.map((e) => e.id).toSet();
+    final firestoreIds = firestoreEntries.map((e) => e['id'] as String).toSet();
+    
+    // If the sets of IDs differ, data has changed
+    return !setEquals(currentIds, firestoreIds);
+  }
 }
