@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
+import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 
 /// Screen for selecting an eye medication for a reminder
 ///
@@ -51,10 +52,10 @@ class _EyeMedicationSelectionScreenState extends State<EyeMedicationSelectionScr
 
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       final medicationService = Provider.of<MedicationService>(context, listen: false);
+      final reminderService = Provider.of<ReminderService>(context, listen: false);
       
       // Get medication data stream and get first value
       final stream = medicationService.buildMedicationsStream(firestoreService, user.uid);
-      
       final medications = await stream.first;
       
       // Filter for only eye medications
@@ -62,8 +63,17 @@ class _EyeMedicationSelectionScreenState extends State<EyeMedicationSelectionScr
           .where((med) => med["medType"] == "Eye Medication")
           .toList();
       
+      // Filter out medications that already have reminders
+      final availableMedications = <Map<String, dynamic>>[];
+      for (var medication in eyeMedications) {
+        final hasReminder = await reminderService.isDuplicateReminder(user.uid, medication["id"]);
+        if (!hasReminder) {
+          availableMedications.add(medication);
+        }
+      }
+      
       setState(() {
-        _medications = eyeMedications;
+        _medications = availableMedications;
         _filteredMedications = _processFilteredMedications(_medications);
         _isLoading = false;
       });
