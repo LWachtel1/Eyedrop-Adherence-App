@@ -546,82 +546,46 @@ abstract class ScheduleTypeBaseState<T extends ScheduleTypeBaseScreen> extends S
       child: InkWell(
         onTap: () => _navigateToReminderDetails(reminder.reminderData),
         borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: EdgeInsets.all(3.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(1.w),
-                    decoration: BoxDecoration(
-                      color: themeColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.medication_outlined,
-                      size: 16.sp,
-                      color: themeColor,
-                    ),
-                  ),
-                  SizedBox(width: 1.w),
-                  Expanded(
-                    child: Text(
-                      reminder.medicationName,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(3.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(1.w),
+                      decoration: BoxDecoration(
+                        color: themeColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                      child: Icon(
+                        Icons.medication_outlined,
+                        size: 16.sp,
+                        color: themeColor,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Divider(),
-              
-              // Next dose
-              Text(
-                "Next Reminder:",
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
-              ),
-              SizedBox(height: 0.5.h),
-              Row(
-                children: [
-                  Icon(Icons.access_time, 
-                       size: 14.sp, 
-                       color: isPast ? Colors.grey : themeColor),
-                  SizedBox(width: 1.w),
-                  Text(
-                    nextTimeString,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.bold,
-                      color: isPast ? Colors.grey : themeColor,
-                      decoration: isPast ? TextDecoration.lineThrough : null,
+                    SizedBox(width: 1.w),
+                    Expanded(
+                      child: Text(
+                        reminder.medicationName,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Text(
-                nextDateString,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: Colors.grey[600],
+                  ],
                 ),
-              ),
-              
-              SizedBox(height: 1.h),
-              
-              // Show all scheduled times for today
-              if (todayNotifications.isNotEmpty) ...[
+                Divider(),
+                
+                // Next dose
                 Text(
-                  "Today's Times:",
+                  "Next Reminder:",
                   style: TextStyle(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
@@ -629,95 +593,133 @@ abstract class ScheduleTypeBaseState<T extends ScheduleTypeBaseScreen> extends S
                   ),
                 ),
                 SizedBox(height: 0.5.h),
-                Wrap(
-                  spacing: 1.w,
-                  children: todayNotifications.map((r) {
-                    final timeStr = DateFormat('h:mm a').format(r.scheduledTime);
-                    final isPast = r.scheduledTime.isBefore(now);
-                    
-                    return Container(
-                      margin: EdgeInsets.only(bottom: 0.5.h),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 2.w, 
-                        vertical: 0.3.h
-                      ),
-                      decoration: BoxDecoration(
-                        color: isPast ? Colors.grey[200] : themeColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 10.sp,
-                          color: isPast ? Colors.grey[600] : themeColor,
-                          decoration: isPast ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-              
-              Spacer(),
-              
-              // Dosage info
-              if (reminderData['doseQuantity'] != null && reminderData['doseUnits'] != null)
                 Row(
                   children: [
-                    Icon(Icons.medication, size: 14.sp, color: Colors.grey[700]),
+                    Icon(Icons.access_time, 
+                         size: 14.sp, 
+                         color: isPast ? Colors.grey : themeColor),
                     SizedBox(width: 1.w),
                     Text(
-                      '${_formatDoseQuantity(reminderData['doseQuantity'])} ${reminderData['doseUnits']}',
+                      nextTimeString,
                       style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        color: isPast ? Colors.grey : themeColor,
+                        decoration: isPast ? TextDecoration.lineThrough : null,
                       ),
                     ),
                   ],
                 ),
-              
-              // Application site for eye medications
-              if (reminderData['medicationType'] == 'Eye Medication' && 
-                  reminderData['applicationSite'] != null)
-                Padding(
-                  padding: EdgeInsets.only(top: 0.5.h),
-                  child: Row(
+                Text(
+                  nextDateString,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                
+                SizedBox(height: 1.h),
+                
+                // Show all scheduled times for today
+                if (todayNotifications.isNotEmpty) ...[
+                  Text(
+                    "Today's Times:",
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  SizedBox(height: 0.5.h),
+                  Wrap(
+                    spacing: 1.w,
+                    children: todayNotifications.map((r) {
+                      final timeStr = DateFormat('h:mm a').format(r.scheduledTime);
+                      final isPast = r.scheduledTime.isBefore(now);
+                      
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 0.5.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 2.w, 
+                          vertical: 0.3.h
+                        ),
+                        decoration: BoxDecoration(
+                          color: isPast ? Colors.grey[200] : themeColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 10.sp,
+                            color: isPast ? Colors.grey[600] : themeColor,
+                            decoration: isPast ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                
+                SizedBox(height: 1.h),
+                
+                // Dosage info
+                if (reminderData['doseQuantity'] != null && reminderData['doseUnits'] != null)
+                  Row(
                     children: [
-                      Icon(Icons.remove_red_eye, size: 14.sp, color: Colors.grey[700]),
+                      Icon(Icons.medication, size: 14.sp, color: Colors.grey[600]),
                       SizedBox(width: 1.w),
                       Text(
-                        reminderData['applicationSite'],
+                        "${_formatDoseQuantity(reminderData['doseQuantity'])} ${reminderData['doseUnits']}",
                         style: TextStyle(
                           fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
-                ),
-              
-              SizedBox(height: 1.h),
-              
-              // Upcoming count
-              if (futureNotifications.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 0.5.h),
-                  decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    "${futureNotifications.length} more upcoming",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w500,
-                      color: themeColor,
+                
+                // Application site for eye medications
+                if (reminderData['medicationType'] == 'Eye Medication' &&
+                    reminderData['applicationSite'] != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: 0.5.h),
+                    child: Row(
+                      children: [
+                        Icon(Icons.visibility, size: 14.sp, color: Colors.grey[600]),
+                        SizedBox(width: 1.w),
+                        Text(
+                          reminderData['applicationSite'],
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-            ],
+                
+                // Show count of future notifications
+                if (futureNotifications.isNotEmpty)
+                  Container(
+                    margin: EdgeInsets.only(top: 1.h),
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 0.5.h),
+                    decoration: BoxDecoration(
+                      color: themeColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      "${futureNotifications.length} more upcoming",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        color: themeColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
