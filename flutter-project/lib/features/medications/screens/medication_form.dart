@@ -34,11 +34,24 @@ class MedicationFormState extends State<MedicationForm> {
         child: ListView(
           padding: EdgeInsets.all(5.w),
           children: [
-            Center(
-              child: Text(
-                "Add Eye Medication",
-                style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
-              ),
+            // Back button and title row
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: "Go back",
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      "Add Eye Medication",
+                      style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 48), // Balance the header
+              ],
             ),
             
             SizedBox(height: 3.h),
