@@ -69,30 +69,44 @@ class NotificationController extends ChangeNotifier {
     
     log('User tapped on notification: ${notificationData.medicationName}');
     
+    // Use a fire-and-forget pattern with error handling
+    _processTappedNotification(notificationData).catchError((error) {
+      log('Error processing tapped notification: $error');
+    });
+  }
+
+  /// Processes the tapped notification asynchronously
+  Future<void> _processTappedNotification(NotificationData notificationData) async {
     // Record medication taken
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null && notificationData.reminderId.isNotEmpty) {
-      _recordMedicationTaken(user.uid, notificationData);
+    if (user == null || notificationData.reminderId.isEmpty) return;
+    
+    await _recordMedicationTaken(user.uid, notificationData);
 
-      // Gets the navigator state using global key from main.dart.
-      final NavigatorState? navigator = navigatorKey.currentState;
-      if (navigator == null) return;
+    // Gets the navigator state using global key from main.dart.
+    final NavigatorState? navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+    
+    try {
+      // Fetch the reminder data
+      final reminder = await _reminderService.getReminderById(
+        user.uid, 
+        notificationData.reminderId
+      );
       
-      // Navigates to reminder details screen if we have a reminder ID.
-      if (notificationData.reminderId.isNotEmpty) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) return;
-        
-        // Fetch the full reminder data and navigate to the details screen.
-        _reminderService.getReminderById(user.uid, notificationData.reminderId)
-          .then((reminder) {
-            if (reminder != null) {
-              navigator.push(MaterialPageRoute(
-                builder: (context) => ReminderDetailScreen(reminder: reminder)
-              ));
-            }
-          });
+      // Navigate to the details screen if we have valid reminder data
+      if (reminder != null && navigator.mounted) {
+        navigator.push(MaterialPageRoute(
+          builder: (context) => ReminderDetailScreen(reminder: reminder)
+        ));
       }
+      
+      // Cancel the notification after successful processing
+      if (notificationData.id != null) {
+        await _notificationService.cancelNotification(notificationData.id!);
+      }
+    } catch (e) {
+      log('Error navigating to reminder details: $e');
     }
   }
 

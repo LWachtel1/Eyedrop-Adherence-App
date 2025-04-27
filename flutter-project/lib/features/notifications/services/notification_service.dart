@@ -164,7 +164,8 @@ class NotificationService {
           reminderId: parts[0],
           medicationId: parts.length > 1 ? parts[1] : '',
           medicationName: parts.length > 2 ? parts[2] : 'Medication',
-          payload: response.payload
+          payload: response.payload,
+          id: response.id
         );
         _notificationSubject.add(data);
       } catch (e) {
@@ -199,8 +200,8 @@ class NotificationService {
       ],
       // Add these settings for more reliable delivery
       showWhen: true,
-      autoCancel: false,
-      ongoing: true,  // Make notification persistent until acted upon
+      autoCancel: true,
+      ongoing: false,  
       timeoutAfter: 300000,  // 5 minutes timeout
     );
       
