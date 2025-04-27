@@ -127,6 +127,8 @@ class _ReminderFormState extends State<ReminderForm> {
                   });
                 },
               ),
+              Text("Automatically distributes scheduled medication timings across the pre-defined active window.\n\nPlease note that if you are creating this reminder after the start of the window, some timings may carry over to the next day.",
+                  style: TextStyle(fontSize: 15.sp, fontStyle: FontStyle.italic, color: Colors.grey[1000])),
 
               SizedBox(height: 1.h),
 
