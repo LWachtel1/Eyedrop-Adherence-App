@@ -436,7 +436,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   SizedBox(width: 1.w),
                   Text(
                     smartScheduling 
-                        ? "Smart Scheduling" 
+                        ? "Automatic Scheduling" 
                         : "Manual Scheduling",
                     style: TextStyle(
                       fontSize: 12.sp,

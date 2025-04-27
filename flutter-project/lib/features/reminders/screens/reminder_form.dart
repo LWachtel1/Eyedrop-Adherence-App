@@ -119,7 +119,7 @@ class _ReminderFormState extends State<ReminderForm> {
 
               // 7. Smart Scheduling Toggle.
               FormComponents.buildCheckbox(
-                label: "Use Smart Scheduling",
+                label: "Use Automatic Scheduling",
                 value: controller.smartScheduling,
                 onChanged: (val) {
                   setState(() {

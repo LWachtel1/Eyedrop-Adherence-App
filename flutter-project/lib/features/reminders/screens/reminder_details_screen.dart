@@ -133,7 +133,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                           ),
                         ),
                         _buildDetailRow(
-                          "Smart Scheduling",
+                          "Automatic Scheduling",
                           _reminder["smartScheduling"] == true ? "Enabled" : "Disabled",
                         ),
                         // Schedule type and frequency
