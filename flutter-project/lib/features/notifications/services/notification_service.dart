@@ -390,7 +390,21 @@ class NotificationService {
         }
         
         // Handles different reminder types.
-        if (reminder['smartScheduling'] == false && reminder['timings'] is List) {
+        if (reminder['smartScheduling'] == true) {
+          // Smart scheduling.
+          log('Scheduling smart reminder for ${reminder['medicationName']}');
+          await scheduleSmartReminder(
+            reminderId: reminderId,
+            medicationId: medicationId,
+            medicationName: medicationName,
+            applicationSite: applicationSite,
+            doseInfo: doseInfo,
+            frequency: reminder['frequency'] is int ? reminder['frequency'] : int.tryParse(reminder['frequency']?.toString() ?? '1') ?? 1,
+            scheduleType: reminder['scheduleType'] ?? 'daily',
+            startTime: reminder['windowStartTime'],
+            endTime: reminder['windowEndTime'],
+          );
+        } else if (reminder['timings'] is List) {
           // Manual scheduling with specific times.
           log('Scheduling manual reminder for ${reminder['medicationName']}');
           await scheduleManualReminder(
@@ -400,21 +414,7 @@ class NotificationService {
             applicationSite: applicationSite,
             doseInfo: doseInfo,
             timings: reminder['timings'],
-            scheduleType: reminder['scheduleType'] ?? 'daily', // Pass schedule type
-          );
-        } else {
-          // Smart scheduling.
-          log('Scheduling smart reminder for ${reminder['medicationName']}');
-          await scheduleSmartReminder(
-            reminderId: reminderId,
-            medicationId: medicationId,
-            medicationName: medicationName,
-            applicationSite: applicationSite,
-            doseInfo: doseInfo,
-            frequency: reminder['frequency'] ?? 1,
-            scheduleType: reminder['scheduleType'] ?? 'daily', // Add scheduleType parameter
-            startTime: reminder['windowStartTime'],
-            endTime: reminder['windowEndTime'],
+            scheduleType: reminder['scheduleType'] ?? 'daily',
           );
         }
       }
