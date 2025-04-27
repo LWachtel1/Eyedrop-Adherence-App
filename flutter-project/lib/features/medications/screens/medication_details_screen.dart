@@ -320,6 +320,9 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
 
   /// Handle saving changes with form validation.
   Future<void> _saveChanges() async {
+    // First, apply any pending changes from text fields
+    MedicationDetailsFields.applyPendingChanges();
+    
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       

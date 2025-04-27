@@ -14,6 +14,10 @@ class MedicationDetailsFields {
   // Use a static map to store timers for different field keys
   static final Map<String, Timer?> _debounceTimers = {};
 
+  // Add these maps to track controllers and their callbacks
+  static final Map<String, TextEditingController> _activeControllers = {};
+  static final Map<String, Function(String, dynamic)> _activeCallbacks = {};
+
   /// Builds an editable text field or a read-only detail row.
   ///
   /// If `isEditing` is true, it displays a text input field. Otherwise, it shows a non-editable text field.
@@ -31,6 +35,12 @@ class MedicationDetailsFields {
     TextEditingController controller = TextEditingController(
       text: medicationData[fieldKey]?.toString() ?? ''
     );
+    
+    // Store the controller and callback for immediate application when needed
+    if (isEditing) {
+      _activeControllers[fieldKey] = controller;
+      _activeCallbacks[fieldKey] = onValueChanged;
+    }
 
     // Use FormComponents for text field
     return isEditing
@@ -61,8 +71,43 @@ class MedicationDetailsFields {
               onValueChanged(fieldKey, value);
             });
           },
+          // Add this to apply changes immediately when field loses focus
+          onEditingComplete: () {
+            if (_debounceTimers[fieldKey] != null) {
+              _debounceTimers[fieldKey]!.cancel();
+            }
+            onValueChanged(fieldKey, controller.text);
+          },
         )
       : buildDetailRow(label, medicationData[fieldKey]?.toString());
+  }
+
+  /// Applies all pending text changes immediately
+  static void applyPendingChanges() {
+    // Apply the current text value from each active controller
+    _activeControllers.forEach((fieldKey, controller) {
+      if (_activeCallbacks.containsKey(fieldKey)) {
+        // Send the current text value directly to the callback
+        _activeCallbacks[fieldKey]!(fieldKey, controller.text);
+      }
+    });
+    
+    // Cancel any pending debounce timers
+    _debounceTimers.forEach((key, timer) {
+      if (timer != null && timer.isActive) {
+        timer.cancel();
+      }
+    });
+    
+    // Clear the timer map
+    _debounceTimers.clear();
+  }
+
+  /// Cleans up resources when fields are no longer needed
+  static void clearControllers() {
+    _activeControllers.clear();
+    _activeCallbacks.clear();
+    _debounceTimers.clear();
   }
 
   /// Builds a dropdown selection field.

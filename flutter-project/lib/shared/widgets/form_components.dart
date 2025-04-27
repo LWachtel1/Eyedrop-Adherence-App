@@ -27,6 +27,7 @@ class FormComponents {
   /// - `validator`: Function to validate the input value.
   /// - `maxLines`: Number of lines for the text field.
   /// - `hintText`: Hint text to display when the field is empty.
+  /// - `onEditingComplete`: Callback triggered when editing is complete.
   static Widget buildTextField({
     required String label,
     required TextEditingController controller,
@@ -39,6 +40,7 @@ class FormComponents {
     String? Function(String?)? validator,
     int? maxLines,
     String? hintText,
+    VoidCallback? onEditingComplete, // Add this parameter
   }) {
     return Padding(
       padding: EdgeInsets.only(bottom: 2.h),
@@ -50,6 +52,7 @@ class FormComponents {
         maxLines: maxLines ?? 1,
         // Pass the onChanged callback to TextFormField
         onChanged: onChanged,
+        onEditingComplete: onEditingComplete, // Add this line
         decoration: InputDecoration(
           labelText: label,
           hintText: hintText,
