@@ -183,7 +183,7 @@ class MedicationFormState extends State<MedicationForm> {
             FormComponents.buildDropdown(
               label: "Dose Units",
               value: controller.doseUnits.isNotEmpty ? controller.doseUnits : null,
-              items: ["drops", "sprays", "mL", "teaspoon", "tablespoon", "pills/tablets"],
+              items: ["drops", "sprays", "mL", "grams", "cm", "teaspoon", "tablespoon", "pills/tablets"],
               onChanged: (val) {
                 setState(() {
                   controller.doseUnits = val!;

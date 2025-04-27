@@ -219,7 +219,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
                         MedicationDetailsFields.buildDropdownField(
                           label: "Dose Units",
                           fieldKey: "doseUnits",
-                          options: ["drops", "sprays", "mL", "teaspoon", "tablespoon", "pills/tablets"],
+                          options: ["drops", "sprays", "mL", "grams", "cm", "teaspoon", "tablespoon", "pills/tablets"],
                           medicationData: _controller.editableMedication,
                           isEditing: _controller.isEditing,
                           onValueChanged: _updateFieldValue,
