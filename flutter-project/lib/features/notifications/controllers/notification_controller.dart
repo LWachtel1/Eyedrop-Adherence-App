@@ -8,6 +8,7 @@ import 'package:eyedrop/features/notifications/services/notification_service.dar
 import 'package:eyedrop/features/progress/services/progress_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_service.dart';
 import 'package:eyedrop/features/reminders/services/reminder_expiration_service.dart';
+import 'package:eyedrop/features/notifications/models/notification_data.dart';
 
 /// NotificationController manages the notification preferences and logic related to scheduling, rescheduling, and handling reminder notification taps.
 /// 
@@ -69,9 +70,9 @@ class NotificationController extends ChangeNotifier {
     log('User tapped on notification: ${notificationData.medicationName}');
     
     // Record medication taken
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null && notificationData.reminderId.isNotEmpty) {
-    _recordMedicationTaken(user.uid, notificationData);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && notificationData.reminderId.isNotEmpty) {
+      _recordMedicationTaken(user.uid, notificationData);
 
       // Gets the navigator state using global key from main.dart.
       final NavigatorState? navigator = navigatorKey.currentState;
@@ -94,13 +95,28 @@ class NotificationController extends ChangeNotifier {
       }
     }
   }
-  // Add new method to record medication taken
-  Future<void> _recordMedicationTaken(String userId, notificationData) async {
+
+  // Update _recordMedicationTaken to use the payload directly
+  Future<void> _recordMedicationTaken(String userId, NotificationData notificationData) async {
     try {
-      // Extract scheduled time from notification ID or payload
-      // For this implementation, we'll use the current time, but in practice
-      // you would want to extract the exact scheduled time from the notification
       DateTime now = DateTime.now();
+      DateTime scheduledAt = now.subtract(Duration(minutes: 1)); // Default fallback
+      
+      // Extract the actual scheduled time from the notification payload
+      if (notificationData.payload != null) {
+        final parts = notificationData.payload!.split('|');
+        if (parts.length >= 4) {
+          // The fourth part (index 3) contains the scheduled timestamp
+          final timestampStr = parts[3];
+          try {
+            final timestamp = int.parse(timestampStr);
+            scheduledAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+            log('Successfully parsed scheduled time from payload: ${scheduledAt.toString()}');
+          } catch (e) {
+            log('Failed to parse timestamp from payload: $e');
+          }
+        }
+      }
       
       // Get the reminder details to obtain the schedule type
       final reminder = await _reminderService.getReminderById(
@@ -114,10 +130,12 @@ class NotificationController extends ChangeNotifier {
           userId: userId,
           reminderId: notificationData.reminderId,
           medicationId: notificationData.medicationId,
-          scheduledAt: now.subtract(Duration(minutes: 1)), // Approximate scheduled time
+          scheduledAt: scheduledAt,
           respondedAt: now,
           scheduleType: reminder['scheduleType'] ?? 'daily',
+          medicationName: notificationData.medicationName,
         );
+        log('Recorded medication taken: ${notificationData.medicationId} at ${now.toString()}, scheduled at ${scheduledAt.toString()}');
       }
     } catch (e) {
       log('Error recording medication taken: $e');
@@ -228,39 +246,39 @@ class NotificationController extends ChangeNotifier {
   }
 
   // Add new method to check for missed medications
-Future<void> _scheduleMissedMedicationCheck(Map<String, dynamic> reminder, Duration gracePeriod) async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-  
-  final reminderId = reminder['id'];
-  final medicationId = reminder['userMedicationId'];
-  
-  if (reminderId == null || medicationId == null) return;
-  
-  // Get the current time as an approximation of when the notification was scheduled
-  final scheduledTime = DateTime.now();
-  
-  // Schedule a delayed check for the reminder response
-  Future.delayed(gracePeriod, () async {
-    // Check if this notification has already been handled
-    bool hasEntry = await _progressService.hasProgressEntryForScheduledTime(
-      userId: user.uid,
-      reminderId: reminderId,
-      scheduledTime: scheduledTime,
-    );
+  Future<void> _scheduleMissedMedicationCheck(Map<String, dynamic> reminder, Duration gracePeriod) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     
-    if (!hasEntry) {
-      // No progress entry means no response - record as missed
-      await _progressService.recordMedicationMissed(
+    final reminderId = reminder['id'];
+    final medicationId = reminder['userMedicationId'];
+    
+    if (reminderId == null || medicationId == null) return;
+    
+    // Get the current time as an approximation of when the notification was scheduled
+    final scheduledTime = DateTime.now();
+    
+    // Schedule a delayed check for the reminder response
+    Future.delayed(gracePeriod, () async {
+      // Check if this notification has already been handled
+      bool hasEntry = await _progressService.hasProgressEntryForScheduledTime(
         userId: user.uid,
         reminderId: reminderId,
-        medicationId: medicationId,
-        scheduledAt: scheduledTime,
-        scheduleType: reminder['scheduleType'] ?? 'daily',
+        scheduledTime: scheduledTime,
       );
-    }
-  });
-}
+      
+      if (!hasEntry) {
+        // No progress entry means no response - record as missed
+        await _progressService.recordMedicationMissed(
+          userId: user.uid,
+          reminderId: reminderId,
+          medicationId: medicationId,
+          scheduledAt: scheduledTime,
+          scheduleType: reminder['scheduleType'] ?? 'daily',
+        );
+      }
+    });
+  }
   
   /// Helper to reschedule all reminders for the current user.
   Future<void> _rescheduleAllReminders() async {

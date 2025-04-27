@@ -164,6 +164,7 @@ class NotificationService {
           reminderId: parts[0],
           medicationId: parts.length > 1 ? parts[1] : '',
           medicationName: parts.length > 2 ? parts[2] : 'Medication',
+          payload: response.payload
         );
         _notificationSubject.add(data);
       } catch (e) {
