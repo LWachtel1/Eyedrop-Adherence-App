@@ -373,7 +373,11 @@ class ReminderFormController extends ChangeNotifier {
         final createdReminder = await reminderService.getCreatedReminder(user.uid, userMedicationId);
         if (createdReminder != null && context.mounted) {
           final notificationController = Provider.of<NotificationController>(context, listen: false);
-          notificationController.scheduleReminderNotifications(createdReminder);
+          
+          // Only schedule notifications if the controller is initialized
+          if (notificationController.isInitialized) {
+            notificationController.scheduleReminderNotifications(createdReminder);
+          }
         }
 
         resetForm();

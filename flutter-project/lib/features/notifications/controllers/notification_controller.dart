@@ -27,6 +27,10 @@ class NotificationController extends ChangeNotifier {
   bool get soundEnabled => _notificationService.soundEnabled;
   bool get vibrationEnabled => _notificationService.vibrationEnabled;
   
+  // Add initialization flag
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+  
   // Constructor: initializes notification service, schedules all active reminders, and listens for taps.
   NotificationController({
     required NotificationService notificationService,
@@ -35,19 +39,22 @@ class NotificationController extends ChangeNotifier {
   }) : _notificationService = notificationService,
        _reminderService = reminderService,
        _expirationService = expirationService {
-    // Initialises notification plugin when controller is created.
-    _notificationService.initialize().then((_) {
-
-      // Schedule all active medication reminders for the current user after successful initialisation of notification plugin. 
+    // Initialize notification plugin when controller is created.
+    _notificationService.initialize().then((_) async {
+      // Schedule all active medication reminders for the current user after successful initialization of notification plugin. 
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        _notificationService.scheduleAllReminders(user.uid, _reminderService);
+        await _notificationService.scheduleAllReminders(user.uid, _reminderService);
         
         // Check for expired reminders immediately upon initialization
-        _checkForExpiredReminders();
+        await _checkForExpiredReminders();
         
         // Then set up a periodic check (every 6 hours)
         _startExpirationCheckTimer();
+        
+        // Mark initialization as complete
+        _isInitialized = true;
+        notifyListeners();
       }
     });
     
@@ -145,8 +152,14 @@ class NotificationController extends ChangeNotifier {
   Future<void> scheduleReminderNotifications(Map<String, dynamic> reminder) async {
     if (!_notificationService.notificationsEnabled) return;
     
+    // If initial scheduling is still in progress, skip individual scheduling
+    if (!_isInitialized) {
+      log('Skipping individual reminder scheduling as initial scheduling is still in progress');
+      return;
+    }
+
     // Add grace period tracking (60 minutes after notification)
-  _scheduleMissedMedicationCheck(reminder, Duration(minutes: 60));
+    _scheduleMissedMedicationCheck(reminder, Duration(minutes: 60));
 
     final reminderId = reminder['id'];
     if (reminderId == null) {
