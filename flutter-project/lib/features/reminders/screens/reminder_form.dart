@@ -127,8 +127,32 @@ class _ReminderFormState extends State<ReminderForm> {
                   });
                 },
               ),
+               // Smart scheduling time window selection
+              if (controller.smartScheduling) ...[
+                SizedBox(height: 1.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FormComponents.buildTimeField(
+                        label: "Start Time",
+                        value: controller.windowStartTime,
+                        onTap: () => controller.selectWindowStartTime(context),
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: FormComponents.buildTimeField(
+                        label: "End Time",
+                        value: controller.windowEndTime,
+                        onTap: () => controller.selectWindowEndTime(context),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 1.h),
+              ],
               Text("Automatically distributes scheduled medication timings across the pre-defined active window.\n\nPlease note that if you are creating this reminder after the start of the window, some timings may carry over to the next day.",
-                  style: TextStyle(fontSize: 15.sp, fontStyle: FontStyle.italic, color: Colors.grey[1000])),
+                  style: TextStyle(fontSize: 16.sp, fontStyle: FontStyle.italic, color: Colors.grey[1000])),
 
               SizedBox(height: 1.h),
 

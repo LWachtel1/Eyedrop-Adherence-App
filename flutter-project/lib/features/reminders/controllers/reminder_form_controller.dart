@@ -25,6 +25,9 @@ class ReminderFormController extends ChangeNotifier {
   String _durationUnit = '';
   bool smartScheduling = true;
   List<TimeOfDay> timings = [];
+  TimeOfDay windowStartTime = TimeOfDay(hour: 8, minute: 0); // Default 8:00 AM
+  TimeOfDay windowEndTime = TimeOfDay(hour: 22, minute: 0);  // Default 10:00 PM
+
 
   // Additional medication details from the selected medication
   String scheduleType = '';
@@ -188,6 +191,77 @@ class ReminderFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> selectWindowStartTime(BuildContext context) async {
+    try {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: windowStartTime,
+      );
+
+      if (pickedTime != null) {
+        // Validate: start time must be before end time
+        final startMinutes = pickedTime.hour * 60 + pickedTime.minute;
+        final endMinutes = windowEndTime.hour * 60 + windowEndTime.minute;
+        
+        if (startMinutes >= endMinutes) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Start time must be before end time"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        
+        windowStartTime = pickedTime;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorSnackBar(context, "Failed to select start time.");
+      }
+      log("Error selecting start time: $e");
+    }
+  }
+
+  /// Opens a time picker for selecting the window end time.
+  Future<void> selectWindowEndTime(BuildContext context) async {
+    try {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: windowEndTime,
+      );
+
+      if (pickedTime != null) {
+        // Validate: end time must be after start time
+        final startMinutes = windowStartTime.hour * 60 + windowStartTime.minute;
+        final endMinutes = pickedTime.hour * 60 + pickedTime.minute;
+        
+        if (endMinutes <= startMinutes) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("End time must be after start time"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        
+        windowEndTime = pickedTime;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorSnackBar(context, "Failed to select end time.");
+      }
+      log("Error selecting end time: $e");
+    }
+  }
+
   /// Adds a timing to the list.
   void addTiming(TimeOfDay timing) {
     timings.add(timing);
@@ -289,6 +363,8 @@ class ReminderFormController extends ChangeNotifier {
     smartScheduling = true;
     timings.clear();
     durationController.text = '1';
+    windowStartTime = TimeOfDay(hour: 8, minute: 0); // Reset to default
+    windowEndTime = TimeOfDay(hour: 22, minute: 0);  // Reset to default
     notifyListeners();
   }
 
@@ -318,6 +394,14 @@ class ReminderFormController extends ChangeNotifier {
     if (selectedMedication == null) {
       _showErrorSnackBar(context, "Please select a medication");
       return;
+    }
+
+    String? windowStartTimeStr;
+    String? windowEndTimeStr;
+
+    if (smartScheduling) {
+        windowStartTimeStr = "${windowStartTime.hour.toString().padLeft(2, '0')}:${windowStartTime.minute.toString().padLeft(2, '0')}";
+        windowEndTimeStr = "${windowEndTime.hour.toString().padLeft(2, '0')}:${windowEndTime.minute.toString().padLeft(2, '0')}";
     }
 
     if (!smartScheduling && timings.isEmpty) {
@@ -357,6 +441,8 @@ class ReminderFormController extends ChangeNotifier {
         doseQuantity: doseQuantity,
         applicationSite: applicationSite,
         isEnabled: true, // New reminders are enabled by default
+        windowStartTime: windowStartTimeStr, // Add window start time
+        windowEndTime: windowEndTimeStr,     // Add window end time
       );
 
       // Checks if reminder already exists for this medication.

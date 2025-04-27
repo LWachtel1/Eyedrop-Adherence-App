@@ -59,6 +59,8 @@ class ReminderService {
     String? applicationSite,
     bool isEnabled = true, // Default to enabled
     bool isExpired = false, // Default to not expired
+    String? windowStartTime, // Add window start time parameter
+    String? windowEndTime,   // Add window end time parameter
   }) {
     try {
       List<Map<String, int>>? timingsData;
@@ -88,6 +90,8 @@ class ReminderService {
         'applicationSite': applicationSite,
         'isEnabled': isEnabled, 
         "isExpired": isExpired, 
+        'windowStartTime': windowStartTime,  
+        'windowEndTime': windowEndTime,      
       };
     } catch (e) {
       log("Error creating reminder data: $e");

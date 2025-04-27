@@ -226,8 +226,8 @@ class NotificationController extends ChangeNotifier {
       // Smart scheduling based on frequency and time range
       final frequency = reminder['frequency'] ?? 1;
       final scheduleType = reminder['scheduleType'] ?? 'daily'; // Get scheduleType
-      final startTime = reminder['startTime'];
-      final endTime = reminder['endTime'];
+      final startTime = reminder['windowStartTime'];
+      final endTime = reminder['windowEndTime'];
       
       await _notificationService.scheduleSmartReminder(
         reminderId: reminderId, 

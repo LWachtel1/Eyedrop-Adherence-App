@@ -136,6 +136,14 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                           "Automatic Scheduling",
                           _reminder["smartScheduling"] == true ? "Enabled" : "Disabled",
                         ),
+                        if (_reminder["smartScheduling"] == true) ...[
+                          _buildDetailRow(
+                            "Active Window",
+                            "${_reminder["windowStartTime"]} - ${_reminder["windowEndTime"]}",
+                          ),
+                        ],
+                        
+
                         // Schedule type and frequency
                         _buildDetailRow(
                           "Schedule Type",

@@ -417,8 +417,8 @@ class NotificationService {
             doseInfo: doseInfo,
             frequency: reminder['frequency'] ?? 1,
             scheduleType: reminder['scheduleType'] ?? 'daily', // Add scheduleType parameter
-            startTime: reminder['startTime'],
-            endTime: reminder['endTime'],
+            startTime: reminder['windowStartTime'],
+            endTime: reminder['windowEndTime'],
           );
         }
       }
@@ -586,11 +586,32 @@ class NotificationService {
         endMinute = int.tryParse(parts[1]) ?? 0;
       }
     }
+
+    log("{$startHour}:{$startMinute} to {$endHour}:{$endMinute}");
     
     // Calculate total minutes in the active period
     final startMinutes = startHour * 60 + startMinute;
     final endMinutes = endHour * 60 + endMinute;
     final totalMinutes = endMinutes - startMinutes;
+
+    // Handle special case for single dose
+    if (frequency == 1) {
+      // Place single dose at midpoint of the window
+      final midpointMinutes = startMinutes + (totalMinutes ~/ 2);
+      final midpointHour = midpointMinutes ~/ 60;
+      final midpointMinute = midpointMinutes % 60;
+      
+      final time = DateTime(
+        now.year, 
+        now.month, 
+        now.day, 
+        midpointHour, 
+        midpointMinute
+      );
+      
+      times.add(time);
+      return times;
+    }
     
     // Calculate interval between doses
     final interval = frequency > 1 ? totalMinutes ~/ (frequency - 1) : totalMinutes;
