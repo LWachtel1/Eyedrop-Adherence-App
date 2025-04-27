@@ -10,6 +10,7 @@ import 'package:eyedrop/features/medications/widgets/medication_details_fields.d
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Screen for displaying and editing medication details.
 /// 
@@ -348,11 +349,29 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
           }
         }
 
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+        final medicationId = _controller.editableMedication["id"];
+        
         // Get ReminderService instance from provider
         final reminderService = Provider.of<ReminderService>(context, listen: false);
         
-        // Pass the ReminderService to saveEdits to update associated reminders
-        await _controller.saveEdits(reminderService: reminderService);
+        // Find all reminders associated with this medication before updating
+        List<Map<String, dynamic>> associatedReminders = [];
+        if (userId != null && medicationId != null) {
+          associatedReminders = await reminderService.findAssociatedReminders(userId, medicationId);
+        }
+        
+        // Save medication without updating reminders
+        await _controller.saveEdits(updateReminders: false);
+        
+        // Delete all associated reminders after medication is updated
+        int deletedRemindersCount = 0;
+        if (associatedReminders.isNotEmpty) {
+          for (final reminder in associatedReminders) {
+            await reminderService.deleteReminder(reminder);
+            deletedRemindersCount++;
+          }
+        }
         
         // Closes loading dialog.
         if (mounted) Navigator.of(context).pop();
@@ -360,22 +379,16 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
         if (mounted) {
           setState(() {}); // Updates UI after save.
           
-          // Updated SnackBar to inform about duration updates
+          // Updated SnackBar to inform about reminder deletion
+          String message = "Medication updated successfully";
+          if (deletedRemindersCount > 0) {
+            message += ". $deletedRemindersCount associated reminder(s) were deleted. You'll need to create new reminders.";
+          }
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Medication and associated reminders updated successfully"),
-                  SizedBox(height: 4),
-                  Text(
-                    "Note: Duration edits aren't automatically synced to reminders. Please update any reminders separately.",
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-              duration: Duration(seconds: 5), // Longer duration to read the notice
+              content: Text(message),
+              duration: Duration(seconds: 5),
             ),
           );
         }        
@@ -387,7 +400,7 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Failed to update medication. Please try again."), 
+              content: Text("Failed to update medication. Please try again."),
               action: SnackBarAction(
                 label: 'Details',
                 onPressed: () {

@@ -606,4 +606,31 @@ class ReminderService {
       return null;
     }
   }
+
+  /// Finds reminders associated with a specific medication
+  ///
+  /// Parameters:
+  /// - `userId`: User ID to search within
+  /// - `medicationId`: ID of the medication to find reminders for
+  ///
+  /// Returns a list of reminder documents that are associated with the given medication
+  /// Each document will include its Firestore ID in the "id" field
+  Future<List<Map<String, dynamic>>> findAssociatedReminders(String userId, String medicationId) async {
+    try {
+      // Use the queryCollectionWithIds method which adds document IDs
+      final results = await firestoreService.queryCollectionWithIds(
+        collectionPath: "users/$userId/reminders",
+        filters: [
+          {"field": "userMedicationId", "operator": "==", "value": medicationId}
+        ],
+      );
+      
+      log("Found ${results.length} reminders associated with medication $medicationId");
+      return results;
+    } catch (e) {
+      log("Error finding associated reminders: $e");
+      // Return empty list but don't fail the whole operation
+      return [];
+    }
+  }
 }

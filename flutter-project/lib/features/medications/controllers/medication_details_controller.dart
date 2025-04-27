@@ -62,7 +62,7 @@ class MedicationDetailsController {
   }
   
   /// Saves medication edits to Firestore and updates any associated reminders
-  Future<void> saveEdits({required ReminderService reminderService}) async {
+  Future<void> saveEdits({bool updateReminders = true, ReminderService? reminderService}) async {
     if (editableMedication.isEmpty || originalMedication.isEmpty || 
         !editableMedication.containsKey("id") || editableMedication["id"] == null) {
       throw Exception("Invalid medication data");
@@ -88,17 +88,19 @@ class MedicationDetailsController {
         throw Exception("No changes were made to the medication");
       }
 
-      // After successfully saving the medication, update any associated reminders
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId != null) {
-        final updatedCount = await reminderService.updateRemindersForMedication(
-          userId,
-          editableMedication["id"],
-          editableMedication,
-        );
-        
-        if (updatedCount > 0) {
-          log("Successfully updated $updatedCount associated reminders");
+      // After successfully saving the medication, update any associated reminders if requested
+      if (updateReminders && reminderService != null) {
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+        if (userId != null) {
+          final updatedCount = await reminderService.updateRemindersForMedication(
+            userId,
+            editableMedication["id"],
+            editableMedication,
+          );
+          
+          if (updatedCount > 0) {
+            log("Successfully updated $updatedCount associated reminders");
+          }
         }
       }
       
