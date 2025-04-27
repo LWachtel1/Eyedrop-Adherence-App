@@ -194,11 +194,6 @@ class NotificationService {
       fullScreenIntent: true,
       category: AndroidNotificationCategory.alarm,
       visibility: NotificationVisibility.public,
-      actions: [
-        AndroidNotificationAction('taken', 'Taken'),
-        AndroidNotificationAction('snooze', 'Snooze'),
-      ],
-      // Add these settings for more reliable delivery
       showWhen: true,
       autoCancel: true,
       ongoing: false,  
