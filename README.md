@@ -6,7 +6,7 @@
    </p>
 </div>
 
-## The problem behind [Mobile App Name]
+## The problem behind EyeDrop
 
 Eye drops are required for numerous disorders and diseases that affect on patients' comfort and vision. They are most effective in improving symptoms and stopping progression when taken at their recommended frequency. 
 
