@@ -1,6 +1,5 @@
 <div align="center">
-   <h1>[Mobile App Name]</h1>
-   <img src="" alt="*insert finished product screen here*" />
+   <h1>EyeDrop</h1>
    <p>
      EyeDrop is a cross-platform mobile application that makes adhering your eye drop medication easier and more effective. 
    </p>
