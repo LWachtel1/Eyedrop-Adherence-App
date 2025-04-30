@@ -1,4 +1,5 @@
 import 'package:eyedrop/features/onboarding/services/gdpr_consent_service.dart';
+import 'package:eyedrop/features/onboarding/screens/onetime_intro_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -156,7 +157,7 @@ class _GDPRConsentScreenState extends State<GDPRConsentScreen> {
                           try {
                             await GDPRConsentService.markConsentGiven();
                             if (context.mounted) {
-                              Navigator.pushReplacementNamed(context, '/home');
+                              Navigator.pushReplacementNamed(context, IntroScreen.id);
                             }
                           } catch (e) {
                             if (context.mounted) {
