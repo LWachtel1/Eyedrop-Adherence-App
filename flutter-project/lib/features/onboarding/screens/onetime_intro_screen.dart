@@ -8,6 +8,9 @@
 import 'dart:developer';
 import 'package:eyedrop/features/onboarding/services/onboarding_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
+import 'package:sizer/sizer.dart';
 
 /// A page that introduces a first-time user to the application.
 ///
@@ -74,32 +77,158 @@ class IntroScreen extends StatelessWidget {
 
         //If the user is a first-time user, they are 
         return Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Welcome to the App!", style: TextStyle(fontSize: 24)),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () async {
-                    // Button is pressed when first-time user finishes with the onboarding screen.
-                    // User can go to the home screen and their first time is marked as complete.
-                    try{
-                      await OnboardingService.markFirstTimeComplete();
-                    } catch(e) {
-                      log("Error marking onboarding as complete: $e");
-                    }
-                    if(context.mounted) {
-                      _directToHome(context);
-                    }
-                  },
-                  child: const Text("Get Started"),
-                ),
-              ],
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(5.w),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Welcome Section
+                  Center(
+                    child: Text(
+                      "Welcome to EyeDrop!",
+                      style: TextStyle(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+
+                  // App Purpose Section
+                  Text(
+                    "Your Eye Medication Companion",
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 1.h),
+                  Text(
+                    "EyeDrop helps you manage your eye medications effectively by:",
+                    style: TextStyle(fontSize: 14.sp),
+                  ),
+                  SizedBox(height: 1.h),
+                  _buildFeaturePoint("Setting up medication reminders"),
+                  _buildFeaturePoint("Tracking your medication adherence"),
+                  _buildFeaturePoint("Managing your medication schedule"),
+                  _buildFeaturePoint("Providing educational resources"),
+                  _buildFeaturePoint("Sharing and reading medication reviews"),
+                  SizedBox(height: 2.h),
+
+                  // Navigation Guide Section
+                  Text(
+                    "How to Navigate",
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 1.h),
+                  _buildNavigationPoint(
+                    "Menu Button",
+                    "Tap the menu icon in the bottom left to access all features",
+                    Icons.menu,
+                  ),
+                  _buildNavigationPoint(
+                    "Add Button",
+                    "Use the + icon in the top bar to add new medications or reminders",
+                    Icons.add_circle_outline,
+                  ),
+                  _buildNavigationPoint(
+                    "Account",
+                    "Access your profile via the person icon in the bottom right",
+                    Icons.person_outline,
+                  ),
+                  _buildNavigationPoint(
+                    "Settings",
+                    "Access settings, including notification settings, via the settings icon in the top bar",
+                    Icons.settings,
+                  ),
+                  
+                  SizedBox(height: 3.h),
+
+                  // Get Started Button
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await OnboardingService.markFirstTimeComplete();
+                        } catch (e) {
+                          log("Error marking onboarding as complete: $e");
+                        }
+                        if (context.mounted) {
+                          _directToHome(context);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.5.h),
+                        textStyle: TextStyle(fontSize: 16.sp),
+                      ),
+                      child: const Text("Get Started"),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFeaturePoint(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 0.5.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, size: 16.sp, color: Colors.green),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14.sp),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationPoint(String title, String description, IconData icon) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 1.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16.sp, color: Colors.blue[700]),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
