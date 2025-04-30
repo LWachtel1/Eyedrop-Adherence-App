@@ -19,10 +19,7 @@ However, patients may not comply with these important recommendations for a vari
 
 ## The solution
 
-EyeDrop provides smart reminders, medication management, access to educational resources and eye drop reviews to assist patients facing eye drop adherence difficulties.
-
-### Features:
-- 
+EyeDrop provides reminders, medication management, access to educational resources and eye drop reviews to assist patients facing eye drop adherence difficulties.
 
 ## Technology stack
 ### Front-end
