@@ -79,11 +79,11 @@ class SettingsScreen extends StatelessWidget {
                 
                 SizedBox(height: 3.h),
                 
-                // Add Progress Simulator section
+                // App Information Section
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 5.w),
                   child: Text(
-                    "Development Tools",
+                    "App Information",
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
@@ -91,11 +91,148 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 1.h),
-                _buildProgressSimulator(context),
+                Card(
+                  elevation: 2,
+                  margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(2.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "EyeDrop - Your Eye Medication Companion",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                            color: Colors.blue[800],
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Text(
+                          "EyeDrop helps you manage your eye medications effectively by:",
+                          style: TextStyle(fontSize: 14.sp),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        _buildInfoPoint("Setting up medication reminders"),
+                        _buildInfoPoint("Tracking your medication adherence"),
+                        _buildInfoPoint("Managing your medication schedule"),
+                        _buildInfoPoint("Providing educational resources"),
+                        _buildInfoPoint("Sharing and reading medication reviews"),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 3.h),
+
+                // GDPR Information Section
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5.w),
+                  child: Text(
+                    "Data Protection",
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 1.h),
+                Card(
+                  elevation: 2,
+                  margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 5.w),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(2.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Data We Collect",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        _buildInfoPoint("Email address for account creation"),
+                        _buildInfoPoint("Medication information and schedules"),
+                        _buildInfoPoint("Adherence notification interactions"),
+                        _buildInfoPoint("Reviews of medications you submit"),
+                        SizedBox(height: 1.h),
+                        
+                        Text(
+                          "How We Use Your Data",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        _buildInfoPoint("Send medication reminders"),
+                        _buildInfoPoint("Track your medication adherence"),
+                        _buildInfoPoint("Analyse adherence patterns"),
+                        _buildInfoPoint("Enable feedback features such as medication reviews"),
+                        SizedBox(height: 1.h),
+
+                        Text(
+                          "Data Security",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        _buildInfoPoint("All data is encrypted in transit and at rest"),
+                        _buildInfoPoint("Data stored in private Firebase account"),
+                        _buildInfoPoint("Access restricted by security rules"),
+                        _buildInfoPoint("No data shared with third parties"),
+                        SizedBox(height: 1.h),
+
+                        Text(
+                          "Your Rights",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        _buildInfoPoint("Access, edit, or delete your data"),
+                        _buildInfoPoint("Withdraw consent at any time"),
+                        _buildInfoPoint("Request account deletion"),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                SizedBox(height: 3.h),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+  
+  Widget _buildInfoPoint(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 0.5.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, size: 16.sp, color: Colors.green),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14.sp),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -141,6 +278,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 2.h),
+            
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
