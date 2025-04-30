@@ -35,6 +35,8 @@ import 'package:eyedrop/features/education/services/education_service.dart';
 
 // Add these imports at the top of your file
 import 'package:eyedrop/features/schedule/screens/daily_schedule_screen.dart';
+import 'package:eyedrop/features/onboarding/screens/gdpr_consent_screen.dart';
+import 'package:eyedrop/features/onboarding/services/gdpr_consent_service.dart';
 
 // Global navigator key for notification navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -159,10 +161,34 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey, // Add navigator key for notification navigation
       
-      //The initial route is the first-time user welcome screen.
-      initialRoute: IntroScreen.id,
+      // Check GDPR consent first
+      initialRoute: GDPRConsentScreen.id,
 
       routes: <String, WidgetBuilder>{
+        GDPRConsentScreen.id: (BuildContext context) => FutureBuilder<bool>(
+          future: GDPRConsentService.hasGivenConsent(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return const Scaffold(
+                body: Center(child: Text("Error loading consent status")),
+              );
+            }
+
+            // If user has given consent, go to intro screen
+            if (snapshot.data == true) {
+              return IntroScreen();
+            }
+
+            // Otherwise show GDPR consent screen
+            return GDPRConsentScreen();
+          },
+        ),
         IntroScreen.id: (BuildContext context) => IntroScreen(),
         '/home': (BuildContext context) => AuthGate(),
         RemindersScreen.id: (BuildContext context) => RemindersScreen(),
