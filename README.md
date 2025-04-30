@@ -2,7 +2,7 @@
    <h1>[Mobile App Name]</h1>
    <img src="" alt="*insert finished product screen here*" />
    <p>
-     [Mobile App Name] is a cross-platform mobile application that makes adhering your eye drop medication easier and more effective. 
+     EyeDrop is a cross-platform mobile application that makes adhering your eye drop medication easier and more effective. 
    </p>
 </div>
 
@@ -20,7 +20,7 @@ However, patients may not comply with these important recommendations for a vari
 
 ## The solution
 
-[Mobile App Name] provides smart reminders, medication management, access to educational resources and eye drop reviews, and computer-vision-powered aim guidance to assist patients facing eye drop adherence difficulties.
+EyeDrop provides smart reminders, medication management, access to educational resources and eye drop reviews to assist patients facing eye drop adherence difficulties.
 
 ### Features:
 - 
@@ -30,6 +30,8 @@ However, patients may not comply with these important recommendations for a vari
 The app's user interface was built using Flutter as it enables rapid development of cross-platform mobile applications due to its easy-to-understand widget-based architecture.
 
 ### Back-end
+Firebase Authentication
+Firebase Cloud Firestore
 
 
 
