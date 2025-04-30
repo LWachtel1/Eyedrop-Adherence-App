@@ -1,7 +1,3 @@
-/*
-  TO DO:
-  - add FireStore user data deletion to AccountDeletedAction
-*/
 
 import 'package:eyedrop/features/auth/screens/auth_gate.dart';
 import 'package:eyedrop/shared/widgets/base_layout_screen.dart';
