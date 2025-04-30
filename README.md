@@ -31,7 +31,4 @@ Firebase Cloud Firestore
 
 
 
-## Future goals
-
-
 
